@@ -1,0 +1,12 @@
+{
+  "name": "agent-cost-kit",
+  "owner": { "name": "Anaël Yahi" },
+  "description": "Setup économe en tokens pour le développement par agents avec Claude Code.",
+  "plugins": [
+    {
+      "name": "agent-cost-kit",
+      "source": "./",
+      "description": "Setup de développement par agents économe en tokens : agents routés par rôle, contrôle rapide, mesure du coût réel des agents."
+    }
+  ]
+}
