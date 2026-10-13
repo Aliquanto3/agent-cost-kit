@@ -35,7 +35,7 @@ Le setup de ce plugin (dev-story Sonnet, puis reviewer Sonnet, sans imbrication,
 ## Installation
 
 ```
-/plugin marketplace add anael-yahi/agent-cost-kit
+/plugin marketplace add Aliquanto3/agent-cost-kit
 /plugin install agent-cost-kit@agent-cost-kit
 ```
 
