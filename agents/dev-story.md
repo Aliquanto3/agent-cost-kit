@@ -21,6 +21,6 @@ Règles :
 Livrables :
 1. Une courte spec dans le dossier des specs du projet, au format des specs voisines, en `status: review`.
 2. Le code et les tests dans le worktree, commités avec le préfixe de commit du projet.
-3. Pas de fusion ni de mise à jour du suivi de sprint : l'orchestrateur fait relire le diff, puis intègre.
+3. Pas de fusion ni de mise à jour du suivi de sprint : l'orchestrateur fait relire le diff (second-avis, puis reviewer), puis intègre.
 
 Rapport final, 5 lignes au plus : statut, SHA du commit, tests, reports, fichiers principaux.

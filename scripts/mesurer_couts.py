@@ -7,8 +7,9 @@ chaque agent, avec les mêmes règles :
 - le coût en équivalent API par catégorie : entrée, écriture du cache (5 min ou 1 h selon
   ``usage.cache_creation``), lecture du cache, sortie ;
 - la sortie réestimée : certaines transcriptions ne gardent que l'usage du début de la réponse
-  (``output_tokens`` de 3 à 60). On retient max(sortie déclarée, caractères émis / k), borne
-  basse puisque la réflexion masquée n'est pas visible ;
+  (``output_tokens`` de 3 à 60). On retient max(sortie déclarée, caractères émis / k), avec
+  k = 2,2 caractères par token : valeur mesurée avec l'endpoint count_tokens le 2026-10-13
+  (médiane 2,13 sur 200 réponses en français). La réflexion masquée reste invisible : borne basse ;
 - le pic de contexte, le contexte du premier appel, le nombre d'appels, la durée ;
 - les expirations du cache (pause plus longue que le TTL, suivie d'une écriture > 20 k tokens) ;
 - le coût contrefactuel avec l'autre TTL (5 min <-> 1 h) ;
@@ -49,7 +50,7 @@ HAIKU_SEUIL_LONG = 100_000
 HAIKU_FACTEUR_LONG = 5.0
 ECRITURE = {"5m": 1.25, "1h": 2.0}
 TTL_S = {"5m": 300, "1h": 3600}
-CARACTERES_PAR_TOKEN = 3.2
+CARACTERES_PAR_TOKEN = 2.2
 SEUIL_REECRITURE = 20_000
 
 
@@ -190,7 +191,7 @@ def main() -> int:
     analyseur.add_argument("--session", nargs="*", help="préfixes des sessions à retenir (défaut : toutes)")
     analyseur.add_argument("--filtre", help="motif (regex, insensible à la casse) sur la description des agents")
     analyseur.add_argument("--out", type=Path, default=Path("mesures-couts"))
-    analyseur.add_argument("--car-par-token", type=float, default=3.2, help="3,2 = borne basse ; 2,2 = médiane observée")
+    analyseur.add_argument("--car-par-token", type=float, default=2.2, help="caractères par token pour la sortie réestimée (2,2 mesuré, voir bancs/)")
     options = analyseur.parse_args()
     global CARACTERES_PAR_TOKEN
     CARACTERES_PAR_TOKEN = options.car_par_token
@@ -307,7 +308,7 @@ def resume(dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict]) 
     sous = [l for l in lignes if l["type"] != "MAIN"]
     main_ = [l for l in lignes if l["type"] == "MAIN"]
     sortie = [f"# Coût des agents : {projet.name}", ""]
-    sortie.append(f"Sortie réestimée à {CARACTERES_PAR_TOKEN} caractères par token (borne basse).")
+    sortie.append(f"Sortie réestimée à {CARACTERES_PAR_TOKEN} caractères par token (réflexion masquée non comptée).")
     sortie.append("")
     sortie.append("| Périmètre | Agents | Coût | Écriture | Lecture | Sortie | Expirations | Coût avec l'autre TTL |")
     sortie.append("|---|---|---|---|---|---|---|---|")
