@@ -6,7 +6,7 @@ description: Installe le setup économe de agent-cost-kit sur le PC (réglages u
 Tu installes le kit sur le PC (partie globale, une fois par machine) puis dans le dépôt courant. Procède dans l'ordre, et demande confirmation avant chaque écriture dans `~/.claude/` ou `.claude/`.
 
 0. **Partie globale, une fois par PC.** Lance `python ${CLAUDE_PLUGIN_ROOT}/scripts/installer_global.py` : c'est un aperçu, rien n'est écrit. Si tout est « déjà conforme » et « à jour », passe à l'étape 1. Sinon, montre les changements, explique-les (détail à l'étape 1), puis, avec l'accord de l'utilisateur, relance avec `--appliquer`. Le script :
-   - fusionne dans `~/.claude/settings.json` : `syncClaudeAiSkills: false`, `effortLevel: "medium"`, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`, sans toucher aux autres clés (proxy, plugins) ;
+   - fusionne dans `~/.claude/settings.json` : `syncClaudeAiSkills: false`, `effortLevel: "medium"`, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`, `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5` (sans lui, l'alias `haiku` des agents du kit restait sur Haiku 4.5), effort `high` pour Fable 5.1 seulement (`modelSettings`), sans toucher aux autres clés (proxy, plugins) ;
    - écrit les consignes de coût du kit dans `~/.claude/CLAUDE.md`, entre deux marqueurs : une relance après une mise à jour du kit remplace ce bloc et seulement lui. Les consignes personnelles se mettent hors des marqueurs ;
    - sauvegarde chaque fichier modifié (`.avant-cost-kit-AAAAMMJJ`) ;
    - signale sans les modifier un effort par modèle autre que medium (`modelSettings`, il prime sur `effortLevel`) et un TTL d'une heure. Propose de les corriger à la main.
