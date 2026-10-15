@@ -43,8 +43,9 @@ def fusionner(actuels: dict, cibles: dict, prefixe: str = "") -> list[str]:
 def alertes(reglages: dict) -> list[str]:
     messages = []
     for modele, conf in reglages.get("modelSettings", {}).items():
-        effort = conf.get("effortLevel")
-        if effort not in (None, "low", "medium"):
+        effort = conf.get("effortLevel") if isinstance(conf, dict) else None
+        # Seuls les modèles des agents du kit : Fable, réservé au difficile, peut rester en high.
+        if effort not in (None, "low", "medium") and any(m in modele for m in ("opus", "sonnet", "haiku")):
             messages.append(
                 f"modelSettings.{modele}.effortLevel = {effort!r} prime sur effortLevel pour ce modèle "
                 "(les agents du kit sont mesurés en medium)."
@@ -59,10 +60,13 @@ def alertes(reglages: dict) -> list[str]:
 
 def avec_bloc(texte: str) -> str:
     bloc = f"{DEBUT}\n{MODELE.read_text(encoding='utf-8').strip()}\n{FIN}"
-    if DEBUT in texte and FIN in texte:
-        avant, reste = texte.split(DEBUT, 1)
-        return avant + bloc + reste.split(FIN, 1)[1]
-    return (texte.rstrip() + "\n\n" if texte.strip() else "") + bloc + "\n"
+    debuts, fins = texte.count(DEBUT), texte.count(FIN)
+    if debuts == fins == 0:
+        return (texte.rstrip() + "\n\n" if texte.strip() else "") + bloc + "\n"
+    if debuts != 1 or fins != 1 or texte.index(DEBUT) > texte.index(FIN):
+        raise ValueError("marqueurs du kit incohérents (absents, dupliqués ou dans le désordre) : corriger à la main")
+    avant, reste = texte.split(DEBUT, 1)
+    return avant + bloc + reste.split(FIN, 1)[1]
 
 
 def main() -> int:
@@ -75,11 +79,28 @@ def main() -> int:
     racine = Path(options.claude_dir).expanduser()
 
     chemin_reglages = racine / "settings.json"
-    reglages = json.loads(chemin_reglages.read_text(encoding="utf-8-sig")) if chemin_reglages.exists() else {}
-    changements = fusionner(reglages, REGLAGES)
+    try:
+        reglages = (
+            json.loads(chemin_reglages.read_text(encoding="utf-8-sig") or "{}") if chemin_reglages.exists() else {}
+        )
+    except json.JSONDecodeError as erreur:
+        print(f"Erreur : {chemin_reglages} n'est pas un JSON valide ({erreur}). Rien n'est écrit.")
+        return 1
     chemin_consignes = racine / "CLAUDE.md"
     consignes = chemin_consignes.read_text(encoding="utf-8-sig") if chemin_consignes.exists() else ""
-    nouvelles_consignes = avec_bloc(consignes)
+    if not isinstance(reglages, dict) or not all(
+        isinstance(reglages.get(c, {}), dict) for c in ("env", "modelSettings")
+    ):
+        print(
+            f"Erreur : {chemin_reglages} : le fichier, `env` et `modelSettings` doivent être des objets JSON. Rien n'est écrit."
+        )
+        return 1
+    try:
+        nouvelles_consignes = avec_bloc(consignes)
+    except ValueError as erreur:
+        print(f"Erreur : {chemin_consignes} : {erreur}. Rien n'est écrit.")
+        return 1
+    changements = fusionner(reglages, REGLAGES)
 
     print(f"{chemin_reglages} :")
     for ligne in changements or ["déjà conforme"]:
