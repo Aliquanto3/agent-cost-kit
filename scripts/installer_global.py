@@ -22,7 +22,10 @@ from pathlib import Path
 REGLAGES = {
     "syncClaudeAiSkills": False,
     "effortLevel": "medium",
-    "env": {"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"},
+    # L'alias `haiku` des agents du kit restait sur Haiku 4.5 (mesure du 2026-10-15) : à revoir à chaque sortie.
+    "env": {"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-5-5"},
+    # Fable, réservé au difficile, garde high ; les autres modèles suivent effortLevel.
+    "modelSettings": {"claude-fable-5-1": {"effortLevel": "high"}},
 }
 DEBUT, FIN = "<!-- agent-cost-kit:debut -->", "<!-- agent-cost-kit:fin -->"
 MODELE = Path(__file__).resolve().parent.parent / "modeles" / "CLAUDE.global.md"
