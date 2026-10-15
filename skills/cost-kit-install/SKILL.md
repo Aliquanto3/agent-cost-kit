@@ -1,11 +1,21 @@
 ---
 name: cost-kit-install
-description: Installe le setup économe de agent-cost-kit dans le projet courant - propose les réglages de settings.json (profondeur d'imbrication, TTL du cache des sous-agents, skills claude.ai), copie le modèle de contrôle rapide, explique l'enchaînement des agents et vérifie l'installation. À invoquer avec "install cost kit", "installer le kit de coût" ou /cost-kit-install.
+description: Installe le setup économe de agent-cost-kit sur le PC (réglages utilisateur et consignes globales, une fois par machine) puis dans le projet courant - propose les réglages de settings.json (profondeur d'imbrication, TTL du cache des sous-agents, skills claude.ai), copie le modèle de contrôle rapide, explique l'enchaînement des agents et vérifie l'installation. À invoquer avec "install cost kit", "installer le kit de coût" ou /cost-kit-install.
 ---
 
-Tu installes le kit dans le dépôt courant. Procède dans l'ordre, et demande confirmation avant chaque écriture dans `.claude/`.
+Tu installes le kit sur le PC (partie globale, une fois par machine) puis dans le dépôt courant. Procède dans l'ordre, et demande confirmation avant chaque écriture dans `~/.claude/` ou `.claude/`.
 
-1. **Réglages recommandés.** Lis `.claude/settings.json` s'il existe. Propose d'y fusionner ce bloc, en expliquant chaque ligne :
+0. **Partie globale, une fois par PC.** Lance `python ${CLAUDE_PLUGIN_ROOT}/scripts/installer_global.py` : c'est un aperçu, rien n'est écrit. Si tout est « déjà conforme » et « à jour », passe à l'étape 1. Sinon, montre les changements, explique-les (détail à l'étape 1), puis, avec l'accord de l'utilisateur, relance avec `--appliquer`. Le script :
+   - fusionne dans `~/.claude/settings.json` : `syncClaudeAiSkills: false`, `effortLevel: "medium"`, `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`, sans toucher aux autres clés (proxy, plugins) ;
+   - écrit les consignes de coût du kit dans `~/.claude/CLAUDE.md`, entre deux marqueurs : une relance après une mise à jour du kit remplace ce bloc et seulement lui. Les consignes personnelles se mettent hors des marqueurs ;
+   - sauvegarde chaque fichier modifié (`.avant-cost-kit-AAAAMMJJ`) ;
+   - signale sans les modifier un effort par modèle autre que medium (`modelSettings`, il prime sur `effortLevel`) et un TTL d'une heure. Propose de les corriger à la main.
+
+   Deux options, à proposer sans les imposer :
+   - **Projets Python** : le plugin officiel `pyright-lsp` donne à Claude la navigation par symbole et les erreurs de type après chaque modification, au lieu de rechercher puis lire plusieurs fichiers (gain non mesuré par le kit). Sans droits admin : `uv tool install pyright` (ou `pip install --user pyright`), puis `claude plugin install pyright-lsp@claude-plugins-official`.
+   - **Connecteurs claude.ai inutiles en développement** : les lister avec `/mcp`, puis les bloquer dans `~/.claude/settings.json` par `"deniedMcpServers": [{ "serverName": "claude.ai Gmail" }, …]`, ou tous par `"disableClaudeAiConnectors": true`. Gain faible (leurs outils ne sont chargés qu'au premier usage, seules leurs consignes le sont toujours), non mesuré.
+
+1. **Réglages du projet.** Si la partie globale est appliquée, il n'y a rien à ajouter ici, sauf retirer `subagentPromptCacheTtl: "1h"` du projet s'il y figure. Sinon, lis `.claude/settings.json` s'il existe et propose d'y fusionner ce bloc, en expliquant chaque ligne :
 
    ```json
    {

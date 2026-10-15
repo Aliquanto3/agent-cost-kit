@@ -75,8 +75,11 @@ La qualité est comparable, pour un coût 5 fois moindre. Sur 10 autres stories 
 
 Ou, pour l'essayer sans installer : `claude --plugin-dir ./agent-cost-kit`.
 
+Sur un nouveau PC, ces deux commandes et un `/cost-kit-install` suffisent : les réglages globaux ne sont pas synchronisés d'une machine à l'autre, le script les réapplique. Après une mise à jour du kit, relancez-le (`python scripts/installer_global.py`) : il ne remplace que le bloc du kit dans `~/.claude/CLAUDE.md`.
+
 Puis, dans votre projet : `/cost-kit-install`. Le skill :
-- propose les réglages à copier (un plugin ne peut pas les imposer) ;
+- une fois par PC, applique avec votre accord les réglages utilisateur (`~/.claude/settings.json`) et les consignes de coût globales (`~/.claude/CLAUDE.md`), par `scripts/installer_global.py` : aperçu d'abord, sauvegarde, rien d'autre n'est touché ; il propose aussi le plugin `pyright-lsp` pour les projets Python et le blocage des connecteurs claude.ai inutiles ;
+- propose les réglages du projet (un plugin ne peut pas les imposer) ;
 - copie le modèle de contrôle rapide ;
 - explique l'enchaînement des agents ;
 - vous rappelle de redémarrer Claude Code.
@@ -89,7 +92,9 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 | `agents/second-avis.md` | Haiku, lecture seule. Relecture adversariale du diff pour quelques centimes ; sa liste est transmise au reviewer. |
 | `agents/reviewer.md` | Opus, `medium`. Une passe : suit les appelants au-delà du diff, exécute le code, questionne les tests, vérifie ce que la CI installe, corrige les constats medium et high, consigne la revue dans la spec. |
 | `agents/lookup.md` | Haiku, `low`, lecture seule. Trouve un symbole, résume un log : 20 bonnes réponses sur 20, comme Sonnet, pour 18 fois moins cher. |
-| `skills/cost-kit-install` | Installation guidée : réglages, contrôle rapide, enchaînement, vérification. |
+| `skills/cost-kit-install` | Installation guidée : partie globale, réglages du projet, contrôle rapide, enchaînement, vérification. |
+| `scripts/installer_global.py` | Partie globale, une fois par PC : fusionne les réglages utilisateur, écrit le bloc de consignes entre marqueurs, signale les réglages contraires. Aperçu par défaut, `--appliquer` pour écrire. Python 3.10+, aucune dépendance. |
+| `modeles/CLAUDE.global.md` | Les consignes de coût écrites dans `~/.claude/CLAUDE.md`. |
 | `commands/mesurer-couts.md` | `/agent-cost-kit:mesurer-couts` : coût réel par agent et par story, pic de contexte, appels, expirations du cache, contrefactuel du TTL. |
 | `scripts/mesurer_couts.py` | Le script derrière la commande. Python 3.10+, aucune dépendance. Lit `~/.claude/projects/<projet>/`. |
 | `scripts/controle_rapide.py` | Modèle de contrôle de fin de story (lint, format, typage), à adapter. |
@@ -134,6 +139,9 @@ Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 
 
 ## Historique
 
+- **0.3.0** (2026-10-15) :
+  - partie globale de l'installation, une fois par PC (`scripts/installer_global.py`, `modeles/CLAUDE.global.md`) ;
+  - options proposées : plugin `pyright-lsp`, blocage des connecteurs claude.ai inutiles.
 - **0.2.0** (2026-10-13) :
   - le reviewer passe sur Opus, avec une consigne élargie ;
   - nouvel agent `second-avis` (Haiku) ;
@@ -150,7 +158,7 @@ A Claude Code plugin for agent-based development that keeps the bill under contr
 - a 1-hour subagent cache costs 28 to 30 % more for the 78 to 86 % of subagents that never hit an expiry (confirmed on real cache behaviour);
 - disabling claude.ai skill sync saves 8.4k tokens per agent.
 
-On the same story, 3 runs each, the kit cost $1.18 to $1.60 against $6.77 to $7.31 for the nested Opus setup, orchestration included, at comparable quality. Independent read-only re-reviews showed that a Sonnet reviewer misses most defects (Opus found 11 certain medium+ defects on 10 stories, Sonnet 1, Haiku 2 plus unique ones, and no single reviewer found everything). Version 0.2 therefore ships Sonnet for coding, a Haiku second opinion, an Opus reviewer, and a Haiku lookup agent. A `bancs/` folder holds the protocol and scripts to re-run every benchmark when new models come out.
+On the same story, 3 runs each, the kit cost $1.18 to $1.60 against $6.77 to $7.31 for the nested Opus setup, orchestration included, at comparable quality. Independent read-only re-reviews showed that a Sonnet reviewer misses most defects (Opus found 11 certain medium+ defects on 10 stories, Sonnet 1, Haiku 2 plus unique ones, and no single reviewer found everything). Version 0.2 therefore ships Sonnet for coding, a Haiku second opinion, an Opus reviewer, and a Haiku lookup agent. A `bancs/` folder holds the protocol and scripts to re-run every benchmark when new models come out. Since 0.3, `/cost-kit-install` also applies the user-level settings and a cost-rules block in `~/.claude/CLAUDE.md`, once per machine, through `scripts/installer_global.py` (dry run by default).
 
 ## Licence
 
