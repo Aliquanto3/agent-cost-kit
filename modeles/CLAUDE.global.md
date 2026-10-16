@@ -7,6 +7,7 @@ Réduire au minimum le coût de développement avec Claude Code, sans baisser la
 - Contexte court : lire des extraits ciblés, tests ciblés pendant le travail et suite complète une fois à la fin, pas de relecture d'un fichier qu'on vient d'éditer.
 - Garder `CLAUDE.md` et `MEMORY.md` courts : ils sont relus à chaque appel. L'historique des lots terminés va dans un `archive/` non indexé.
 - Proposer `/clear` (après `/rename`) entre deux tâches sans lien : `/clear` ne coûte rien, `/compact` relit tout le contexte.
+- PR empilées : recibler chaque PR fille sur la branche principale (`gh pr edit <n> --base main`) avant de fusionner sa base avec `--delete-branch`, sinon GitHub ferme les PR filles.
 - Sorties de tests et de logs courtes (`pytest -q --tb=short`, filtrer les erreurs) ; préférer une CLI (`gh`, `git`) à un serveur MCP.
 - Tâche complexe ou ambiguë : plan d'abord, validé avant d'écrire du code, pour éviter les reprises.
 - Pas de fast mode (`/fast`, facturé en premium) sans demande.

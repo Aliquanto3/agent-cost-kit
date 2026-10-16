@@ -3,6 +3,7 @@
 Sans option, affiche ce qui changerait et n'écrit rien. Avec --appliquer, sauvegarde les fichiers
 modifiés (suffixe .avant-cost-kit-AAAAMMJJ), puis :
 - fusionne REGLAGES dans ~/.claude/settings.json, sans toucher aux autres clés (proxy, plugins...) ;
+  les listes (permissions.allow) gagnent les éléments manquants, sans perdre ceux de l'utilisateur ;
 - insère ou remplace le bloc du kit entre ses marqueurs dans ~/.claude/CLAUDE.md, sans toucher
   au reste du fichier (les consignes personnelles se mettent hors des marqueurs).
 Signale, sans les modifier, les réglages contraires au kit : effort par modèle, TTL d'une heure.
@@ -26,6 +27,8 @@ REGLAGES = {
     "env": {"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-5-5"},
     # Fable, réservé au difficile, garde high ; les autres modèles suivent effortLevel.
     "modelSettings": {"claude-fable-5-1": {"effortLevel": "high"}},
+    # Le mode auto refusait ces commandes sans règle explicite : PR empilées jusqu'au matin (mesure du 2026-10-16).
+    "permissions": {"allow": ["Bash(gh pr merge:*)", "Bash(gh pr edit:*)", "Bash(git push origin --delete:*)"]},
 }
 DEBUT, FIN = "<!-- agent-cost-kit:debut -->", "<!-- agent-cost-kit:fin -->"
 MODELE = Path(__file__).resolve().parent.parent / "modeles" / "CLAUDE.global.md"
@@ -37,6 +40,12 @@ def fusionner(actuels: dict, cibles: dict, prefixe: str = "") -> list[str]:
     for cle, valeur in cibles.items():
         if isinstance(valeur, dict):
             changements += fusionner(actuels.setdefault(cle, {}), valeur, f"{prefixe}{cle}.")
+        elif isinstance(valeur, list):
+            liste = actuels.setdefault(cle, [])
+            for element in valeur:
+                if element not in liste:
+                    changements.append(f"{prefixe}{cle} : + {element!r}")
+                    liste.append(element)
         elif actuels.get(cle) != valeur:
             changements.append(f"{prefixe}{cle} : {actuels.get(cle)!r} -> {valeur!r}")
             actuels[cle] = valeur
@@ -91,11 +100,14 @@ def main() -> int:
         return 1
     chemin_consignes = racine / "CLAUDE.md"
     consignes = chemin_consignes.read_text(encoding="utf-8-sig") if chemin_consignes.exists() else ""
-    if not isinstance(reglages, dict) or not all(
-        isinstance(reglages.get(c, {}), dict) for c in ("env", "modelSettings")
+    if (
+        not isinstance(reglages, dict)
+        or not all(isinstance(reglages.get(c, {}), dict) for c in ("env", "modelSettings", "permissions"))
+        or not isinstance(reglages.get("permissions", {}).get("allow", []), list)
     ):
         print(
-            f"Erreur : {chemin_reglages} : le fichier, `env` et `modelSettings` doivent être des objets JSON. Rien n'est écrit."
+            f"Erreur : {chemin_reglages} : le fichier, `env`, `modelSettings` et `permissions` doivent être des objets "
+            "JSON, et `permissions.allow` une liste. Rien n'est écrit."
         )
         return 1
     try:
