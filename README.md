@@ -28,6 +28,10 @@ Ce que ça change dans la pratique :
 4. **Réduire le contexte fixe.** Désactiver les skills du compte claude.ai (`syncClaudeAiSkills: false`) retire 8,4 k tokens au premier appel de chaque agent, soit 5 à 10 % du coût d'une story avec le kit.
 5. **Sonnet pour coder, Opus pour relire, Haiku pour le second avis et les recherches.** La revue est le point faible des setups bon marché (section suivante).
 
+Mesuré en série depuis (`mesures/2026-10-16-nuit-autonome-5-stories.md`), sur une nuit autonome de 5 stories d'un quatrième projet, avec le kit 0.3.1 :
+- **Coût** : 2,36 $ par story en médiane hors orchestration, environ 4 $ avec, contre 16,57 $ pour la story médiane du même projet avec l'ancien setup, soit 4 fois moins.
+- **Revue** : 0,86 $ par story en médiane (second avis plus reviewer). Le second avis Haiku a trouvé les défauts les plus graves pour 1 à 2 cents ; le reviewer Opus a tranché chaque constat et en a ajouté 4. Un seul défaut a échappé à la chaîne, attrapé par la suite complète finale.
+
 ## La revue : ce que les mesures ont changé
 
 La version 0.1 confiait la revue à Sonnet. Sur 10 stories livrées avec ce setup, toutes avec des suites vertes, puis fusionnées sans conflit, une contre-revue indépendante en lecture seule a donné ceci, avec la même consigne pour les trois modèles :
@@ -42,7 +46,7 @@ Opus a pourtant manqué le seul défaut qui cassait la CI : une dépendance opti
 - un second avis Haiku, en lecture seule, pour 3 cents ;
 - puis un reviewer Opus, qui reçoit cette liste, vérifie au-delà du diff, exécute le code et corrige.
 
-Coût estimé de la revue : environ 0,7 à 1 $ par story. Cet enchaînement n'a pas encore été mesuré en série : refaites le banc A contre kit chez vous (`bancs/README.md`).
+Coût estimé de la revue : environ 0,7 à 1 $ par story. Mesuré en série sur 5 stories : 0,49 à 1,69 $, 0,86 $ en médiane (`mesures/`). Refaites le banc A contre kit chez vous (`bancs/README.md`).
 
 ## Le setup mesuré en série
 
@@ -134,11 +138,17 @@ Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 
 
 - Trois projets, un seul développeur, Windows, Python, méthode BMAD. Les constats convergents devraient tenir ailleurs ; les seuils, non.
 - Les bancs comptent 1 à 3 essais par case. Les défauts sont jugés par une contre-revue Opus, pas par une vérité terrain postérieure. Ce sont des indications, pas des statistiques.
-- L'enchaînement de la version 0.2 (second avis Haiku, puis reviewer Opus) est déduit des bancs de contre-revue. Il n'a pas encore été mesuré en série.
+- L'enchaînement de la version 0.2 (second avis Haiku, puis reviewer Opus) est maintenant mesuré en série, mais sur une seule nuit de 5 stories d'un seul projet, sans contre-revue indépendante après coup.
 - La session principale pèse 10 à 23 % du total avec l'ancienne méthode. Avec le kit, elle reste modeste (0,3 $ par story sur Opus medium) si elle ne fait qu'orchestrer.
 
 ## Historique
 
+- **0.3.3** (2026-10-17) :
+  - tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) : consignes globales pour couper la session principale entre cadrage, exécution et recette, ne jamais sauter le second avis, relire la spec des stories à risque, lancer la suite complète à mi-parcours, vérifier la branche principale après chaque fusion et documenter en parallèle de la revue ; dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ; le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent ;
+  - mesure en série de l'enchaînement 0.2 sur une nuit autonome de 5 stories (`mesures/2026-10-16-nuit-autonome-5-stories.md`) ;
+  - l'installeur global autorise `gh pr merge`, `gh pr edit` et la suppression de branche distante (`permissions.allow`, fusionné sans retirer les règles existantes) ;
+  - consigne globale : recibler les PR empilées avant de fusionner leur base ;
+  - le reviewer cherche les tests qui appellent les fonctions modifiées.
 - **0.3.2** (2026-10-17) : l'étape de vérification de `cost-kit-install` ne renvoie plus vers `/agents`, assistant retiré de Claude Code ; elle passe par `claude plugin list` et par la liste des agents vue depuis une session.
 - **0.3.1** (2026-10-15) : l'installeur global pose aussi `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5` (l'alias `haiku` restait sur Haiku 4.5) et l'effort `high` pour Fable 5.1.
 - **0.3.0** (2026-10-15) :
