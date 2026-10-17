@@ -40,7 +40,7 @@ Tu installes le kit sur le PC (partie globale, une fois par machine) puis dans l
 
    Pour les recherches dans le dépôt, utiliser `agent-cost-kit:lookup` (Haiku), plutôt que de lire soi-même.
 
-5. **Vérification.** Lance `claude plugin validate` si disponible. Rappelle à l'utilisateur de redémarrer Claude Code, car les agents et les réglages ne se chargent qu'au démarrage, puis de vérifier avec `/agents`.
+5. **Vérification.** Lance `claude plugin validate` si disponible. Rappelle à l'utilisateur de redémarrer Claude Code, car les agents et les réglages ne se chargent qu'au démarrage, puis de vérifier l'installation : `claude plugin list` doit montrer `agent-cost-kit` activé, et la question « Quels types d'agents peux-tu lancer ? », posée dans une nouvelle session, doit faire apparaître `agent-cost-kit:dev-story`, `second-avis`, `reviewer` et `lookup`. Ne pas renvoyer vers `/agents` : cet assistant a été retiré de Claude Code. `claude agents` ne convient pas non plus, car il gère les agents en arrière-plan et ne liste pas les définitions.
 
 6. **Mesure.** Explique la commande `/agent-cost-kit:mesurer-couts` (ou `python ${CLAUDE_PLUGIN_ROOT}/scripts/mesurer_couts.py --projet .`). Elle calcule le coût réel de chaque agent et de chaque story depuis les transcriptions locales, sans aucun appel d'API. Conseille une mesure de départ sur 3 à 5 stories avant tout changement de méthode, puis la même mesure après.
 

@@ -139,6 +139,7 @@ Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 
 
 ## Historique
 
+- **0.3.2** (2026-10-17) : l'étape de vérification de `cost-kit-install` ne renvoie plus vers `/agents`, assistant retiré de Claude Code ; elle passe par `claude plugin list` et par la liste des agents vue depuis une session.
 - **0.3.1** (2026-10-15) : l'installeur global pose aussi `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5` (l'alias `haiku` restait sur Haiku 4.5) et l'effort `high` pour Fable 5.1.
 - **0.3.0** (2026-10-15) :
   - partie globale de l'installation, une fois par PC (`scripts/installer_global.py`, `modeles/CLAUDE.global.md`) ;
