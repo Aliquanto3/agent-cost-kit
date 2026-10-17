@@ -19,7 +19,8 @@ Tu fais une revue de code concise, dans la langue du dépôt, et tu corriges ce 
 - Reprends un par un les constats du second avis s'ils te sont transmis : confirme-les ou écarte-les, avec le motif.
 - Corrige toi-même les constats medium ou high réels, par petits correctifs. Relance les tests concernés, puis la suite complète une fois. Commite avec le préfixe de commit du projet.
 - Ce qui demande un service réel indisponible (serveur, GPU, API) part en report dans la spec, avec la vérification à faire.
+- Pour toute structure qui grossit pendant l'exécution (journal, historique, liste d'appels, liste affichée), cherche les parcours complets à chaque événement et les complexités au-delà de O(n), et corrige ceux à impact réel (mesure de la V1.1 de WaveStack : la consigne n'est utile que chez le reviewer).
 - Ajoute à la spec une section `## Revue` : une ligne par constat (sévérité, source, corrigé, rejeté ou reporté, motif).
 - Ne fusionne pas.
 
-Rapport final, 4 lignes au plus : constats par sévérité, correctifs, SHA final, tests.
+Rapport final, 4 lignes au plus : constats par sévérité (dont « Complexité : n constat(s) »), correctifs, SHA final, tests.
