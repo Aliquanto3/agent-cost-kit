@@ -143,15 +143,13 @@ Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 
 
 ## Historique
 
-- **0.3.3** (2026-10-17), tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) :
-  - consignes globales : couper la session principale entre cadrage, exécution et recette ; ne jamais sauter le second avis ; relire la spec des stories à risque ; suite complète à mi-parcours ; vérifier la branche principale après chaque fusion ; documentation en parallèle de la revue ;
-  - dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ;
-  - le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent, et les compte dans son rapport.
-- **0.3.2** (2026-10-16) :
-  - mesure en série de l'enchaînement 0.2 sur une nuit autonome de 5 stories (`mesures/`) ;
+- **0.3.3** (2026-10-17) :
+  - tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) : consignes globales pour couper la session principale entre cadrage, exécution et recette, ne jamais sauter le second avis, relire la spec des stories à risque, lancer la suite complète à mi-parcours, vérifier la branche principale après chaque fusion et documenter en parallèle de la revue ; dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ; le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent ;
+  - mesure en série de l'enchaînement 0.2 sur une nuit autonome de 5 stories (`mesures/2026-10-16-nuit-autonome-5-stories.md`) ;
   - l'installeur global autorise `gh pr merge`, `gh pr edit` et la suppression de branche distante (`permissions.allow`, fusionné sans retirer les règles existantes) ;
   - consigne globale : recibler les PR empilées avant de fusionner leur base ;
   - le reviewer cherche les tests qui appellent les fonctions modifiées.
+- **0.3.2** (2026-10-17) : l'étape de vérification de `cost-kit-install` ne renvoie plus vers `/agents`, assistant retiré de Claude Code ; elle passe par `claude plugin list` et par la liste des agents vue depuis une session.
 - **0.3.1** (2026-10-15) : l'installeur global pose aussi `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5` (l'alias `haiku` restait sur Haiku 4.5) et l'effort `high` pour Fable 5.1.
 - **0.3.0** (2026-10-15) :
   - partie globale de l'installation, une fois par PC (`scripts/installer_global.py`, `modeles/CLAUDE.global.md`) ;
