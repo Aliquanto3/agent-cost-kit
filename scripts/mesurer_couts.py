@@ -234,7 +234,18 @@ def impact_appels(liste: list[dict], mix: str) -> dict[str, dict[str, float]]:
 
 
 def fourchette(bas: float, haut: float, chiffres: int = 2) -> str:
-    return f"{bas:.{chiffres}f}-{haut:.{chiffres}f}"
+    """``chiffres`` décimales ; deux chiffres significatifs si l'arrondi effacerait une valeur non nulle."""
+
+    def texte(v: float) -> str:
+        t = f"{v:.{chiffres}f}"
+        return f"{v:.2g}" if v and float(t) == 0 else t
+
+    return f"{texte(bas)}-{texte(haut)}"
+
+
+def hors_liste(modeles) -> list[str]:
+    """Identifiants sans entrée dans PARAMETRES : leurs paramètres viennent de la famille."""
+    return sorted({m for m in modeles if not any(m.startswith(cle) for cle in PARAMETRES)})
 
 
 def couts(liste: list[dict]) -> dict:
@@ -322,6 +333,7 @@ def main() -> int:
     options.out.mkdir(parents=True, exist_ok=True)
     lignes = []
     par_modele: dict = defaultdict(lambda: {g: {"min": 0.0, "max": 0.0} for g in GRANDEURS})
+    identifiants: set[str] = set()
     for session, ident, chemin, meta in agents_du_projet(dossier, options.session):
         description = str(meta.get("description", ""))
         if motif and not motif.search(description):
@@ -331,6 +343,7 @@ def main() -> int:
             continue
         c = couts(liste)
         imp = impact_appels(liste, options.mix)
+        identifiants |= {a["modele"] for a in liste}
         est_main = ident == "MAIN"
         for fam in {a["fam"] for a in liste}:
             part = impact_appels([a for a in liste if a["fam"] == fam], options.mix)
@@ -425,7 +438,7 @@ def main() -> int:
             writer = csv.DictWriter(f, fieldnames=list(lignes_arbres[0]))
             writer.writeheader()
             writer.writerows(lignes_arbres)
-    resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix)
+    resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix, hors_liste(identifiants))
     # Tableau par agent sur la sortie standard.
     print(f"{'session':8} {'agent':8} {'modèle':7} {'appels':>6} {'min':>6} {'1er ctx':>8} {'pic':>7} {'exp':>3} {'coût $':>8} {'gCO2e':>11}  description")
     for l in lignes:
@@ -444,7 +457,9 @@ def main() -> int:
     return 0
 
 
-def resume(dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str) -> None:
+def resume(
+    dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str, replis: list[str] | None = None
+) -> None:
     sous = [l for l in lignes if l["type"] != "MAIN"]
     main_ = [l for l in lignes if l["type"] == "MAIN"]
     sortie = [f"# Coût des agents : {projet.name}", ""]
@@ -518,11 +533,17 @@ def resume(dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], 
         "- Seuls les tokens de **sortie** comptent, comme dans EcoLogits : ni l'entrée ni le cache n'ont d'impact dans ce modèle. "
         "Or le cache fait environ 85 % du coût en dollars : l'empreinte n'est pas proportionnelle au coût.",
         "- La réflexion masquée n'est pas dans les tokens comptés : l'estimation est une borne basse.",
-        "- Les paramètres des modèles Anthropic ne sont pas publiés ; EcoLogits les estime, d'où la fourchette. "
+        "- Les paramètres des modèles Anthropic ne sont pas publiés ; EcoLogits les estime et le signale "
+        "(avertissement « architecture non publiée »), d'où la fourchette. "
         "Latence : formule de repli ML.ENERGY (pas de mesure).",
         f"- Mix électrique {mix} (USA : choix d'EcoLogits pour Anthropic) ; changez-le avec `--mix`. "
         "La fabrication du matériel est incluse dans le GWP, pas dans l'eau.",
     ]
+    if replis:
+        sortie.append(
+            "- Modèles absents de la table du script, estimés avec les paramètres de leur famille : "
+            + ", ".join(f"`{m}`" for m in replis) + "."
+        )
     (dossier / "resume.md").write_text("\n".join(sortie) + "\n", encoding="utf-8")
 
 

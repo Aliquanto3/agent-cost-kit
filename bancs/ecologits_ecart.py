@@ -17,6 +17,7 @@ from pathlib import Path
 
 from ecologits.electricity_mix_repository import electricity_mixes
 from ecologits.impacts.llm import compute_llm_impacts
+from ecologits.model_repository import models
 from ecologits.utils.range_value import RangeValue
 
 chemin = Path(__file__).resolve().parent.parent / "scripts" / "mesurer_couts.py"
@@ -40,12 +41,26 @@ def borne(valeur, nom):
 
 
 pire = 0.0
+# Les données d'entrée viennent de la librairie, pas du script : paramètres des modèles et mix.
+for modele in MODELES:
+    p = models.find_model("anthropic", modele).architecture.parameters
+    actif = getattr(p, "active", p)
+    total = getattr(p, "total", p)
+    lib = (borne(total, "min"), borne(total, "max"), borne(actif, "min"), borne(actif, "max"))
+    if tuple(script.parametres(modele)) != lib:
+        print(f"PARAMETRES écarté de la librairie pour {modele} : {script.parametres(modele)} contre {lib}")
+        pire = max(pire, 1.0)
+for zone, (gwp, pe, adpe, wue) in script.MIX.items():
+    m = electricity_mixes.find_electricity_mix(zone)
+    if (gwp, pe, adpe, wue) != (m.gwp, m.pe, m.adpe, m.wue):
+        print(f"MIX écarté de la librairie pour {zone} : {(gwp, pe, adpe, wue)} contre {(m.gwp, m.pe, m.adpe, m.wue)}")
+        pire = max(pire, 1.0)
 print(f"{'modèle':18} {'tokens':>8} {'grandeur':11} {'script min-max':>26} {'librairie min-max':>26} {'écart rel.':>10}")
 for modele in MODELES:
     t_min, t_max, a_min, a_max = script.parametres(modele)
-    for sortie in (1_000, 100_000):
-        mien = script.impact(modele, sortie, "USA")
-        mix = electricity_mixes.find_electricity_mix("USA")
+    for sortie, zone in ((1_000, "USA"), (100_000, "USA"), (10_000, "FRA")):
+        mien = script.impact(modele, sortie, zone)
+        mix = electricity_mixes.find_electricity_mix(zone)
         lib = compute_llm_impacts(
             model_active_parameter_count=RangeValue(min=a_min, max=a_max) if a_min != a_max else a_min,
             model_total_parameter_count=RangeValue(min=t_min, max=t_max) if t_min != t_max else t_min,
