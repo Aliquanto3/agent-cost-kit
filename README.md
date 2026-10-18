@@ -195,6 +195,7 @@ Limites :
 
 ## Historique
 
+- **0.6.3** (2026-10-18) : `mesurer_couts.py` ne compte plus deux fois les réponses recopiées par une session reprise ou redémarrée (chaque `message.id` une seule fois, un sous-agent présent sous deux sessions une seule fois ; le nombre d'appels dédoublonnés figure dans `resume.md`), et le titre de `resume.md` porte le nom du dossier avec `--projet .` ;
 - **0.6.2** (2026-10-18) : mod `couts-session` 0.1.2, les sous-agents qui tournent apparaissent « en cours » (mention `· ⏳ N en cours` repliée, ligne avec durée aux niveaux dépliés) au lieu de n'apparaître qu'à la fin de leur exécution ;
 - **0.6.1** (2026-10-18) : prix par génération de modèle, vérifiés sur la page officielle (Opus 4.5 à 5, Sonnet 4.x, Haiku 4.5, Fable 5 et Sonnet 5 n'ont plus le tarif des 5.5 / 5.1 ; Mythos 5 et 5.1 ajoutés) ; préfixe d'identifiant borné au numéro (`claude-opus-4-5` ne couvre pas `claude-opus-4-50`, couvre `claude-opus-4-5[1m]`) ; `tarifs.json` devient la seule source des prix et coefficients, `mesurer_couts.py` le lit ; multiplicateur x 1,1 de `inference_geo: "us"` appliqué par le script (le mod, dont l'usage ne porte pas ce champ, ne l'applique pas) ; mod `couts-session` 0.1.1 ;
 - **0.6.0** (2026-10-18) : commande `/agent-cost-kit:avancement-run` et script `avancement_run.py` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée en fourchette, météo, tableau par epic, détail par story, `--detail`) ; convention d'heure dans le journal du run ;

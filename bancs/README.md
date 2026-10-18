@@ -21,6 +21,7 @@ Les réglages du kit (Sonnet pour coder, Opus pour relire, Haiku pour le second 
 | 6 | Le cache à 1 h vaut-il le coup ? | `cache_ttl.py` et `/agent-cost-kit:mesurer-couts` | gratuit | `subagentPromptCacheTtl` |
 | 7 | Combien pèse le contexte fixe ? | 2 sessions `claude -p` avec et sans `syncClaudeAiSkills`, puis le script | quelques centimes | conseils d'installation |
 | 8 | Le calcul d'impact reproduit-il la librairie EcoLogits ? | `ecologits_ecart.py` | gratuit | confiance dans les chiffres GreenOps |
+| 9 | Le dédoublonnage des sessions reprises tient-il ? | `doublons.py` (transcriptions synthétiques) | gratuit | confiance dans les totaux de `mesurer_couts.py` |
 
 ### 1. Contre-revue : quel modèle pour relire ?
 
@@ -65,6 +66,8 @@ Relisez les cas notés faux, car le corrigé peut se tromper. Référence : Haik
 ### 8. Écart avec EcoLogits
 
 `uv run --with ecologits python bancs/ecologits_ecart.py` compare, pour chaque modèle et pour 1 000 et 100 000 tokens de sortie, l'énergie, le GWP, l'eau, l'énergie primaire et l'ADPe du script à ceux de la librairie officielle, et sort en erreur au-delà de 1e-6 d'écart relatif. À relancer quand EcoLogits change ses coefficients ou ses paramètres de modèles : mettez alors à jour `ecologits` dans `plugins/couts-session/donnees/tarifs.json`. Référence du 2026-10-18 (ecologits 0.11.3) : écart maximal 4e-16.
+
+`py bancs/doublons.py` (gratuit) fabrique deux sessions synthétiques qui partagent des `message.id` et un sous-agent, et vérifie que `mesurer_couts.py` compte chaque appel une fois, avec ou sans `--session`.
 
 ### 5 à 7. Mesures gratuites
 
