@@ -12,7 +12,7 @@ du commit cité dans la dernière colonne, puis par interpolation entre les lign
 
 Python 3.10+, aucune dépendance (le sous-ensemble YAML de ``sprint-status.yaml`` est lu à la main).
 
-Usage : python avancement_run.py [projet] [--json] [--detail] [--maintenant "AAAA-MM-JJ HH:MM"]
+Usage : python avancement_run.py [projet] [--json] [--detail] [--stories] [--maintenant "AAAA-MM-JJ HH:MM"]
 """
 
 from __future__ import annotations
@@ -537,9 +537,12 @@ def court(texte: str, n: int) -> str:
     return texte[:n].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
 
 
+BARRE_PLEIN, BARRE_VIDE = "█", "░"  # blocs pleins, sans contour : lisibles en clair comme en sombre
+
+
 def barre(pct: float, n: int = 10) -> str:
     plein = min(n, int(pct / 100 * n + 0.5))
-    return "▰" * plein + "▱" * (n - plein)
+    return BARRE_PLEIN * plein + BARRE_VIDE * (n - plein)
 
 
 def emoji_story(s: dict) -> str:
@@ -633,7 +636,7 @@ def puces(a: dict) -> list[str]:
     return out[:5]
 
 
-def rapport(a: dict, detail: bool = False) -> str:
+def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
     S, plan, N, es = a["stories"], a["plan"], a["noms"], a["estimation"]
     f, c, r, pct = agregat(list(S.values()))
     m = a["meteo"]
@@ -650,28 +653,31 @@ def rapport(a: dict, detail: bool = False) -> str:
           "Hors estimation : étapes humaines, limites d'usage, reprises en cas d'échec, pauses.", "",
           "## Ce qu'il faut savoir", ""]
     L += [textwrap.fill(f"- {p}", width=118, subsequent_indent="  ") for p in puces(a)]
-    L += ["", "## Par epic", "", "| Epic | Avancement | ✅ | 🔄 | ⏳ | |", "|---|---|---|---|---|---|"]
-    for ep in sorted({s["epic"] for s in S.values()}):
-        liste = [s for s in S.values() if s["epic"] == ep]
-        fe, ce, re_, pe = agregat(liste)
-        nom = court(N["epics"].get(ep, ""), 38)
-        L.append(f"| {ep} · {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
-    L += ["", "<details><summary>Détail par story</summary>", "",
-          "| Story | Titre | État | % | |", "|---|---|---|---|---|"]
-    for v in plan["ordre"]:
-        for sid in plan["vagues"][v]:
-            s = S[sid]
-            L.append(f"| {sid} | {court(N['stories'].get(sid, ''), 52)} | {emoji_story(s)} | {s['pct']} % | "
-                     f"{'★' if s['pivot'] else ''} |")
-    L += ["", textwrap.fill("✅ terminée · 🧪 en relecture · 🔍 second avis · 🛠️ développement · ⏳ à faire · "
-                            "⛔ bloquée · 👤 attente humaine · ✂️ coupée · ★ story pivot", width=110), "",
-          "</details>", ""]
+    epics = sorted({s["epic"] for s in S.values()})
+    consolide = len(epics) > 1  # sinon aucun niveau de consolidation : le détail par story tient lieu de tableau
+    if consolide:
+        L += ["", "## Par epic", "", "| Epic | Avancement | ✅ | 🔄 | ⏳ | |", "|---|---|---|---|---|---|"]
+        for ep in epics:
+            liste = [s for s in S.values() if s["epic"] == ep]
+            fe, ce, re_, pe = agregat(liste)
+            nom = court(N["epics"].get(ep, ""), 38)
+            L.append(f"| {ep} · {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
+    if stories or not consolide:
+        L += ["", "## Détail par story", "", "| Story | Titre | État | % | |", "|---|---|---|---|---|"]
+        for v in plan["ordre"]:
+            for sid in plan["vagues"][v]:
+                s = S[sid]
+                L.append(f"| {sid} | {court(N['stories'].get(sid, ''), 52)} | {emoji_story(s)} | {s['pct']} % | "
+                         f"{'★' if s['pivot'] else ''} |")
+    L += ["", textwrap.fill("✅ terminé · 🧪 en relecture · 🔍 second avis · 🛠️ développement · 🔄 en cours · "
+                            "⏳ à faire · ⛔ bloqué · 👤 attente humaine · ✂️ coupée · ★ story pivot", width=110), ""]
     L += [textwrap.fill("Météo : 🔴 si une story est bloquée ou si une attente humaine est sur le chemin critique ; "
                         "🟡 si un contrôle automatique est rouge ou si une story est reprise ; sinon 🟢.", width=110), ""]
     if detail:
         L += [rapport_detail(a)]
     else:
-        L += ["Détails de l'estimation (rythme, chemin critique, vagues, heures interpolées) : option `--detail`."]
+        L += [textwrap.fill("Détails de l'estimation (rythme, chemin critique, vagues, heures interpolées) : option `--detail`."
+                            + ("" if stories or not consolide else " Tableau par story : option `--stories`."), width=110)]
     return "\n".join(L).rstrip("\n") + "\n"
 
 
@@ -689,6 +695,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("projet", nargs="?", default=".", help="racine du projet (défaut : répertoire courant)")
     ap.add_argument("--json", action="store_true", help="sortie JSON au lieu du Markdown")
     ap.add_argument("--detail", action="store_true", help="ajoute les détails de l'estimation (rythme, vagues, sources)")
+    ap.add_argument("--stories", action="store_true", help="ajoute le tableau par story (déjà présent sans niveau de consolidation)")
     ap.add_argument("--maintenant", help="heure de référence « AAAA-MM-JJ HH:MM » (tests)")
     args = ap.parse_args(argv)
     projet = Path(args.projet).resolve()
@@ -702,7 +709,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(a, default=serialisable, ensure_ascii=False, indent=1))
     else:
-        print(rapport(a, args.detail), end="")
+        print(rapport(a, args.detail, args.stories), end="")
     return 0
 
 

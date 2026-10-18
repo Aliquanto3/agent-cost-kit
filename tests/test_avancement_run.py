@@ -143,15 +143,27 @@ def test_rapport_synthese_dirigeant(projet, capsys):
     md = capsys.readouterr().out
     lignes = md.splitlines()
     assert lignes[0].startswith("# ") and "2026-10-18 20:30" in lignes[0]
-    assert "▰▰▰▱▱▱▱▱▱▱ 26 %" not in md and "13 / 62 stories terminées" in md
+    assert "███░░░░░░░ 26 %" not in md and "13 / 62 stories terminées" in md
     assert "**Fin estimée : 2026-10-" in md and "(entre " in md and "**Météo : 🟢 dans les temps**" in md
     puces = [ln for ln in lignes if ln.startswith("- ")]
     assert 3 <= len(puces) <= 5 and md.index("## Ce qu'il faut savoir") < md.index("## Par epic")
-    assert "| 1 · Installer, lancer et diagnostiquer… | ▰▰▰▰▰▰▰▰▰▰ 100 % | 7 | 0 | 0 | ✅ |" in md
-    assert "<details>" in md and "| 2.4 | Taper de vraies commandes git dans le terminal | 🛠️ | 30 % |  |" in md
-    assert "| 2.6 |" in md and "| 🧪 | 75 % | ★ |" in md
+    assert "| 1 · Installer, lancer et diagnostiquer… | ██████████ 100 % | 7 | 0 | 0 | ✅ |" in md
+    assert "<details>" not in md and "## Détail par story" not in md and "| 2.4 |" not in md
     assert "Détails de l'estimation" in md and "### Rythme" not in md
     assert max(len(ln) for ln in lignes) <= 120
+
+
+def test_detail_par_story_avec_option_ou_sans_epics(projet, capsys):
+    assert ar.main([str(projet), "--stories", "--maintenant", "2026-10-18 20:30"]) == 0
+    md = capsys.readouterr().out
+    assert "## Détail par story" in md and "## Par epic" in md
+    assert "| 2.4 | Taper de vraies commandes git dans le terminal | 🛠️ | 30 % |  |" in md
+    assert "| 2.6 |" in md and "| 🧪 | 75 % | ★ |" in md
+    a = ar.analyser(projet, ar.datetime(2026, 10, 18, 20, 30))
+    for s in a["stories"].values():
+        s["epic"] = 1  # un seul regroupement : pas de niveau de consolidation
+    md = ar.rapport(a)
+    assert "## Détail par story" in md and "## Par epic" not in md and "| 2.4 |" in md
 
 
 def test_option_detail_et_json(projet, capsys):
@@ -175,7 +187,7 @@ def test_titres_depuis_epics_md_ou_slug(projet):
 
 
 def test_barre_court_et_emojis():
-    assert ar.barre(0) == "▱" * 10 and ar.barre(100) == "▰" * 10 and ar.barre(25) == "▰▰▰▱▱▱▱▱▱▱"
+    assert ar.barre(0) == "░" * 10 and ar.barre(100) == "█" * 10 and ar.barre(25) == "███░░░░░░░"
     assert ar.court("un titre assez long pour être coupé", 15) == "un titre assez…" and ar.court("court", 15) == "court"
     base = {"etat": "en cours", "pct": 30, "drapeaux": []}
     assert ar.emoji_story(base) == "🛠️" and ar.emoji_story({**base, "pct": 60}) == "🔍"
