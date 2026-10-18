@@ -145,6 +145,28 @@ Trois limites, dites dans `resume.md` :
 
 `bancs/ecologits_ecart.py` vérifie que le calcul du script reproduit la librairie officielle (écart de l'ordre de 1e-16).
 
+## Le coût de la session en direct (mod `couts-session`)
+
+Un mod Claude Code, installable seul, affiche au-dessus du prompt ce que coûte la session en cours, sans commande à taper :
+
+```
+/plugin marketplace add Aliquanto3/agent-cost-kit
+/plugin install couts-session@agent-cost-kit
+```
+
+La bande a trois niveaux, que `[ + ]` et `[ − ]` déplient et replient (ou `d` et `r` quand la bande a le focus, après ctrl+x tab) ; le niveau choisi est gardé d'une session à l'autre :
+1. une ligne discrète : `≈ 2,81 $ · 3,3 M tok · 127–251 gCO₂e estimé` ;
+2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact et, pour comparer, le total `/cost` du moteur ;
+3. en plus, le remplissage du contexte façon `/context`, par catégorie (estimation locale, gratuite).
+
+Les cumuls viennent de l'usage de chaque fin de tour, session principale et sous-agents. Ils survivent au rechargement du mod et à `--resume`, et repartent de zéro après `/clear`. Les prix et les coefficients EcoLogits sont dans `plugins/couts-session/donnees/tarifs.json`, les mêmes que ceux de `mesurer_couts.py` ; `donnees/generer_tarifs.py` en tire le module TypeScript du mod (`--verifier` contrôle les deux).
+
+Limites :
+- les tours d'avant le chargement du mod et les tours interrompus (sans usage) ne sont pas comptés ;
+- l'écriture du cache est comptée au tarif 5 min : l'usage d'un tour ne sépare pas 5 min et 1 h ;
+- le surcoût Haiku au-delà de 100 k tokens de prompt n'est pas appliqué : l'usage d'un tour additionne ses requêtes ;
+- l'impact ne compte que les tokens de sortie, comme EcoLogits ; c'est une estimation, en fourchette.
+
 ## Limites
 
 - Trois projets, un seul développeur, Windows, Python, méthode BMAD. Les constats convergents devraient tenir ailleurs ; les seuils, non.
@@ -154,6 +176,7 @@ Trois limites, dites dans `resume.md` :
 
 ## Historique
 
+- **couts-session 0.1.0** (2026-10-18) : mod qui affiche au-dessus du prompt le coût API estimé, les tokens et l'impact carbone estimé de la session, par modèle et par sous-agent, et le remplissage du contexte ; prix et coefficients dans `plugins/couts-session/donnees/tarifs.json` ;
 - **0.4.0** (2026-10-18) : estimation de l'impact environnemental (EcoLogits) dans `mesurer_couts.py` : énergie, GWP, eau, énergie primaire et ADPe en fourchette par agent (`agents.csv`), énergie, GWP et eau par arbre et en résumé ; option `--mix` ; banc `bancs/ecologits_ecart.py` contre la librairie ;
 - **0.3.3** (2026-10-17) :
   - tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) : consignes globales pour couper la session principale entre cadrage, exécution et recette, ne jamais sauter le second avis, relire la spec des stories à risque, lancer la suite complète à mi-parcours, vérifier la branche principale après chaque fusion et documenter en parallèle de la revue ; dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ; le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent ;

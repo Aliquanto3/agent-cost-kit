@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 mesures-couts/
 bancs-lookup/
+plugins/*/.claude-plugin/types/

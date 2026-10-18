@@ -9,6 +9,11 @@
       "name": "agent-cost-kit",
       "source": "./",
       "description": "Setup de développement par agents économe en tokens : agents routés par rôle (Sonnet code, Opus relit, Haiku second avis et recherches), contrôle rapide, mesure du coût réel des agents, bancs de re-test."
+    },
+    {
+      "name": "couts-session",
+      "source": "./plugins/couts-session",
+      "description": "Mod : bande au-dessus du prompt avec le coût API estimé, les tokens et l'impact carbone estimé (EcoLogits) de la session, par modèle et par sous-agent, et le remplissage du contexte."
     }
   ]
 }
