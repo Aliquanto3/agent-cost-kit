@@ -175,6 +175,7 @@ describe('bande', () => {
       expect(lignes.some(l => l.startsWith('· reviewer · ') && l.endsWith('sonnet-5-5 « Relit la story »'))).toBe(true)
       expect(lignes.some(l => l.includes('EcoLogits') && l.includes('sortie seule'))).toBe(true)
       expect(lignes.some(l => l.includes('/cost du moteur : 1,50 $'))).toBe(true)
+      expect(lignes.some(l => l.includes('🔍') && l.includes('/agent-cost-kit:mesurer-couts --session S1'))).toBe(true)
       expect(lignes.some(l => l.includes('Contexte'))).toBe(false)
       expect(m.breakdowns).toBe(0)
 

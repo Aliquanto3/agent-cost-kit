@@ -48,7 +48,7 @@ const completer = (texte: string, n: number, aDroite: boolean) => {
 }
 
 /** Un emoji par grandeur. */
-export const EMOJI = { cout: '💰', tokens: '🪙', impact: '🌱', contexte: '🧠' } as const
+export const EMOJI = { cout: '💰', tokens: '🪙', impact: '🌱', contexte: '🧠', analyse: '🔍' } as const
 
 /** Ligne repliée : coût, tokens, carbone. Sans la place des boutons. */
 export function resume(cumul: Cumul | null): string {
@@ -117,16 +117,27 @@ export function parAgent(cumul: Cumul | null, largeur: number, place: number): s
   return lignes
 }
 
-export function pied(coutMoteur: number | undefined, largeur: number): string[] {
+/** Commande du plugin agent-cost-kit qui relit toute la session depuis les transcriptions. */
+export function analyse(sessionId: string | undefined): string {
+  const session = sessionId ? ` --session ${sessionId.slice(0, 8)}` : ''
+  return `/agent-cost-kit:mesurer-couts${session}`
+}
+
+export function pied(coutMoteur: number | undefined, largeur: number, sessionId?: string): string[] {
   const etroit = largeur < 72
   const mix = TARIFS.ecologits.mix_par_defaut
   const moteur =
     coutMoteur === undefined ? '' : etroit ? ` · /cost ${dollars(coutMoteur)}` : ` · /cost du moteur : ${dollars(coutMoteur)}`
   const lignes = etroit
-    ? [`${EMOJI.impact} EcoLogits, ${mix} : sortie seule, cache non compté`, `${EMOJI.cout} Prix API, cache 5 min${moteur}`]
+    ? [
+        `${EMOJI.impact} EcoLogits, ${mix} : sortie seule, cache non compté`,
+        `${EMOJI.cout} Prix API, cache 5 min${moteur}`,
+        `${EMOJI.analyse} ${analyse(sessionId)}`,
+      ]
     : [
         `${EMOJI.impact} Impact : EcoLogits (ecologits.ai), mix ${mix}, sortie seule, cache non compté`,
         `${EMOJI.cout} Coût : prix API, écriture du cache au tarif 5 min${moteur}`,
+        `${EMOJI.analyse} Analyse complète et pistes d’optimisation : ${analyse(sessionId)} (plugin agent-cost-kit)`,
       ]
   return lignes.map(l => couper(l, largeur))
 }
@@ -145,7 +156,7 @@ export function corps(entree: Entree): string[] {
   const { cumul, niveau, largeur, lignesMax } = entree
   if (niveau === 0) return []
   const modeles = parModele(cumul, largeur)
-  const basDePage = pied(entree.coutMoteur, largeur)
+  const basDePage = pied(entree.coutMoteur, largeur, cumul?.sessionId)
   const ctx = niveau === 2 ? contexte(entree.contexte, largeur) : []
   const place = lignesMax - 1 - modeles.length - basDePage.length - ctx.length
   return [...modeles, ...parAgent(cumul, largeur, place), ...basDePage, ...ctx]

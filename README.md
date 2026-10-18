@@ -156,7 +156,7 @@ Un mod Claude Code, installable seul, affiche au-dessus du prompt ce que coûte 
 
 La bande a trois niveaux. Un clic sur la ligne (terminal plein écran) ou la touche `1` (prompt vide, ou après ctrl+x tab) passe au niveau suivant puis replie ; `2` remonte d'un niveau. Le niveau choisi est gardé d'une session à l'autre :
 1. une ligne discrète : `💰 ≈ 2,81 $ · 🪙 3,3 M tok · 🌱 127–251 gCO₂e estimé` ;
-2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact et, pour comparer, le total `/cost` du moteur ;
+2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact, pour comparer le total `/cost` du moteur, et la commande d'analyse complète de la session (`/agent-cost-kit:mesurer-couts --session <id>`, du plugin `agent-cost-kit`), qui relit toutes les transcriptions pour chercher des optimisations ;
 3. en plus, le remplissage du contexte façon `/context`, par catégorie (estimation locale, gratuite).
 
 Les cumuls viennent de l'usage de chaque fin de tour, session principale et sous-agents. Ils survivent au rechargement du mod et à `--resume`, et repartent de zéro après `/clear`. Les prix et les coefficients EcoLogits sont dans `plugins/couts-session/donnees/tarifs.json`, les mêmes que ceux de `mesurer_couts.py` ; `donnees/generer_tarifs.py` en tire le module TypeScript du mod (`--verifier` contrôle les deux).
