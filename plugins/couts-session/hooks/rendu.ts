@@ -17,6 +17,8 @@ export type Entree = {
   lignesMax: number
   coutMoteur?: number
   contexte?: Contexte
+  /** L'heure du dernier rafraîchissement (ms), pour les durées des sous-agents en cours. */
+  maintenant?: number
 }
 
 /** Colonnes occupées : un emoji (hors plan multilingue de base) en prend deux, un sélecteur de variante aucune. */
@@ -48,13 +50,38 @@ const completer = (texte: string, n: number, aDroite: boolean) => {
 }
 
 /** Un emoji par grandeur. */
-export const EMOJI = { cout: '💰', tokens: '🪙', impact: '🌱', contexte: '🧠', analyse: '🔍' } as const
+export const EMOJI = { cout: '💰', tokens: '🪙', impact: '🌱', contexte: '🧠', analyse: '🔍', enCours: '⏳' } as const
 
 /** Ligne repliée : coût, tokens, carbone. Sans la place des boutons. */
 export function resume(cumul: Cumul | null): string {
   const b = bilan(cumul?.modeles ?? {})
   const prix = `≈ ${dollars(b.usd)}${b.horsTable ? '+?' : ''}`
   return `${EMOJI.cout} ${prix} · ${EMOJI.tokens} ${tokens(b.tokens)} tok · ${EMOJI.impact} ${carbone(b.gco2e)} estimé`
+}
+
+/** Durée écoulée, courte : « 45 s », « 3 min 05 », « 1 h 05 ». */
+export function duree(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  if (s < 60) return `${s} s`
+  const m = Math.floor(s / 60)
+  const deux = (n: number) => String(n).padStart(2, '0')
+  if (m < 60) return `${m} min ${deux(s % 60)}`
+  return `${Math.floor(m / 60)} h ${deux(m % 60)}`
+}
+
+/**
+ * Ligne de tête repliée : le résumé, la mention `· ⏳ N en cours` quand des sous-agents tournent,
+ * puis la flèche. Trop large, la mention tombe entière en premier (mieux qu'un « ⏳ 2 en… » coupé :
+ * le coût compte plus que l'état), puis la ligne se coupe comme avant.
+ */
+export function tete(cumul: Cumul | null, fleche: string, dispo: number): string {
+  const base = resume(cumul)
+  const n = Object.keys(cumul?.enCours ?? {}).length
+  if (n > 0) {
+    const avec = `${base} · ${EMOJI.enCours} ${n} en cours ${fleche}`
+    if (colonnes(avec) <= dispo) return avec
+  }
+  return couper(`${base} ${fleche}`, dispo)
 }
 
 function tableau(entetes: string[], lignes: string[][]): string[] {
@@ -94,8 +121,20 @@ export function parModele(cumul: Cumul | null, largeur: number): string[] {
 }
 
 /** Une ligne par sous-agent, les plus chers d'abord, au plus `place` lignes. */
-export function parAgent(cumul: Cumul | null, largeur: number, place: number): string[] {
-  const agents = Object.values(cumul?.agents ?? {})
+export function parAgent(cumul: Cumul | null, largeur: number, place: number, maintenant = 0): string[] {
+  const tournent = cumul?.enCours ?? {}
+  // En cours d'abord (le plus ancien en tête), à la place du coût et de l'impact.
+  const enCours = Object.values(tournent)
+    .sort((x, y) => x.debut - y.debut)
+    .map(a => {
+      const modele = a.model ? ` · ${nomCourt(a.model)}` : ''
+      const description = a.description ? ` « ${couper(a.description, 28)} »` : ''
+      const ecoule = duree((maintenant || a.debut) - a.debut)
+      return couper(`· ${a.type} · ${EMOJI.enCours} en cours · ${ecoule}${modele}${description}`, largeur)
+    })
+  const agents = Object.entries(cumul?.agents ?? {})
+    .filter(([id]) => !(id in tournent))
+    .map(([, a]) => a)
     .map(a => {
       const b = bilan(a.modeles)
       const modeles = Object.keys(a.modeles).map(nomCourt).join('+') || '—'
@@ -103,7 +142,13 @@ export function parAgent(cumul: Cumul | null, largeur: number, place: number): s
     })
     .filter(x => x.b.tokens > 0)
     .sort((x, y) => y.b.usd - x.b.usd)
-  if (agents.length === 0 || place <= 0) return []
+  if (enCours.length + agents.length === 0 || place <= 0) return []
+  if (enCours.length >= place) {
+    const gardes = Math.max(0, place - 1)
+    return [...enCours.slice(0, gardes), couper(`· ${enCours.length - gardes + agents.length} autres`, largeur)]
+  }
+  place -= enCours.length
+  if (agents.length === 0) return enCours
   const montres = agents.length > place ? agents.slice(0, Math.max(0, place - 1)) : agents
   const lignes = montres.map(({ a, b, modeles }) => {
     // La description vient en dernier : c'est elle que la largeur coupe d'abord.
@@ -114,7 +159,7 @@ export function parAgent(cumul: Cumul | null, largeur: number, place: number): s
     const reste = agents.slice(montres.length).reduce((s, x) => s + x.b.usd, 0)
     lignes.push(couper(`· ${agents.length - montres.length} autres · ${dollars(reste)}`, largeur))
   }
-  return lignes
+  return [...enCours, ...lignes]
 }
 
 /** Commande du plugin agent-cost-kit qui relit toute la session depuis les transcriptions. */
@@ -159,5 +204,5 @@ export function corps(entree: Entree): string[] {
   const basDePage = pied(entree.coutMoteur, largeur, cumul?.sessionId)
   const ctx = niveau === 2 ? contexte(entree.contexte, largeur) : []
   const place = lignesMax - 1 - modeles.length - basDePage.length - ctx.length
-  return [...modeles, ...parAgent(cumul, largeur, place), ...basDePage, ...ctx]
+  return [...modeles, ...parAgent(cumul, largeur, place, entree.maintenant), ...basDePage, ...ctx]
 }

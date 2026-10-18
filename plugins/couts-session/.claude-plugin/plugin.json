@@ -1,6 +1,6 @@
 {
   "name": "couts-session",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bande au-dessus du prompt : coût API estimé, tokens et impact carbone estimé (EcoLogits) de la session, par modèle et par sous-agent, et remplissage du contexte.",
   "author": { "name": "Anaël Yahi" },
   "license": "MIT",

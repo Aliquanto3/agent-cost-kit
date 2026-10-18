@@ -13,6 +13,14 @@ export type AgentCumul = {
   modeles: Record<string, Compteurs>
 }
 
+/** Un sous-agent qui tourne : lancé ou repris, sans `turn.complete` encore. `debut` en ms depuis l'époque. */
+export type AgentEnCours = {
+  type: string
+  description: string
+  model?: string
+  debut: number
+}
+
 /** Les cumuls d'une session : tous les tours par modèle, et les sous-agents à part. */
 export type Cumul = {
   sessionId: string
@@ -20,6 +28,8 @@ export type Cumul = {
   tours: number
   modeles: Record<string, Compteurs>
   agents: Record<string, AgentCumul>
+  /** Les sous-agents qui tournent (absent d'un cumul écrit avant 0.1.2) ; jamais repris d'une session stockée. */
+  enCours?: Record<string, AgentEnCours>
 }
 
 /** 0 : une ligne ; 1 : tableau par modèle et sous-agents ; 2 : plus le contexte. */
@@ -27,6 +37,6 @@ export type Niveau = 0 | 1 | 2
 
 declare module 'claude-code' {
   interface PluginState {
-    'couts-session': { cumul: Cumul | null; niveau: Niveau }
+    'couts-session': { cumul: Cumul | null; niveau: Niveau; maintenant: number }
   }
 }
