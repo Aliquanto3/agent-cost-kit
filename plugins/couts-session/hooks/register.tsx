@@ -3,6 +3,8 @@ import type { EngineInterface, Register, Timer, TurnUsage } from 'claude-code'
 
 import type { Cumul, Niveau } from '../types'
 import { additionner, VIDE } from './calcul'
+import { analyser, fusionner, idSousAgent, nomDossierProjet, retrancher } from './historique'
+import type { Historique, ParModele } from './historique'
 import { colonnes, corps, tete } from './rendu'
 import type { Contexte } from './rendu'
 
@@ -28,6 +30,26 @@ function vide(sessionId: string, startedAt: number): Cumul {
   return { sessionId, startedAt, tours: 0, modeles: {}, agents: {}, enCours: {} }
 }
 
+/**
+ * Une fin de tour dont ce module n'a pas entendu le début (`turn.start`) : son tour a commencé avant
+ * le chargement du mod, donc ses requêtes figurent peut-être déjà dans l'historique relu.
+ */
+type Orphelin = { usage: TurnUsage; agentId?: string }
+
+/**
+ * La reprise de l'historique de la session que ce process a trouvée sans cumul (ni state ni store).
+ * `lues` : boucles (`''` principale, sinon l'id du sous-agent) dont l'historique a compté au moins une
+ * requête ; `orphelins` : fins de tour orphelines comptées en direct avant la fin de la lecture, que la
+ * fusion retranche de l'historique si leur boucle a été relue. Après la fusion, une orpheline d'une
+ * boucle relue est écartée.
+ */
+type Reprise = { cle: string; lancee: boolean; finie: boolean; lues: Set<string>; orphelins: Orphelin[] }
+let reprise: Reprise | undefined
+/** Boucles dont ce module a entendu un `turn.start` : leurs fins de tour se comptent en direct. */
+const entendues = new Set<string>()
+/** Après /clear ou /resume dans le process, la nouvelle session naît sous le mod : rien à reprendre. */
+let sessionNeeDuMod = false
+
 /** Met `$.state` sur la session courante : reprise depuis `$.store`, ou zéro après `/clear`. */
 async function synchroniser($: EngineInterface): Promise<Cumul> {
   const [id, usage] = await Promise.all([$.session.id(), $.session.usage()])
@@ -35,9 +57,122 @@ async function synchroniser($: EngineInterface): Promise<Cumul> {
   if (tenu && tenu.sessionId === id && tenu.startedAt === usage.startedAt) return tenu
   const stocke = (await $.store.get(cleSession(id))) as Cumul | undefined
   // Un cumul relu du store n'a plus rien « en cours » : les sous-agents de l'ancien process sont finis.
-  const neuf = stocke && stocke.startedAt === usage.startedAt ? { ...stocke, enCours: {} } : vide(id, usage.startedAt)
+  const relu = stocke && stocke.startedAt === usage.startedAt
+  const neuf = relu ? { ...stocke, enCours: {} } : vide(id, usage.startedAt)
+  const cle = `${id}:${usage.startedAt}`
+  if (!relu && !sessionNeeDuMod && reprise?.cle !== cle) reprise = { cle, lancee: false, finie: false, lues: new Set(), orphelins: [] }
   await update($, cumulRef, () => neuf)
   return neuf
+}
+
+/** Statuts d'un sous-agent dont le tour courant n'est pas fini : son `turn.complete` portera tout ce tour. */
+const EN_TOUR = ['pending', 'running', 'waiting']
+
+/** Dossier des transcriptions de la session : celui du cwd ou de la racine, sinon le premier de `projects/` qui la contient. */
+async function dossierTranscriptions($: EngineInterface, id: string): Promise<string | undefined> {
+  const config = await $.env.get('CLAUDE_CONFIG_DIR')
+  const maison = (await $.env.get('USERPROFILE')) || (await $.env.get('HOME'))
+  if (!config && !maison) return undefined
+  const racine = `${config || `${maison}/.claude`}/projects`
+  for (const dir of new Set([await $.session.cwd(), await $.session.root()])) {
+    const direct = `${racine}/${nomDossierProjet(dir)}`
+    if (await $.fs.exists(`${direct}/${id}.jsonl`)) return direct
+  }
+  if (!(await $.fs.exists(racine))) return undefined
+  for (const entree of await $.fs.list(racine)) {
+    if (entree.kind === 'dir' && (await $.fs.exists(`${racine}/${entree.name}/${id}.jsonl`))) return `${racine}/${entree.name}`
+  }
+  return undefined
+}
+
+/**
+ * Relit les transcriptions de la session (principale et sous-agents) jusqu'à `fin`, l'instant du
+ * chargement : tokens par modèle et par sous-agent. `enTour` : sous-agents au milieu d'un tour à cet
+ * instant, sautés (leur `turn.complete` à venir porte tout ce tour). `lues` reçoit les boucles comptées.
+ */
+async function lireHistorique(
+  $: EngineInterface,
+  id: string,
+  fenetre: { debut: number; fin: number },
+  tours: number,
+  enTour: Set<string>,
+  lues: Set<string>,
+): Promise<Historique | undefined> {
+  const dossier = await dossierTranscriptions($, id)
+  if (!dossier) return undefined
+  const h: Historique = { tours, modeles: {}, agents: {}, partielle: false, jusqua: fenetre.fin }
+  const vus = new Set<string>()
+  const lire = async (chemin: string): Promise<string | undefined> => {
+    try {
+      const texte = await $.fs.read(chemin)
+      return typeof texte === 'string' ? texte : undefined
+    } catch (erreur) {
+      h.partielle = true
+      const motif = erreur instanceof Error ? erreur.message : String(erreur)
+      $.ui.log(`couts-session : historique partiel, ${chemin} illisible (${motif})`)
+      return undefined
+    }
+  }
+  const principal = await lire(`${dossier}/${id}.jsonl`)
+  if (principal !== undefined) h.modeles = analyser(principal, fenetre, vus, true)
+  if (Object.keys(h.modeles).length > 0) lues.add('')
+
+  const sous = `${dossier}/${id}/subagents`
+  const fichiers = (await $.fs.exists(sous)) ? await $.fs.list(sous) : []
+  for (const f of fichiers) {
+    const agentId = f.kind === 'file' ? idSousAgent(f.name) : undefined
+    if (!agentId || enTour.has(agentId)) continue
+    const texte = await lire(`${sous}/${f.name}`)
+    if (texte === undefined) continue
+    const modeles: ParModele = analyser(texte, fenetre, vus)
+    if (Object.keys(modeles).length === 0) continue
+    let meta: { agentType?: unknown; description?: unknown } = {}
+    try {
+      meta = JSON.parse((await $.fs.read(`${sous}/agent-${agentId}.meta.json`)) as string)
+    } catch {
+      // pas de fiche : repli sur « agent »
+    }
+    h.agents[agentId] = {
+      type: typeof meta.agentType === 'string' ? meta.agentType : 'agent',
+      description: typeof meta.description === 'string' ? meta.description : '',
+      modeles,
+    }
+    lues.add(agentId)
+    for (const [m, c] of Object.entries(modeles)) h.modeles[m] = additionner(h.modeles[m] ?? VIDE, c)
+    h.tours += 1
+  }
+  return h
+}
+
+/**
+ * Reconstitue l'historique d'une session que le mod rejoint en cours de route, une fois par session
+ * et par process. Tout ce qui borne la lecture (instant, prompts, sous-agents en cours de tour) est
+ * relevé d'abord, au chargement, avant toute lecture de fichier : un tour commencé ensuite est compté
+ * en direct seulement. Les fins de tour orphelines déjà comptées en direct sont retranchées de
+ * l'historique de leur boucle si elle a été relue. Une erreur marque la reprise partielle.
+ */
+async function reprendre($: EngineInterface, cumul: Cumul, r: Reprise): Promise<void> {
+  let h: Historique | undefined
+  let echec = false
+  try {
+    const [fin, tours, liste] = await Promise.all([$.clock.now(), $.session.turns(), $.agent.list()])
+    const enTour = new Set(liste.filter(a => EN_TOUR.includes(a.status)).map(a => a.id))
+    // Session sans prompt ni sous-agent (démarrage à froid) : rien à relire, pas de parcours de `projects/`.
+    if (tours > 0 || liste.length > 0) {
+      h = await lireHistorique($, cumul.sessionId, { debut: cumul.startedAt, fin }, tours, enTour, r.lues)
+    }
+  } catch (erreur) {
+    echec = true
+    r.lues.clear()
+    $.ui.log(`couts-session : historique non repris (${erreur instanceof Error ? erreur.message : String(erreur)})`)
+  }
+  // Sans `await` entre ces trois lignes : une fin de tour arrive avant (tenue, puis retranchée) ou après (écartée si relue).
+  r.finie = true
+  const deja = r.orphelins.splice(0)
+  if (h) for (const o of deja) if (r.lues.has(o.agentId ?? '')) retrancher(h, o.usage.model, compteurs(o.usage), o.agentId)
+  const meme = (c: Cumul | null): c is Cumul => !!c && c.sessionId === cumul.sessionId && c.startedAt === cumul.startedAt
+  await update($, cumulRef, c => (!meme(c) ? c : h ? fusionner(c, h) : echec ? { ...c, reprise: { jusqua: 0, partielle: true } } : c))
+  await persister($)
 }
 
 /**
@@ -170,6 +305,12 @@ export const register: Register = on => {
       const cumul = await synchroniser($)
       // Rechargement à chaud : des en-cours survivent, le minuteur non.
       if (Object.keys(cumul.enCours ?? {}).length > 0) demarrer($)
+      // Mod chargé en cours de session (ni state ni store) : l'historique se relit sans bloquer la bande.
+      const r = reprise
+      if (r && !r.lancee && r.cle === `${cumul.sessionId}:${cumul.startedAt}` && !cumul.reprise) {
+        r.lancee = true
+        void sansEchec($, () => reprendre($, cumul, r))
+      }
     })
     return result
   })
@@ -178,6 +319,7 @@ export const register: Register = on => {
     const result = await next(e)
     const { agentId } = result
     if (agentId) {
+      entendues.add(agentId)
       await sansEchec($, async () => {
         await synchroniser($)
         const fiche = { type: e.subagentType, description: e.description, modeles: {} }
@@ -193,6 +335,7 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     const result = await next(e)
     const { agentId } = e
+    entendues.add(agentId ?? '')
     if (agentId) {
       await sansEchec($, async () => {
         const courant = await synchroniser($)
@@ -221,6 +364,18 @@ export const register: Register = on => {
           const connu = (await $.agent.list()).find(a => a.id === agentId)
           agent = connu ? { type: connu.type, description: connu.description } : { type: 'interne', description: '' }
         }
+        // Tour commencé avant le chargement, dans une session en reprise : peut-être déjà relu.
+        const boucle = agentId ?? ''
+        const orphelin = !entendues.has(boucle)
+        entendues.add(boucle)
+        const r = reprise
+        if (orphelin && r && r.cle === `${courant.sessionId}:${courant.startedAt}`) {
+          if (!r.finie) r.orphelins.push({ usage, agentId })
+          else if (r.lues.has(boucle)) {
+            if (agentId) await retirer($, [agentId])
+            return
+          }
+        }
         await update($, cumulRef, c => ajouter(c && c.sessionId === courant.sessionId ? c : courant, usage, agentId, agent))
         await persister($)
         if (agentId) await retirer($, [agentId]) // arrête le minuteur s'il ne reste rien
@@ -234,6 +389,7 @@ export const register: Register = on => {
   on('session.end', async ($, e, next) => {
     const result = await next(e)
     if (e.reason === 'clear' || e.reason === 'resume') {
+      sessionNeeDuMod = true
       await sansEchec($, async () => {
         await update($, cumulRef, c => (c && c.sessionId === e.sessionId ? null : c))
       })
