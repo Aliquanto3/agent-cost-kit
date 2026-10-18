@@ -3,6 +3,8 @@ import type { EngineInterface, Register, Timer, TurnUsage } from 'claude-code'
 
 import type { Cumul, Niveau } from '../types'
 import { additionner, VIDE } from './calcul'
+import { analyser, fusionner, idSousAgent, nomDossierProjet } from './historique'
+import type { Historique, ParModele } from './historique'
 import { colonnes, corps, tete } from './rendu'
 import type { Contexte } from './rendu'
 
@@ -28,6 +30,11 @@ function vide(sessionId: string, startedAt: number): Cumul {
   return { sessionId, startedAt, tours: 0, modeles: {}, agents: {}, enCours: {} }
 }
 
+/** Session dont `synchroniser` vient de créer un cumul vide faute de cumul en state et en store. */
+let viergeDe: string | undefined
+/** Sessions dont la reprise a été lancée dans ce process : elle ne tourne qu'une fois. */
+const reprises = new Set<string>()
+
 /** Met `$.state` sur la session courante : reprise depuis `$.store`, ou zéro après `/clear`. */
 async function synchroniser($: EngineInterface): Promise<Cumul> {
   const [id, usage] = await Promise.all([$.session.id(), $.session.usage()])
@@ -35,9 +42,86 @@ async function synchroniser($: EngineInterface): Promise<Cumul> {
   if (tenu && tenu.sessionId === id && tenu.startedAt === usage.startedAt) return tenu
   const stocke = (await $.store.get(cleSession(id))) as Cumul | undefined
   // Un cumul relu du store n'a plus rien « en cours » : les sous-agents de l'ancien process sont finis.
-  const neuf = stocke && stocke.startedAt === usage.startedAt ? { ...stocke, enCours: {} } : vide(id, usage.startedAt)
+  const relu = stocke && stocke.startedAt === usage.startedAt
+  const neuf = relu ? { ...stocke, enCours: {} } : vide(id, usage.startedAt)
+  if (!relu) viergeDe = id
   await update($, cumulRef, () => neuf)
   return neuf
+}
+
+const TERMINES = ['completed', 'failed', 'killed']
+
+/** Dossier des transcriptions de la session : celui du cwd, sinon le premier de `projects/` qui la contient. */
+async function dossierTranscriptions($: EngineInterface, id: string): Promise<string | undefined> {
+  const config = await $.env.get('CLAUDE_CONFIG_DIR')
+  const maison = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  const racine = `${config ?? `${maison ?? ''}/.claude`}/projects`
+  const direct = `${racine}/${nomDossierProjet(await $.session.cwd())}`
+  if (await $.fs.exists(`${direct}/${id}.jsonl`)) return direct
+  for (const entree of await $.fs.list(racine)) {
+    if (entree.kind === 'dir' && (await $.fs.exists(`${racine}/${entree.name}/${id}.jsonl`))) return `${racine}/${entree.name}`
+  }
+  return undefined
+}
+
+/** Relit les transcriptions de la session (principale et sous-agents) : tokens par modèle et par sous-agent. */
+async function lireHistorique($: EngineInterface, id: string, debut: number): Promise<Historique | undefined> {
+  const dossier = await dossierTranscriptions($, id)
+  if (!dossier) return undefined
+  const fenetre = { debut, fin: await $.clock.now() }
+  const h: Historique = { tours: await $.session.turns(), modeles: {}, agents: {}, partielle: false, jusqua: fenetre.fin }
+  const vus = new Set<string>()
+  const lire = async (chemin: string): Promise<string | undefined> => {
+    try {
+      const texte = await $.fs.read(chemin)
+      return typeof texte === 'string' ? texte : undefined
+    } catch {
+      h.partielle = true
+      $.ui.log(`couts-session : historique partiel, ${chemin} trop gros`)
+      return undefined
+    }
+  }
+  const principal = await lire(`${dossier}/${id}.jsonl`)
+  if (principal !== undefined) h.modeles = analyser(principal, fenetre, vus, true)
+
+  // Un sous-agent en cours est sauté : son turn.complete à venir porte l'usage de tout son tour.
+  const enCours = new Set((await $.agent.list()).filter(a => !TERMINES.includes(a.status)).map(a => a.id))
+  const sous = `${dossier}/${id}/subagents`
+  const fichiers = (await $.fs.exists(sous)) ? await $.fs.list(sous) : []
+  for (const f of fichiers) {
+    const agentId = f.kind === 'file' ? idSousAgent(f.name) : undefined
+    if (!agentId || enCours.has(agentId)) continue
+    const texte = await lire(`${sous}/${f.name}`)
+    if (texte === undefined) continue
+    const modeles: ParModele = analyser(texte, fenetre, vus)
+    if (Object.keys(modeles).length === 0) continue
+    let meta: { agentType?: unknown; description?: unknown } = {}
+    try {
+      meta = JSON.parse((await $.fs.read(`${sous}/agent-${agentId}.meta.json`)) as string)
+    } catch {
+      // pas de fiche : repli sur « agent »
+    }
+    h.agents[agentId] = {
+      type: typeof meta.agentType === 'string' ? meta.agentType : 'agent',
+      description: typeof meta.description === 'string' ? meta.description : '',
+      modeles,
+    }
+    for (const [m, c] of Object.entries(modeles)) h.modeles[m] = additionner(h.modeles[m] ?? VIDE, c)
+    h.tours += 1
+  }
+  return h
+}
+
+/** Reconstitue l'historique d'une session que le mod rejoint en cours de route, une fois par session et par process. */
+async function reprendre($: EngineInterface, cumul: Cumul): Promise<void> {
+  const cle = `${cumul.sessionId}:${cumul.startedAt}`
+  if (reprises.has(cle)) return
+  reprises.add(cle)
+  const h = await lireHistorique($, cumul.sessionId, cumul.startedAt)
+  if (!h) return
+  // Fusion dans le cumul courant : un turn.complete arrivé pendant la lecture n'est pas écrasé.
+  await update($, cumulRef, c => (c && c.sessionId === cumul.sessionId && c.startedAt === cumul.startedAt ? fusionner(c, h) : c))
+  await persister($)
 }
 
 /**
@@ -170,6 +254,11 @@ export const register: Register = on => {
       const cumul = await synchroniser($)
       // Rechargement à chaud : des en-cours survivent, le minuteur non.
       if (Object.keys(cumul.enCours ?? {}).length > 0) demarrer($)
+      // Mod chargé en cours de session (ni state ni store) : l'historique se relit sans bloquer la bande.
+      if (viergeDe === cumul.sessionId && !cumul.reprise) {
+        viergeDe = undefined
+        void sansEchec($, () => reprendre($, cumul))
+      }
     })
     return result
   })

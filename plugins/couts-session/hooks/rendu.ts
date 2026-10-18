@@ -73,7 +73,8 @@ export const EMOJI = { cout: '💰', lus: '📖', ecrits: '🪶', impact: '🌱'
 export function resume(cumul: Cumul | null, ctx?: number, opts: { contexte?: boolean; libelles?: boolean } = {}): string {
   const { contexte: avecCtx = true, libelles = true } = opts
   const b = bilan(cumul?.modeles ?? {})
-  const prix = `≈ ${dollars(b.usd)}${b.horsTable ? '+?' : ''}`
+  // Historique partiel (fichier trop gros sauté) : le coût est un minimum, « ≥ » remplace « ≈ ».
+  const prix = `${cumul?.reprise?.partielle ? '≥' : '≈'} ${dollars(b.usd)}${b.horsTable ? '+?' : ''}`
   const parts = [
     `${EMOJI.cout} ${prix}`,
     `${EMOJI.lus} ${tokens(b.lus)}${libelles ? ' lus' : ''}`,

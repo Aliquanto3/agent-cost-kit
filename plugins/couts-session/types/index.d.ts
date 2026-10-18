@@ -30,6 +30,11 @@ export type Cumul = {
   agents: Record<string, AgentCumul>
   /** Les sous-agents qui tournent (absent d'un cumul écrit avant 0.1.2) ; jamais repris d'une session stockée. */
   enCours?: Record<string, AgentEnCours>
+  /**
+   * Marque de la reprise de l'historique depuis les transcriptions (mod chargé en cours de session) :
+   * `jusqua` en ms depuis l'époque, `partielle` si un fichier trop gros ou illisible a été sauté.
+   */
+  reprise?: { jusqua: number; partielle?: boolean }
 }
 
 /** 0 : une ligne ; 1 : tableau par modèle et sous-agents ; 2 : plus le contexte. */
