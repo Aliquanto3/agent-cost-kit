@@ -81,6 +81,22 @@ function sommer(a: ParModele, b: ParModele): ParModele {
   return somme
 }
 
+function moins(a: Compteurs, b: Compteurs): Compteurs {
+  const m = (x: number, y: number) => Math.max(0, x - y)
+  return { input: m(a.input, b.input), output: m(a.output, b.output), cacheRead: m(a.cacheRead, b.cacheRead), cacheWrite: m(a.cacheWrite, b.cacheWrite) }
+}
+
+/**
+ * Retire de l'historique un tour déjà compté en direct (fin de tour arrivée sans que le mod en ait
+ * entendu le début, pour une boucle relue) : ses requêtes sont aussi dans les transcriptions. Planché à 0.
+ */
+export function retrancher(h: Historique, modele: string, tour: Compteurs, agentId?: string): void {
+  if (h.modeles[modele]) h.modeles[modele] = moins(h.modeles[modele]!, tour)
+  const a = agentId ? h.agents[agentId] : undefined
+  if (a?.modeles[modele]) a.modeles[modele] = moins(a.modeles[modele]!, tour)
+  h.tours = Math.max(0, h.tours - 1)
+}
+
 /**
  * Ajoute l'historique au cumul (qui a pu recevoir des `turn.complete` pendant la lecture) et pose la
  * marque `reprise`. Un sous-agent déjà connu du cumul voit ses tokens additionnés, pas écrasés.

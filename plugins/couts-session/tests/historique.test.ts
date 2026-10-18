@@ -64,13 +64,24 @@ describe('analyser', () => {
   })
 })
 
-type Monde = { agents: AgentInfo[]; fichiers: Record<string, string>; lus: string[]; logs: string[]; store: Record<string, unknown> }
+type Monde = {
+  agents: AgentInfo[]
+  fichiers: Record<string, string>
+  lus: string[]
+  listes: string[]
+  logs: string[]
+  store: Record<string, unknown>
+  tours: number
+  env: Record<string, string | undefined>
+  /** Message de l'erreur que lève `agent.list`, si posé. */
+  panne?: string
+}
 
 const DOSSIER = '/home/x/.claude/projects/-w'
 
 /** Le moteur sous le plugin, avec un système de fichiers en mémoire (clés = chemins absolus). */
 function monde(on: On, fichiers: Record<string, string>, store: Record<string, unknown> = {}): Monde {
-  const m: Monde = { agents: [], fichiers, lus: [], logs: [], store }
+  const m: Monde = { agents: [], fichiers, lus: [], listes: [], logs: [], store, tours: 4, env: { USERPROFILE: '/home/x' } }
   const TROP_GROS = 'TROP_GROS'
   // Le moteur de test rend les chemins absolus à la mode de Windows (C:\...).
   const norme = (p: string) => p.split(String.fromCharCode(92)).join("/").replace(/^[A-Za-z]:/, "")
@@ -80,17 +91,19 @@ function monde(on: On, fichiers: Record<string, string>, store: Record<string, u
   on('ui.log', (_$, e) => (m.logs.push(String((e as { message?: string }).message ?? JSON.stringify(e))), { value: undefined }))
   on('session.id', () => ({ value: 'S1' }))
   on('session.cwd', () => ({ value: '/w' }))
-  on('session.turns', () => ({ value: 4 }))
+  on('session.root', () => ({ value: '/w' }))
+  on('session.turns', () => ({ value: m.tours }))
   on('session.usage', () => ({
     value: { startedAt: DEBUT, context: { window: 200000, tokens: 1, percent: 0 }, rateLimits: [], cost: { usd: 1 } },
   }))
-  on('env.get', (_$, e) => ({ value: e.name === 'USERPROFILE' ? '/home/x' : undefined }))
+  on('env.get', (_$, e) => ({ value: m.env[e.name] }))
   on('fs.exists', (_$, e) => ({
     value: norme(e.path) in m.fichiers || Object.keys(m.fichiers).some(k => k.startsWith(`${norme(e.path)}/`)),
   }))
   on('fs.list', (_$, e) => {
     const noms = new Map<string, 'file' | 'dir'>()
     const dossier = norme(e.path)
+    m.listes.push(dossier)
     for (const k of Object.keys(m.fichiers)) {
       if (!k.startsWith(`${dossier}/`)) continue
       const [nom, ...reste] = k.slice(dossier.length + 1).split('/')
@@ -104,8 +117,12 @@ function monde(on: On, fichiers: Record<string, string>, store: Record<string, u
     if (texte === undefined || texte === TROP_GROS) throw new Error('over 4 MiB')
     return { value: texte }
   })
-  on('agent.list', () => ({ value: m.agents }))
+  on('agent.list', () => {
+    if (m.panne) throw new Error(m.panne)
+    return { value: m.agents }
+  })
   on('turn.complete', () => ({ text: '' }))
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   return m
 }
@@ -189,19 +206,119 @@ describe('reprise de l’historique', () => {
     mock.clock(on, { now: MAINTENANT })
     await demarrer($)
     await attendre($, store)
-    await $.turn.complete({
-      answer: '',
-      durationMs: 1,
-      isAborted: false,
-      turnId: 't1',
-      reason: 'answer',
-      usage: { model: 'claude-opus-5-5', input_tokens: 1, output_tokens: 100, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
-    })
+    await $.turn.start({ prompt: 'x', turnId: 't1' })
+    await $.turn.complete(finTour(100))
     const c = (await attendre($, store, x => x?.tours === 5))!
     expect(c.modeles['claude-opus-5-5']?.output).toBe(110)
     expect(c.tours).toBe(5)
   })
+
+  test('fin du tour du chargement (début non entendu) après la reprise : écartée, déjà relue', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    monde(on, { [principal]: ligne('m1', 10) }, store)
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    await attendre($, store)
+    await $.turn.complete(finTour(10))
+    for (let i = 0; i < 20; i++) await passer($)
+    const c = store['session:S1'] as Cumul
+    expect(c.modeles['claude-opus-5-5']?.output).toBe(10)
+    expect(c.tours).toBe(4)
+  })
+
+  test('fin du tour du chargement avant session.start : comptée une fois', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    monde(on, { [principal]: ligne('m1', 10) }, store)
+    mock.clock(on, { now: MAINTENANT })
+    await $.turn.complete(finTour(10))
+    await demarrer($)
+    const c = (await attendre($, store))!
+    expect(c.modeles['claude-opus-5-5']?.output).toBe(10)
+    expect(c.tours).toBe(4)
+  })
+
+  test('sous-agent en cours au chargement qui finit pendant la lecture : compté en direct, une fois', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, { [principal]: ligne('m1', 10), [`${sous}/agent-A1.jsonl`]: ligne('s1', 20) }, store)
+    m.agents = [{ id: 'A1', description: 'Story', type: 'dev-story', status: 'running' }]
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    m.agents = [{ id: 'A1', description: 'Story', type: 'dev-story', status: 'completed' }]
+    await $.turn.complete(finTour(20, 'A1'))
+    const c = (await attendre($, store, x => x?.reprise !== undefined && x.tours === 5))!
+    expect(c.modeles['claude-opus-5-5']?.output).toBe(30)
+    expect(c.agents.A1?.modeles['claude-opus-5-5']?.output).toBe(20)
+  })
+
+  test('sous-agent fini au chargement dont la fin de tour arrive tard : compté une fois', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, { [principal]: ligne('m1', 10), [`${sous}/agent-A1.jsonl`]: ligne('s1', 20) }, store)
+    m.agents = [{ id: 'A1', description: 'Story', type: 'dev-story', status: 'completed' }]
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    await $.turn.complete(finTour(20, 'A1'))
+    await attendre($, store)
+    for (let i = 0; i < 20; i++) await passer($)
+    const c = store['session:S1'] as Cumul
+    expect(c.modeles['claude-opus-5-5']?.output).toBe(30)
+    expect(c.agents.A1?.modeles['claude-opus-5-5']?.output).toBe(20)
+  })
+
+  test('sous-agent idle (entre deux tours) : relu', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, { [principal]: ligne('m1', 10), [`${sous}/agent-A1.jsonl`]: ligne('s1', 20) }, store)
+    m.agents = [{ id: 'A1', description: '', type: 'dev-story', status: 'idle' }]
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    const c = (await attendre($, store))!
+    expect(c.agents.A1?.modeles['claude-opus-5-5']?.output).toBe(20)
+  })
+
+  test('CLAUDE_CONFIG_DIR vide : repli sur le dossier de l’utilisateur', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, { [principal]: ligne('m1', 10) }, store)
+    m.env = { CLAUDE_CONFIG_DIR: '', USERPROFILE: '', HOME: '/home/x' }
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    const c = (await attendre($, store))!
+    expect(c.modeles['claude-opus-5-5']?.output).toBe(10)
+  })
+
+  test('session à froid (aucun prompt ni sous-agent) : aucun parcours de projects/', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, {}, store)
+    m.tours = 0
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    for (let i = 0; i < 50; i++) await passer($)
+    expect(m.listes).toEqual([])
+    expect(m.lus).toEqual([])
+  })
+
+  test('erreur pendant la reprise : marquée partielle, journalisée, la bande continue', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    const m = monde(on, { [principal]: ligne('m1', 10) }, store)
+    m.panne = 'liste indisponible'
+    mock.clock(on, { now: MAINTENANT })
+    await demarrer($)
+    const c = (await attendre($, store))!
+    expect(c.reprise?.partielle).toBe(true)
+    expect(m.logs.some(l => l.includes('historique non repris'))).toBe(true)
+  })
 })
+
+/** Fin de tour avec usage (Opus), de la session principale ou d'un sous-agent. */
+function finTour(sortie: number, agentId?: string) {
+  return {
+    answer: '',
+    durationMs: 1,
+    isAborted: false,
+    turnId: `t-${sortie}-${agentId ?? ''}`,
+    reason: 'answer',
+    ...(agentId ? { agentId } : {}),
+    usage: { model: 'claude-opus-5-5', input_tokens: 1, output_tokens: sortie, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+  }
+}
 
 describe('rendu d’une reprise partielle', () => {
   const base: Cumul = { sessionId: 'S1', startedAt: DEBUT, tours: 1, modeles: { 'claude-opus-5-5': { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 } }, agents: {} }
