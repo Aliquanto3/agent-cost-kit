@@ -20,7 +20,7 @@ const BREAKDOWN = {
   percentage: 25,
 } as unknown as SessionContextBreakdown
 
-type Monde = { sessionId: string; startedAt: number; breakdowns: number; fulls: number }
+type Monde = { sessionId: string; startedAt: number; breakdowns: number; fulls: number; panne?: boolean }
 
 /** Le moteur sous le plugin : session, usage, agents, fin de tour, store en mémoire (lisible). */
 function monde(on: On, store: Record<string, unknown> = {}, bande = true): Monde {
@@ -36,6 +36,7 @@ function monde(on: On, store: Record<string, unknown> = {}, bande = true): Monde
   on('session.usage', (_$, e) => {
     if (e.breakdown === 'summary') m.breakdowns += 1
     if (e.breakdown === 'full') m.fulls += 1
+    if (m.panne) throw new Error('usage indisponible')
     return {
       value: {
         startedAt: m.startedAt,
@@ -161,7 +162,7 @@ describe('bande', () => {
       // 1. replié : toute la ligne est le bouton, sans tableau.
       expect(await texte(ui)).toHaveLength(0)
       const ligne = await ui.find({ key: 'niveau' })
-      expect(JSON.stringify(ligne)).toMatch(/💰 ≈ .+ \$ · 🪙 .+ tok · 🌱 .+CO₂e estimé ▸/)
+      expect(JSON.stringify(ligne)).toMatch(/💰 ≈ .+ \$ · 📖 .+ lus · 🪶 .+ écrits · 🧠 50 k · 🌱 .+CO₂e estimé ▸/)
       expect(JSON.stringify(ligne)).not.toContain('touche 1')
       expect(await ui.find({ key: 'moins' })).toBeUndefined()
 
@@ -223,16 +224,26 @@ describe('bande', () => {
     expect(JSON.stringify(await ui.find({ key: 'niveau' }))).toContain('(touche 1)')
   })
 
+  test('usage en échec : la bande reste, sans 🧠', async ($, on) => {
+    const m = monde(on)
+    await $.turn.complete(tour('claude-opus-5-5', 2000))
+    m.panne = true
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
+    const ligne = JSON.stringify(await ui.find({ key: 'niveau' }))
+    expect(ligne).toMatch(/💰 ≈ .+ · 📖 .+ lus · 🪶 .+ écrits · 🌱/)
+    expect(ligne).not.toContain('🧠')
+  })
+
   test('/clear : la bande quitte l’ancienne session sans attendre un tour', async ($, on) => {
     const m = monde(on)
     on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
     await $.turn.complete(tour('claude-opus-5-5', 2000))
     const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
-    expect(JSON.stringify(await ui.find({ key: 'niveau' }))).not.toContain('🪙 0 tok')
+    expect(JSON.stringify(await ui.find({ key: 'niveau' }))).not.toContain('📖 0 lus')
     await $.session.end({ reason: 'clear', sessionId: 'S1', resume: {} as never })
     m.sessionId = 'S2'
     const apres = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
-    expect(JSON.stringify(await apres.find({ key: 'niveau' }))).toContain('🪙 0 tok')
+    expect(JSON.stringify(await apres.find({ key: 'niveau' }))).toContain('📖 0 lus')
   })
 
   test('garde ce que dessine un plugin en dessous', async ($, on) => {

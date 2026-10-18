@@ -102,17 +102,21 @@ export function bilan(modeles: Record<string, Compteurs>) {
   let usd = 0
   let horsTable = false
   let tokens = 0
+  let lus = 0
+  let ecrits = 0
   const g = { min: 0, max: 0 }
   for (const [modele, c] of Object.entries(modeles)) {
     const prix = cout(modele, c)
     if (prix === undefined) horsTable = horsTable || totalTokens(c) > 0
     else usd += prix
     tokens += totalTokens(c)
+    lus += c.input + c.cacheRead + c.cacheWrite
+    ecrits += c.output
     const i = impact(modele, c.output)
     g.min += i.gco2e.min
     g.max += i.gco2e.max
   }
-  return { usd, horsTable, tokens, gco2e: g }
+  return { usd, horsTable, tokens, lus, ecrits, gco2e: g }
 }
 
 // Formats français, courts.

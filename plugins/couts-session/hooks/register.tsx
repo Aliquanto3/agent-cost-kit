@@ -257,10 +257,17 @@ export const register: Register = on => {
     const place = 3 + colonnes(aide) + (niveau > 0 ? 5 : 0)
     let coutMoteur: number | undefined
     let contexte: Contexte | undefined
-    if (niveau > 0) {
-      const usage = await $.session.usage(
-        niveau === 2 ? { breakdown: 'summary', columns: largeur } : undefined,
-      )
+    // Lecture seule, sans `breakdown` (gratuite) : `context.tokens` est l'entrée de la dernière réponse
+    // de la session principale (le `total_input_tokens` de la status line), absente après /compact
+    // jusqu'à la réponse suivante. En cas d'erreur, la bande s'affiche sans 🧠 ni total moteur.
+    let usage: Awaited<ReturnType<typeof $.session.usage>> | undefined
+    try {
+      usage = await $.session.usage(niveau === 2 ? { breakdown: 'summary', columns: largeur } : undefined)
+    } catch {
+      usage = undefined
+    }
+    const ctxTokens = usage?.context.tokens
+    if (usage && niveau > 0) {
       coutMoteur = usage.cost?.usd
       const b = usage.context.breakdown
       if (b) {
@@ -274,7 +281,7 @@ export const register: Register = on => {
         }
       }
     }
-    const ligneTete = tete(cumul, niveau < 2 ? '▸' : '▾', largeur - place)
+    const ligneTete = tete(cumul, niveau < 2 ? '▸' : '▾', largeur - place, ctxTokens)
     const lignes = corps({ cumul, niveau, largeur, lignesMax: e.props.maxRows, coutMoteur, contexte, maintenant })
     const libelle = niveau === 0 ? 'déplier' : niveau === 1 ? 'contexte' : 'replier'
     return (

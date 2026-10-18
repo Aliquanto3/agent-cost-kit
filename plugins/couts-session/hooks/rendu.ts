@@ -21,13 +21,26 @@ export type Entree = {
   maintenant?: number
 }
 
-/** Colonnes occupées : un emoji (hors plan multilingue de base) en prend deux, un sélecteur de variante aucune. */
+/** Emoji du plan de base à présentation emoji (Emoji_Presentation=Yes) : les terminaux les dessinent sur deux colonnes. */
+const LARGES_BMP: [number, number][] = [
+  [0x231a, 0x231b], [0x23e9, 0x23ec], [0x23f0, 0x23f0], [0x23f3, 0x23f3], [0x25fd, 0x25fe], [0x2614, 0x2615],
+  [0x2648, 0x2653], [0x267f, 0x267f], [0x2693, 0x2693], [0x26a1, 0x26a1], [0x26aa, 0x26ab], [0x26bd, 0x26be],
+  [0x26c4, 0x26c5], [0x26ce, 0x26ce], [0x26d4, 0x26d4], [0x26ea, 0x26ea], [0x26f2, 0x26f3], [0x26f5, 0x26f5],
+  [0x26fa, 0x26fa], [0x26fd, 0x26fd], [0x2705, 0x2705], [0x270a, 0x270b], [0x2728, 0x2728], [0x274c, 0x274c],
+  [0x274e, 0x274e], [0x2753, 0x2755], [0x2757, 0x2757], [0x2795, 0x2797], [0x27b0, 0x27b0], [0x27bf, 0x27bf],
+  [0x2b1b, 0x2b1c], [0x2b50, 0x2b50], [0x2b55, 0x2b55],
+]
+
+/**
+ * Colonnes occupées : un emoji (hors plan multilingue de base, ou du plan de base à présentation emoji
+ * comme ⏳ ⌛ ⚡ ✅) en prend deux, un sélecteur de variante ou un liant aucune.
+ */
 export function colonnes(texte: string): number {
   let n = 0
   for (const c of texte) {
     const point = c.codePointAt(0) ?? 0
     if (point === 0xfe0f || point === 0x200d) continue
-    n += point >= 0x1f000 ? 2 : 1
+    n += point >= 0x1f000 || LARGES_BMP.some(([de, a]) => point >= de && point <= a) ? 2 : 1
   }
   return n
 }
@@ -50,13 +63,25 @@ const completer = (texte: string, n: number, aDroite: boolean) => {
 }
 
 /** Un emoji par grandeur. */
-export const EMOJI = { cout: '💰', tokens: '🪙', impact: '🌱', contexte: '🧠', analyse: '🔍', enCours: '⏳' } as const
+export const EMOJI = { cout: '💰', lus: '📖', ecrits: '🪶', impact: '🌱', contexte: '🧠', analyse: '🔍', enCours: '⏳' } as const
 
-/** Ligne repliée : coût, tokens, carbone. Sans la place des boutons. */
-export function resume(cumul: Cumul | null): string {
+/**
+ * Ligne repliée : coût, 📖 lu (tout ce qui est renvoyé au modèle : entrée + cache, tous tours et
+ * sous-agents), 🪶 écrit (sortie), 🧠 contexte de la dernière réponse de la session principale, carbone.
+ * `ctx` absent (pas encore de réponse, ou juste après /compact) : pas de 🧠. `libelles` faux : « 📖 17 M · 🪶 62 k ».
+ */
+export function resume(cumul: Cumul | null, ctx?: number, opts: { contexte?: boolean; libelles?: boolean } = {}): string {
+  const { contexte: avecCtx = true, libelles = true } = opts
   const b = bilan(cumul?.modeles ?? {})
   const prix = `≈ ${dollars(b.usd)}${b.horsTable ? '+?' : ''}`
-  return `${EMOJI.cout} ${prix} · ${EMOJI.tokens} ${tokens(b.tokens)} tok · ${EMOJI.impact} ${carbone(b.gco2e)} estimé`
+  const parts = [
+    `${EMOJI.cout} ${prix}`,
+    `${EMOJI.lus} ${tokens(b.lus)}${libelles ? ' lus' : ''}`,
+    `${EMOJI.ecrits} ${tokens(b.ecrits)}${libelles ? ' écrits' : ''}`,
+  ]
+  if (avecCtx && ctx !== undefined) parts.push(`${EMOJI.contexte} ${tokens(ctx)}`)
+  parts.push(`${EMOJI.impact} ${carbone(b.gco2e)} estimé`)
+  return parts.join(' · ')
 }
 
 /** Durée écoulée, courte : « 45 s », « 3 min 05 », « 1 h 05 ». */
@@ -71,17 +96,19 @@ export function duree(ms: number): string {
 
 /**
  * Ligne de tête repliée : le résumé, la mention `· ⏳ N en cours` quand des sous-agents tournent,
- * puis la flèche. Trop large, la mention tombe entière en premier (mieux qu'un « ⏳ 2 en… » coupé :
- * le coût compte plus que l'état), puis la ligne se coupe comme avant.
+ * puis la flèche. Trop large, on coupe dans cet ordre : la mention entière, le 🧠, les libellés
+ * « lus / écrits » ; le coût et le carbone restent, la ligne se coupe en dernier recours.
  */
-export function tete(cumul: Cumul | null, fleche: string, dispo: number): string {
-  const base = resume(cumul)
+export function tete(cumul: Cumul | null, fleche: string, dispo: number, ctx?: number): string {
   const n = Object.keys(cumul?.enCours ?? {}).length
-  if (n > 0) {
-    const avec = `${base} · ${EMOJI.enCours} ${n} en cours ${fleche}`
-    if (colonnes(avec) <= dispo) return avec
-  }
-  return couper(`${base} ${fleche}`, dispo)
+  const mention = n > 0 ? ` · ${EMOJI.enCours} ${n} en cours` : ''
+  const variantes: string[] = []
+  if (mention) variantes.push(`${resume(cumul, ctx)}${mention} ${fleche}`)
+  variantes.push(`${resume(cumul, ctx)} ${fleche}`)
+  variantes.push(`${resume(cumul, ctx, { contexte: false })} ${fleche}`)
+  const court = `${resume(cumul, ctx, { contexte: false, libelles: false })} ${fleche}`
+  variantes.push(court)
+  return variantes.find(v => colonnes(v) <= dispo) ?? couper(court, dispo)
 }
 
 function tableau(entetes: string[], lignes: string[][]): string[] {
@@ -89,6 +116,9 @@ function tableau(entetes: string[], lignes: string[][]): string[] {
   const format = (l: string[]) => l.map((cellule, i) => completer(cellule, largeurs[i] ?? 0, i > 0)).join('  ')
   return [format(entetes), ...lignes.map(format)]
 }
+
+/** Aide sous le tableau complet. */
+export const AIDE = `${EMOJI.lus} relu à chaque tour (baisse avec /clear) · ${EMOJI.ecrits} généré (porte l’impact)`
 
 /** Tableau par modèle : complet s'il tient, sinon modèle, coût et carbone seuls. */
 export function parModele(cumul: Cumul | null, largeur: number): string[] {
@@ -113,7 +143,7 @@ export function parModele(cumul: Cumul | null, largeur: number): string[] {
       g(m, c),
     ]),
   )
-  if (Math.max(...complet.map(colonnes)) <= largeur) return complet
+  if (Math.max(...complet.map(colonnes)) <= largeur) return [...complet, couper(AIDE, largeur)]
   return tableau(
     ['modèle', `${EMOJI.cout} coût`, `${EMOJI.impact} gCO₂e`],
     modeles.map(([m, c]) => [nomCourt(m), prix(m, c), g(m, c)]),
