@@ -30,8 +30,12 @@ def projet(tmp_path, monkeypatch):
     monkeypatch.setattr(ar, "commits_git", lambda _p: commits_exemple())
     cible = tmp_path / ar.DOSSIER
     cible.mkdir(parents=True)
-    for f in FIXTURES.iterdir():
-        shutil.copy(f, cible / f.name)
+    for f in FIXTURES.glob("*.*"):
+        if f.name not in ("epics-titres.md", "commits.txt"):
+            shutil.copy(f, cible / f.name)
+    plan_dir = tmp_path / "_bmad-output" / "planning-artifacts"
+    plan_dir.mkdir()
+    shutil.copy(FIXTURES / "epics-titres.md", plan_dir / "epics.md")
     return tmp_path
 
 
@@ -134,15 +138,87 @@ def test_analyse_de_l_exemple(projet):
     assert es["chemin"][-1] == "6.7" and es["longueur"] > 5
 
 
-def test_rapport_markdown_et_json(projet, capsys):
+def test_rapport_synthese_dirigeant(projet, capsys):
     assert ar.main([str(projet), "--maintenant", "2026-10-18 20:30"]) == 0
     md = capsys.readouterr().out
-    for titre in ("## Par epic", "## Par vague", "## En cours", "## Estimation de fin", "## Alertes", "Barème"):
+    lignes = md.splitlines()
+    assert lignes[0].startswith("# ") and "2026-10-18 20:30" in lignes[0]
+    assert "▰▰▰▱▱▱▱▱▱▱ 26 %" not in md and "13 / 62 stories terminées" in md
+    assert "**Fin estimée : 2026-10-" in md and "(entre " in md and "**Météo : 🟢 dans les temps**" in md
+    puces = [ln for ln in lignes if ln.startswith("- ")]
+    assert 3 <= len(puces) <= 5 and md.index("## Ce qu'il faut savoir") < md.index("## Par epic")
+    assert "| 1 · Installer, lancer et diagnostiquer… | ▰▰▰▰▰▰▰▰▰▰ 100 % | 7 | 0 | 0 | ✅ |" in md
+    assert "<details>" in md and "| 2.4 | Taper de vraies commandes git dans le terminal | 🛠️ | 30 % |  |" in md
+    assert "| 2.6 |" in md and "| 🧪 | 75 % | ★ |" in md
+    assert "Détails de l'estimation" in md and "### Rythme" not in md
+    assert max(len(ln) for ln in lignes) <= 120
+
+
+def test_option_detail_et_json(projet, capsys):
+    assert ar.main([str(projet), "--detail", "--maintenant", "2026-10-18 20:30"]) == 0
+    md = capsys.readouterr().out
+    for titre in ("## Détails de l'estimation", "### Par vague", "### Rythme", "### Calcul de la fin", "### Alertes"):
         assert titre in md
-    assert "| V0 | 1.1★ ✓ |" in md and "2.4 ▶30%" in md and "Non compté" in md
+    assert "Non compté" in md and "Barème" in md
     assert ar.main([str(projet), "--json", "--maintenant", "2026-10-18 20:30"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert data["stories"]["2.4"]["pct"] == 30 and data["estimation"]["fin"]["centrale"].startswith("2026-10-")
+    assert data["stories"]["2.4"]["pct"] == 30 and data["meteo"]["mot"] == "dans les temps"
+    assert data["estimation"]["fin"]["centrale"].startswith("2026-10-")
+
+
+def test_titres_depuis_epics_md_ou_slug(projet):
+    n = ar.lire_titres(projet, ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml"))
+    assert n["epics"][3] == "Collaborer dans un GitHub simulé" and n["stories"]["2.2"].startswith("Faire passer")
+    (projet / "_bmad-output" / "planning-artifacts" / "epics.md").unlink()
+    n = ar.lire_titres(projet, ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml"))
+    assert n["epics"] == {} and n["stories"]["2.2"].startswith("faire passer chaque action")
+
+
+def test_barre_court_et_emojis():
+    assert ar.barre(0) == "▱" * 10 and ar.barre(100) == "▰" * 10 and ar.barre(25) == "▰▰▰▱▱▱▱▱▱▱"
+    assert ar.court("un titre assez long pour être coupé", 15) == "un titre assez…" and ar.court("court", 15) == "court"
+    base = {"etat": "en cours", "pct": 30, "drapeaux": []}
+    assert ar.emoji_story(base) == "🛠️" and ar.emoji_story({**base, "pct": 60}) == "🔍"
+    assert ar.emoji_story({**base, "pct": 75}) == "🧪" and ar.emoji_story({**base, "etat": "fait"}) == "✅"
+    assert ar.emoji_story({**base, "etat": "à faire", "pct": 0}) == "⏳"
+    assert ar.emoji_story({**base, "drapeaux": ["bloquée"]}) == "⛔"
+    assert ar.emoji_story({**base, "drapeaux": ["attente humaine"]}) == "👤"
+    assert ar.emoji_story({**base, "etat": "à faire", "drapeaux": ["coupée"]}) == "✂️"
+
+
+def story(etat="à faire", drapeaux=()):
+    return {"etat": etat, "pct": 0, "drapeaux": list(drapeaux)}
+
+
+def test_statut_epic():
+    assert ar.statut_epic([story("fait"), story("fait")]) == "✅"
+    assert ar.statut_epic([story(), story()]) == "⏳"
+    assert ar.statut_epic([story("fait"), story()]) == "🔄"
+    assert ar.statut_epic([story("en cours", ["bloquée"]), story()]) == "⛔"
+    assert ar.statut_epic([story("en cours", ["attente humaine"]), story()]) == "👤"
+
+
+def test_meteo_regles():
+    sans = {"chemin": ["a"]}
+    assert ar.meteo({"a": story()}, sans)["emoji"] == "🟢"
+    assert ar.meteo({"a": story("en cours", ["CI rouge"])}, sans)["emoji"] == "🟡"
+    assert ar.meteo({"a": story("en cours", ["reprise"])}, sans)["emoji"] == "🟡"
+    assert ar.meteo({"a": story("en cours", ["bloquée"])}, sans)["emoji"] == "🔴"
+    humaine = {"a": story("en cours", ["attente humaine"]), "b": story()}
+    assert ar.meteo(humaine, {"chemin": ["a"]})["emoji"] == "🔴"
+    assert ar.meteo(humaine, {"chemin": ["b"]})["emoji"] == "🟢"  # attente humaine hors chemin critique
+
+
+def test_meteo_depuis_le_journal(projet):
+    run = projet / ar.DOSSIER / "run-autonome.md"
+    run.write_text(run.read_text(encoding="utf-8") +
+                   "- 2026-10-18 20:10 · 2.4 · CI · rouge sous Windows · abc1234\n", encoding="utf-8")
+    a = ar.analyser(projet, MAINTENANT)
+    assert "CI rouge" in a["stories"]["2.4"]["drapeaux"] and a["meteo"]["emoji"] == "🟡"
+    assert "contrôle automatique rouge sur 2.4" in " ".join(ar.rapport(a).split())
+    run.write_text(run.read_text(encoding="utf-8") + "- 2026-10-18 20:20 · 2.4 · blocked · deux échecs Opus · —\n", encoding="utf-8")
+    a = ar.analyser(projet, MAINTENANT)
+    assert a["meteo"]["emoji"] == "🔴" and "⛔" in ar.rapport(a)
 
 
 def test_projet_sans_run(tmp_path, capsys):
@@ -155,7 +231,7 @@ def test_tout_termine_puis_rien_de_mesure(projet):
     original = sp.read_text(encoding="utf-8")
     sp.write_text(original.replace(": backlog", ": done").replace(": in-progress", ": done"), encoding="utf-8")
     a = ar.analyser(projet, MAINTENANT)
-    assert a["estimation"]["reste"] == 0 and "Tout est terminé" in ar.rapport(a)
+    assert a["estimation"]["reste"] == 0 and "Tous les développements prévus sont terminés" in ar.rapport(a)
     # journal vide : aucune durée mesurable, donc pas d'estimation chiffrée
     run = projet / ar.DOSSIER / "run-autonome.md"
     run.write_text(run.read_text(encoding="utf-8").split("## Journal")[0] + "## Journal\n", encoding="utf-8")
