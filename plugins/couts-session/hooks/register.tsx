@@ -3,7 +3,7 @@ import type { EngineInterface, Register, TurnUsage } from 'claude-code'
 
 import type { Cumul, Niveau } from '../types'
 import { additionner, VIDE } from './calcul'
-import { corps, resume } from './rendu'
+import { colonnes, corps, couper, resume } from './rendu'
 import type { Contexte } from './rendu'
 
 const cumulRef = atom({ plugin: 'couts-session', key: 'cumul' } as const, null)
@@ -29,7 +29,20 @@ async function synchroniser($: EngineInterface): Promise<Cumul> {
   return neuf
 }
 
-async function persister($: EngineInterface, cumul: Cumul | null): Promise<void> {
+/**
+ * Écrit dans `$.store` le cumul tel que `$.state` le tient au moment d'écrire. `$.store` n'a pas
+ * d'écriture conditionnelle : deux fins de tour concurrentes (session et sous-agent en arrière-plan)
+ * passent donc l'une après l'autre, et la dernière écriture porte toujours le cumul le plus récent.
+ */
+let file: Promise<void> = Promise.resolve()
+function persister($: EngineInterface): Promise<void> {
+  const suite = file.then(() => ecrire($))
+  file = suite.catch(() => undefined)
+  return suite
+}
+
+async function ecrire($: EngineInterface): Promise<void> {
+  const cumul = await read($, cumulRef)
   if (!cumul) return
   await $.store.set(cleSession(cumul.sessionId), cumul)
   const index = ((await $.store.get('sessions')) as string[] | undefined) ?? []
@@ -70,8 +83,9 @@ async function sansEchec($: EngineInterface, travail: () => Promise<void>): Prom
   }
 }
 
-async function changerNiveau($: EngineInterface, delta: 1 | -1): Promise<void> {
-  const niveau = await update($, niveauRef, n => Math.min(2, Math.max(0, n + delta)) as Niveau)
+/** `suivant` fait le tour (replié, tableau, contexte, replié) ; -1 replie d'un niveau. */
+async function changerNiveau($: EngineInterface, pas: 'suivant' | -1): Promise<void> {
+  const niveau = await update($, niveauRef, n => (pas === 'suivant' ? (n + 1) % 3 : Math.max(0, n - 1)) as Niveau)
   await $.store.set('niveau', niveau)
 }
 
@@ -100,7 +114,7 @@ export const register: Register = on => {
       })
     }
     return result
-  })
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
@@ -114,8 +128,20 @@ export const register: Register = on => {
           const connu = (await $.agent.list()).find(a => a.id === agentId)
           agent = connu ? { type: connu.type, description: connu.description } : { type: 'interne', description: '' }
         }
-        const neuf = await update($, cumulRef, c => ajouter(c ?? courant, usage, agentId, agent))
-        await persister($, neuf)
+        await update($, cumulRef, c => ajouter(c && c.sessionId === courant.sessionId ? c : courant, usage, agentId, agent))
+        await persister($)
+      })
+    }
+    return result
+  })
+
+  // /clear (et /resume en cours de process) change l'id de session sans session.start : on vide
+  // le cumul tout de suite, sans attendre la fin du prochain tour pour quitter l'ancienne session.
+  on('session.end', async ($, e, next) => {
+    const result = await next(e)
+    if (e.reason === 'clear' || e.reason === 'resume') {
+      await sansEchec($, async () => {
+        await update($, cumulRef, c => (c && c.sessionId === e.sessionId ? null : c))
       })
     }
     return result
@@ -123,12 +149,17 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
+    // Ce que dessinent les plugins en dessous (et le moteur) reste affiché sous la bande.
+    const dessous = await next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
-    const cumul = await read($, cumulRef)
+    const [tenu, id] = await Promise.all([read($, cumulRef), $.session.id()])
+    // Garde-fou au rendu (sans écrire) : un cumul d'une autre session n'est pas montré.
+    const cumul = tenu && tenu.sessionId === id ? tenu : null
     const niveau = await read($, niveauRef)
     const largeur = Math.max(20, e.props.bodyColumns)
-    const boutons = niveau === 0 ? ['plus'] : niveau === 1 ? ['plus', 'moins'] : ['moins']
-    const place = boutons.length * 6
+    // Hors plein écran, le clic n'est pas rapporté : on rappelle la touche (prompt vide, ou ctrl+x tab).
+    const aide = e.viewport?.isFullscreen === false ? (niveau === 0 ? ' (touche 1)' : ' (1 / 2)') : ''
+    const place = 3 + colonnes(aide) + (niveau > 0 ? 5 : 0)
     let coutMoteur: number | undefined
     let contexte: Contexte | undefined
     if (niveau > 0) {
@@ -148,19 +179,20 @@ export const register: Register = on => {
         }
       }
     }
-    const tete = resume(cumul)
+    const tete = couper(`${resume(cumul)} ${niveau < 2 ? '▸' : '▾'}`, largeur - place)
     const lignes = corps({ cumul, niveau, largeur, lignesMax: e.props.maxRows, coutMoteur, contexte })
+    const libelle = niveau === 0 ? 'déplier' : niveau === 1 ? 'contexte' : 'replier'
     return (
       <Box flexDirection="column">
         <Box flexDirection="row">
-          <Text key="resume" dimColor wrap="truncate-end">
-            {tete.length + place > largeur ? `${tete.slice(0, Math.max(1, largeur - place - 1))}…` : tete}
-          </Text>
-          {boutons.includes('plus') && (
-            <Button key="plus" label="+" hotkey="d" onPress={() => changerNiveau($, 1)} />
-          )}
-          {boutons.includes('moins') && (
-            <Button key="moins" label="−" hotkey="r" onPress={() => changerNiveau($, -1)} />
+          <Button key="niveau" label={libelle} plain hotkey="1" dimColor onPress={() => changerNiveau($, 'suivant')}>
+            {tete}
+            {aide ? <Text dimColor>{aide}</Text> : null}
+          </Button>
+          {niveau > 0 && (
+            <Box marginLeft={1}>
+              <Button key="moins" label="−" plain hotkey="2" onPress={() => changerNiveau($, -1)} />
+            </Box>
           )}
         </Box>
         {lignes.map((ligne, i) => (
@@ -168,6 +200,7 @@ export const register: Register = on => {
             {ligne}
           </Text>
         ))}
+        {dessous}
       </Box>
     )
   })

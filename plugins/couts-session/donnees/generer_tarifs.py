@@ -30,6 +30,7 @@ def module(donnees: dict) -> str:
 def ecarts_script(donnees: dict) -> list[str]:
     """Compare le JSON aux constantes de mesurer_couts.py ; liste vide si le script est absent."""
     if not SCRIPT.exists():
+        print(f"mesurer_couts.py absent ({SCRIPT}) : comparaison au script sautée, module seul vérifié")
         return []
     sys.path.insert(0, str(SCRIPT.parent))
     import mesurer_couts as m

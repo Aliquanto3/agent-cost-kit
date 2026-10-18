@@ -154,8 +154,8 @@ Un mod Claude Code, installable seul, affiche au-dessus du prompt ce que coûte 
 /plugin install couts-session@agent-cost-kit
 ```
 
-La bande a trois niveaux, que `[ + ]` et `[ − ]` déplient et replient (ou `d` et `r` quand la bande a le focus, après ctrl+x tab) ; le niveau choisi est gardé d'une session à l'autre :
-1. une ligne discrète : `≈ 2,81 $ · 3,3 M tok · 127–251 gCO₂e estimé` ;
+La bande a trois niveaux. Un clic sur la ligne (terminal plein écran) ou la touche `1` (prompt vide, ou après ctrl+x tab) passe au niveau suivant puis replie ; `2` remonte d'un niveau. Le niveau choisi est gardé d'une session à l'autre :
+1. une ligne discrète : `💰 ≈ 2,81 $ · 🪙 3,3 M tok · 🌱 127–251 gCO₂e estimé` ;
 2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact et, pour comparer, le total `/cost` du moteur ;
 3. en plus, le remplissage du contexte façon `/context`, par catégorie (estimation locale, gratuite).
 
@@ -165,7 +165,8 @@ Limites :
 - les tours d'avant le chargement du mod et les tours interrompus (sans usage) ne sont pas comptés ;
 - l'écriture du cache est comptée au tarif 5 min : l'usage d'un tour ne sépare pas 5 min et 1 h ;
 - le surcoût Haiku au-delà de 100 k tokens de prompt n'est pas appliqué : l'usage d'un tour additionne ses requêtes ;
-- l'impact ne compte que les tokens de sortie, comme EcoLogits ; c'est une estimation, en fourchette.
+- l'impact ne compte que les tokens de sortie, comme EcoLogits ; c'est une estimation, en fourchette ;
+- les tokens de sortie sont ceux que déclare l'usage du tour, exacts en direct ; `mesurer_couts.py`, qui relit des transcriptions où ce compte est parfois tronqué, les réestime (`max(sortie, caractères / 2,2)`) : les deux totaux peuvent donc différer pour une même session.
 
 ## Limites
 
