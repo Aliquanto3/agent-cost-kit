@@ -63,12 +63,12 @@ const completer = (texte: string, n: number, aDroite: boolean) => {
 }
 
 /** Un emoji par grandeur. */
-export const EMOJI = { cout: '💰', lus: '📥', ecrits: '📤', impact: '🌱', contexte: '🧠', analyse: '🔍', enCours: '⏳' } as const
+export const EMOJI = { cout: '💰', lus: '📖', ecrits: '🪶', impact: '🌱', contexte: '🧠', analyse: '🔍', enCours: '⏳' } as const
 
 /**
- * Ligne repliée : coût, 📥 lu (tout ce qui est renvoyé au modèle : entrée + cache, tous tours et
- * sous-agents), 📤 écrit (sortie), 🧠 contexte de la dernière réponse de la session principale, carbone.
- * `ctx` absent (pas encore de réponse, ou juste après /compact) : pas de 🧠. `libelles` faux : « 📥 17 M · 📤 62 k ».
+ * Ligne repliée : coût, 📖 lu (tout ce qui est renvoyé au modèle : entrée + cache, tous tours et
+ * sous-agents), 🪶 écrit (sortie), 🧠 contexte de la dernière réponse de la session principale, carbone.
+ * `ctx` absent (pas encore de réponse, ou juste après /compact) : pas de 🧠. `libelles` faux : « 📖 17 M · 🪶 62 k ».
  */
 export function resume(cumul: Cumul | null, ctx?: number, opts: { contexte?: boolean; libelles?: boolean } = {}): string {
   const { contexte: avecCtx = true, libelles = true } = opts

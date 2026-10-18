@@ -162,7 +162,7 @@ describe('bande', () => {
       // 1. replié : toute la ligne est le bouton, sans tableau.
       expect(await texte(ui)).toHaveLength(0)
       const ligne = await ui.find({ key: 'niveau' })
-      expect(JSON.stringify(ligne)).toMatch(/💰 ≈ .+ \$ · 📥 .+ lus · 📤 .+ écrits · 🧠 50 k · 🌱 .+CO₂e estimé ▸/)
+      expect(JSON.stringify(ligne)).toMatch(/💰 ≈ .+ \$ · 📖 .+ lus · 🪶 .+ écrits · 🧠 50 k · 🌱 .+CO₂e estimé ▸/)
       expect(JSON.stringify(ligne)).not.toContain('touche 1')
       expect(await ui.find({ key: 'moins' })).toBeUndefined()
 
@@ -230,7 +230,7 @@ describe('bande', () => {
     m.panne = true
     const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
     const ligne = JSON.stringify(await ui.find({ key: 'niveau' }))
-    expect(ligne).toMatch(/💰 ≈ .+ · 📥 .+ lus · 📤 .+ écrits · 🌱/)
+    expect(ligne).toMatch(/💰 ≈ .+ · 📖 .+ lus · 🪶 .+ écrits · 🌱/)
     expect(ligne).not.toContain('🧠')
   })
 
@@ -239,11 +239,11 @@ describe('bande', () => {
     on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
     await $.turn.complete(tour('claude-opus-5-5', 2000))
     const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
-    expect(JSON.stringify(await ui.find({ key: 'niveau' }))).not.toContain('📥 0 lus')
+    expect(JSON.stringify(await ui.find({ key: 'niveau' }))).not.toContain('📖 0 lus')
     await $.session.end({ reason: 'clear', sessionId: 'S1', resume: {} as never })
     m.sessionId = 'S2'
     const apres = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
-    expect(JSON.stringify(await apres.find({ key: 'niveau' }))).toContain('📥 0 lus')
+    expect(JSON.stringify(await apres.find({ key: 'niveau' }))).toContain('📖 0 lus')
   })
 
   test('garde ce que dessine un plugin en dessous', async ($, on) => {

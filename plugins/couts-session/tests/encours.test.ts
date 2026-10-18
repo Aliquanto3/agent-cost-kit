@@ -256,7 +256,7 @@ describe('sous-agents en cours', () => {
       enCours: { A1: { type: 'x', description: '', debut: 0 } },
     }
     const plein = tete(cumul, '▸', 300, 238_000)
-    expect(plein).toMatch(/💰 ≈ .+ \$ · 📥 17 M lus · 📤 62 k écrits · 🧠 238 k · 🌱 .+ estimé · ⏳ 1 en cours ▸$/)
+    expect(plein).toMatch(/💰 ≈ .+ \$ · 📖 17 M lus · 🪶 62 k écrits · 🧠 238 k · 🌱 .+ estimé · ⏳ 1 en cours ▸$/)
     const sans = (l: number) => tete(cumul, '▸', l, 238_000)
     const w = colonnes(plein)
     expect(sans(w - 1)).not.toContain('⏳')
@@ -266,7 +266,7 @@ describe('sous-agents en cours', () => {
     expect(sans(sansMention - 1)).toContain('lus')
     const sansCtx = colonnes(sans(sansMention - 1))
     const etroit = sans(sansCtx - 1)
-    expect(etroit).toMatch(/📥 17 M · 📤 62 k · 🌱/)
+    expect(etroit).toMatch(/📖 17 M · 🪶 62 k · 🌱/)
     expect(etroit).toContain('💰')
     expect(etroit).not.toContain('lus')
     expect(colonnes(etroit)).toBeLessThan(sansCtx)
