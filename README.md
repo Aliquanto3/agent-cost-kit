@@ -101,10 +101,20 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 | `modeles/CLAUDE.global.md` | Les consignes de coût écrites dans `~/.claude/CLAUDE.md`. |
 | `commands/mesurer-couts.md` | `/agent-cost-kit:mesurer-couts` : coût réel par agent et par story, pic de contexte, appels, expirations du cache, contrefactuel du TTL. |
 | `scripts/mesurer_couts.py` | Le script derrière la commande. Python 3.10+, aucune dépendance. Lit `~/.claude/projects/<projet>/`. |
+| `commands/avancement-run.md` | `/agent-cost-kit:avancement-run` : avancement d'un run autonome BMAD (par epic, vague et story), rythme, estimation de l'heure de fin. |
+| `scripts/avancement_run.py` | Le script derrière la commande. Python 3.10+, aucune dépendance, lecture seule. Lit `sprint-status.yaml`, `run-autonome.md` et `git log`. |
 | `scripts/controle_rapide.py` | Modèle de contrôle de fin de story (lint, format, typage), à adapter. |
 | `bancs/` | Protocole et scripts pour re-tester le kit quand de nouveaux modèles sortent (`bancs/README.md`). |
 
 Le `model` et l'`effort` déclarés dans le frontmatter des agents s'appliquent bien aux agents de plugin. Vérifié : depuis une session Opus en `high`, `lookup` tourne en Haiku `low`.
+
+## Suivre un run autonome
+
+`/agent-cost-kit:avancement-run` (ou `python scripts/avancement_run.py <projet> [--json]`) donne en une page, sans appel de modèle pour les chiffres : l'état par epic, par vague et par story (terminé, en cours avec son étape et un pourcentage approximatif, à faire), le rythme observé (stories fusionnées par heure sur les 3 dernières heures, durée médiane « dev lancé -> fusion »), une estimation de fin en fourchette (le plus contraignant de : reste divisé par le débit, plafonné par le parallélisme du plan, et chemin critique des dépendances restantes), et les alertes (bloquées, en attente humaine, éligibles non lancées). Le modèle ne commente que le jugement : risques, chemin critique, étapes humaines.
+
+Il attend le format du plan BMAD de l'orchestrateur : tables `| Vague | Stories en parallèle | Après |` avec dépendances `x.y ← a.b, c.d`, `★` pour un pivot, `(mixte)` pour une story à étape humaine, et une section « Journal ». **Pour une estimation fiable, chaque ligne du journal porte date et heure** : `- AAAA-MM-JJ HH:MM · story · étape · résultat · commit` (étapes : `dev`, `second-avis`, `review`, `fusion`, `CI`, `blocked`, `attente humaine`, `report`). Une ligne sans heure est datée par le commit « suivi du run … (story X fusionnée) », puis par le commit cité, puis par interpolation entre ses voisines : les durées deviennent approximatives.
+
+Barème d'un en-cours : dev lancé 30 %, dev fini (second-avis en cours) 60 %, second-avis fini (review en cours) 75 %, review finie (fusion en cours) 90 %. L'estimation ne compte ni les étapes humaines, ni les limites d'usage, ni les ressources à activer (Ollama, GPU), ni les CI rouges.
 
 ## Mesurer avant de changer
 
@@ -177,6 +187,7 @@ Limites :
 
 ## Historique
 
+- **0.6.0** (2026-10-18) : commande `/agent-cost-kit:avancement-run` et script `avancement_run.py` : avancement d'un run autonome BMAD, rythme observé, estimation de fin, alertes ; convention d'heure dans le journal du run ;
 - **0.5.0** (2026-10-18) : nouveau plugin `couts-session` 0.1.0, installable seul, un mod qui affiche au-dessus du prompt le coût API estimé, les tokens et l'impact carbone estimé de la session, par modèle et par sous-agent, et le remplissage du contexte ; prix et coefficients dans `plugins/couts-session/donnees/tarifs.json` ;
 - **0.4.0** (2026-10-18) : estimation de l'impact environnemental (EcoLogits) dans `mesurer_couts.py` : énergie, GWP, eau, énergie primaire et ADPe en fourchette par agent (`agents.csv`), énergie, GWP et eau par arbre et en résumé ; option `--mix` ; banc `bancs/ecologits_ecart.py` contre la librairie ;
 - **0.3.3** (2026-10-17) :
