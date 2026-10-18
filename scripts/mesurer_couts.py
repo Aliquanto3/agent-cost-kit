@@ -13,7 +13,19 @@ chaque agent, avec les mêmes règles :
 - le pic de contexte, le contexte du premier appel, le nombre d'appels, la durée ;
 - les expirations du cache (pause plus longue que le TTL, suivie d'une écriture > 20 k tokens) ;
 - le coût contrefactuel avec l'autre TTL (5 min <-> 1 h) ;
-- les arbres d'agents (racine de profondeur 1 et descendants), pour le coût par story.
+- les arbres d'agents (racine de profondeur 1 et descendants), pour le coût par story ;
+- une estimation de l'impact environnemental (énergie, GWP, eau, énergie primaire, ADPe) en
+  fourchette min-max, selon la méthodologie EcoLogits
+  (https://ecologits.ai/latest/methodology/llm_inference/), sur les mêmes appels que le coût.
+  Limites, volontaires : EcoLogits ne compte que les tokens de SORTIE. Ni l'entrée ni le cache
+  n'ont d'impact dans ce modèle, alors que le cache fait environ 85 % du coût en dollars : l'empreinte
+  et le coût ne sont donc pas proportionnels. La réflexion masquée est absente des tokens comptés :
+  l'estimation est une borne basse. Les paramètres des modèles Anthropic ne sont pas publiés,
+  EcoLogits les estime (fourchettes). Latence : formule de repli ML.ENERGY d'EcoLogits (la voie
+  OpenRouter n'est pas reproductible hors ligne). Mix électrique par défaut : USA (choix d'EcoLogits
+  pour Anthropic), option --mix. Aucune dépendance à ``ecologits`` : coefficients intégrés,
+  extraits de la librairie (commit d0b76e3, données du 2026-10-14) ; ``bancs/ecologits_ecart.py``
+  compare ce calcul à la librairie.
 
 Usage :
     python mesurer_couts.py                      # projet = dossier courant, toutes les sessions
@@ -25,6 +37,7 @@ tableau par agent sur la sortie standard. Aucun contenu de transcription n'est r
 description courte de chaque agent.
 
 Prix vérifiés le 2026-10-13 sur https://platform.claude.com/docs/en/about-claude/pricing.
+Coefficients d'impact : EcoLogits (https://ecologits.ai), commit d0b76e3, données du 2026-10-14.
 """
 
 from __future__ import annotations
@@ -32,6 +45,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import re
 import statistics
 import sys
@@ -52,6 +66,47 @@ ECRITURE = {"5m": 1.25, "1h": 2.0}
 TTL_S = {"5m": 300, "1h": 3600}
 CARACTERES_PAR_TOKEN = 2.2
 SEUIL_REECRITURE = 20_000
+
+# Impact environnemental, méthodologie EcoLogits (commit d0b76e3, données du 2026-10-14).
+# Paramètres en milliards : (total_min, total_max, actif_min, actif_max). MoE : total fixe ; dense : total = actif.
+# Le plus long préfixe de l'identifiant du modèle l'emporte ; à défaut, repli par famille.
+PARAMETRES = {
+    "claude-opus-5-5": (670, 670, 70, 200),
+    "claude-opus-5": (670, 670, 67, 200),
+    "claude-opus-4": (670, 670, 67, 200),
+    "claude-sonnet-5": (293, 293, 29, 88),
+    "claude-sonnet-4": (440, 440, 44, 132),
+    "claude-haiku-5": (10, 35, 10, 35),
+    "claude-haiku-4": (10, 35, 10, 35),
+    "claude-fable-5": (1340, 1340, 134, 400),
+}
+PARAMETRES_FAMILLE = {
+    "opus": (670, 670, 67, 200),
+    "sonnet": (293, 293, 29, 88),
+    "haiku": (10, 35, 10, 35),
+    "fable": (1340, 1340, 134, 400),
+}
+LOT = 64  # taille de lot supposée par EcoLogits
+GPU_ENERGIE = (1.1665273170451914e-06, -0.011205921025579175, 4.052928146734005e-05)  # Wh/token
+GPU_LATENCE = (0.0006785088094353663, 0.0003119310311688259, 0.019473717579473387)  # s/token
+GPU_MEMOIRE_GO = 80
+SERVEUR_PUISSANCE_W = 1200
+SERVEUR_GPUS = 8
+DUREE_VIE_S = 3 * 365 * 24 * 3600
+# Fabrication : (kgCO2e, MJ, kgSbe) du serveur sans GPU et d'un GPU H100.
+FAB_SERVEUR = (5700.0, 70000.0, 0.37)
+FAB_GPU = (273.0, 3721.0, 0.00895)
+PUE = (1.09, 1.14)  # Anthropic
+WUE_SITE = (0.13, 0.999)  # L/kWh, Anthropic
+# Mix électrique par kWh : (kgCO2e, MJ d'énergie primaire, kgSbe, L d'eau).
+MIX = {
+    "USA": (0.3844, 9.6884, 9.855e-08, 3.1321),
+    "FRA": (0.04144, 9.3135, 4.858e-08, 3.6737),
+    "SWE": (0.03526, 4.73, 7.771e-08, 6.0315),
+    "WOR": (0.45829, 2.5871, 1.349e-08, 3.908),
+}
+MIX_DEFAUT = "USA"
+GRANDEURS = ("energie_wh", "gwp_gco2e", "eau_l", "pe_mj", "adpe_mgsbe")
 
 
 def dossier_transcriptions(projet: Path, racine: Path) -> Path:
@@ -84,7 +139,7 @@ def appels(chemin: Path) -> list[dict]:
             continue
         appel = par_id.setdefault(
             message["id"],
-            {"fam": fam, "ts": entree.get("timestamp", ""), "car": 0, "u": {}},
+            {"fam": fam, "modele": str(message.get("model", "")), "ts": entree.get("timestamp", ""), "car": 0, "u": {}},
         )
         for bloc in message.get("content") or []:
             if not isinstance(bloc, dict):
@@ -107,6 +162,7 @@ def appels(chemin: Path) -> list[dict]:
         resultat.append(
             {
                 "fam": appel["fam"],
+                "modele": appel["modele"],
                 "ts": appel["ts"],
                 "entree": int(u.get("input_tokens") or 0),
                 "ecrit_5m": ecrit - ecrit_1h,
@@ -117,6 +173,79 @@ def appels(chemin: Path) -> list[dict]:
             }
         )
     return sorted((a for a in resultat if a["ts"]), key=lambda a: a["ts"])
+
+
+def parametres(modele: str) -> tuple[float, float, float, float]:
+    """(total_min, total_max, actif_min, actif_max) en milliards de paramètres."""
+    candidats = [cle for cle in PARAMETRES if modele.startswith(cle)]
+    if candidats:
+        return PARAMETRES[max(candidats, key=len)]
+    return PARAMETRES_FAMILLE[famille(modele) or "opus"]
+
+
+def impact(modele: str, sortie: float, mix: str = MIX_DEFAUT) -> dict[str, dict[str, float]]:
+    """Impact de ``sortie`` tokens générés par ``modele`` : {grandeur: {"min", "max"}}.
+
+    Énergie en Wh, GWP en gCO2e, eau en L, énergie primaire en MJ, ADPe en mgSbe. Grandeurs
+    linéaires en ``sortie`` : on peut donc sommer les tokens avant d'appeler.
+    """
+    gwp_kwh, pe_kwh, adpe_kwh, wue_mix = MIX[mix]
+    t_min, t_max, a_min, a_max = parametres(modele)
+    alpha, beta, gamma = GPU_ENERGIE
+    la, lb, lg = GPU_LATENCE
+    resultat: dict[str, dict[str, float]] = {}
+    for borne, total, actif, pue, wue in (
+        ("min", t_min, a_min, PUE[0], WUE_SITE[0]),
+        ("max", t_max, a_max, PUE[1], WUE_SITE[1]),
+    ):
+        f_energie = alpha * math.exp(beta * LOT) * actif + gamma
+        duree = sortie * (la * actif + lb * LOT + lg)
+        gpus = 2 ** math.ceil(math.log2(max(1, math.ceil(1.2 * total * 16 / 8 / GPU_MEMOIRE_GO))))
+        e_ti_wh = duree / 3600 * SERVEUR_PUISSANCE_W * (gpus / SERVEUR_GPUS) / LOT + gpus * sortie * f_energie
+        e_wh = pue * e_ti_wh
+        e_kwh = e_wh / 1000
+        fab = [
+            duree / (LOT * DUREE_VIE_S) * ((gpus / SERVEUR_GPUS) * serveur + gpus * gpu)
+            for serveur, gpu in zip(FAB_SERVEUR, FAB_GPU)
+        ]
+        valeurs = {
+            "energie_wh": e_wh,
+            "gwp_gco2e": (e_kwh * gwp_kwh + fab[0]) * 1000,
+            "eau_l": e_ti_wh / 1000 * (wue + pue * wue_mix),
+            "pe_mj": e_kwh * pe_kwh + fab[1],
+            "adpe_mgsbe": (e_kwh * adpe_kwh + fab[2]) * 1e6,
+        }
+        for nom, v in valeurs.items():
+            resultat.setdefault(nom, {})[borne] = v
+    return resultat
+
+
+def impact_appels(liste: list[dict], mix: str) -> dict[str, dict[str, float]]:
+    """Somme des impacts d'une liste d'appels (sortie réestimée uniquement)."""
+    tokens: dict[str, int] = defaultdict(int)
+    for a in liste:
+        tokens[a["modele"]] += a["sortie"]
+    total = {g: {"min": 0.0, "max": 0.0} for g in GRANDEURS}
+    for modele, n in tokens.items():
+        for g, bornes in impact(modele, n, mix).items():
+            for b in ("min", "max"):
+                total[g][b] += bornes[b]
+    return total
+
+
+def fourchette(bas: float, haut: float, chiffres: int = 2) -> str:
+    """``chiffres`` décimales ; deux chiffres significatifs si l'arrondi effacerait une valeur non nulle."""
+
+    def texte(v: float) -> str:
+        t = f"{v:.{chiffres}f}"
+        return f"{v:.2g}" if v and float(t) == 0 else t
+
+    return f"{texte(bas)}-{texte(haut)}"
+
+
+def hors_liste(modeles) -> list[str]:
+    """Identifiants sans entrée dans PARAMETRES : leurs paramètres viennent de la famille."""
+    return sorted({m for m in modeles if not any(m.startswith(cle) for cle in PARAMETRES)})
 
 
 def couts(liste: list[dict]) -> dict:
@@ -191,6 +320,7 @@ def main() -> int:
     analyseur.add_argument("--session", nargs="*", help="préfixes des sessions à retenir (défaut : toutes)")
     analyseur.add_argument("--filtre", help="motif (regex, insensible à la casse) sur la description des agents")
     analyseur.add_argument("--out", type=Path, default=Path("mesures-couts"))
+    analyseur.add_argument("--mix", choices=sorted(MIX), default=MIX_DEFAUT, help="mix électrique pour l'impact (défaut : USA, choix d'EcoLogits pour Anthropic)")
     analyseur.add_argument("--car-par-token", type=float, default=2.2, help="caractères par token pour la sortie réestimée (2,2 mesuré, voir bancs/)")
     options = analyseur.parse_args()
     global CARACTERES_PAR_TOKEN
@@ -202,6 +332,8 @@ def main() -> int:
     motif = re.compile(options.filtre, re.IGNORECASE) if options.filtre else None
     options.out.mkdir(parents=True, exist_ok=True)
     lignes = []
+    par_modele: dict = defaultdict(lambda: {g: {"min": 0.0, "max": 0.0} for g in GRANDEURS})
+    identifiants: set[str] = set()
     for session, ident, chemin, meta in agents_du_projet(dossier, options.session):
         description = str(meta.get("description", ""))
         if motif and not motif.search(description):
@@ -210,6 +342,14 @@ def main() -> int:
         if not liste:
             continue
         c = couts(liste)
+        imp = impact_appels(liste, options.mix)
+        identifiants |= {a["modele"] for a in liste}
+        est_main = ident == "MAIN"
+        for fam in {a["fam"] for a in liste}:
+            part = impact_appels([a for a in liste if a["fam"] == fam], options.mix)
+            for g in GRANDEURS:
+                for b in ("min", "max"):
+                    par_modele[(est_main, fam)][g][b] += part[g][b]
         ctxs = [a["entree"] + a["ecrit_5m"] + a["ecrit_1h"] + a["lu"] for a in liste]
         familles = sorted({a["fam"] for a in liste})
         lignes.append(
@@ -238,6 +378,7 @@ def main() -> int:
                 "expirations": c["expirations"],
                 "cout_reecriture_usd": round(c["reecriture"], 4),
                 "cout_autre_ttl_usd": round(c["contrefactuel"], 4),
+                **{f"{g}_{b}": float(f"{imp[g][b]:.4g}") for g in GRANDEURS for b in ("min", "max")},
             }
         )
     if not lignes:
@@ -285,6 +426,11 @@ def main() -> int:
                 "expirations": sum(m["expirations"] for m in membres),
                 "cout_reecriture_usd": round(sum(m["cout_reecriture_usd"] for m in membres), 3),
                 "cout_autre_ttl_usd": round(sum(m["cout_autre_ttl_usd"] for m in membres), 3),
+                **{
+                    f"{g}_{b}": float(f"{sum(m[f'{g}_{b}'] for m in membres):.4g}")
+                    for g in ("energie_wh", "gwp_gco2e", "eau_l")
+                    for b in ("min", "max")
+                },
             }
         )
     if lignes_arbres:
@@ -292,19 +438,28 @@ def main() -> int:
             writer = csv.DictWriter(f, fieldnames=list(lignes_arbres[0]))
             writer.writeheader()
             writer.writerows(lignes_arbres)
-    resume(options.out, options.projet, lignes, lignes_arbres)
+    resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix, hors_liste(identifiants))
     # Tableau par agent sur la sortie standard.
-    print(f"{'session':8} {'agent':8} {'modèle':7} {'appels':>6} {'min':>6} {'1er ctx':>8} {'pic':>7} {'exp':>3} {'coût $':>8}  description")
+    print(f"{'session':8} {'agent':8} {'modèle':7} {'appels':>6} {'min':>6} {'1er ctx':>8} {'pic':>7} {'exp':>3} {'coût $':>8} {'gCO2e':>11}  description")
     for l in lignes:
         print(
             f"{l['session']:8} {l['agent']:8} {l['modele']:7} {l['appels']:6d} {l['duree_min']:6.1f} "
-            f"{l['premier_ctx'] / 1000:6.1f} k {l['pic_ctx'] / 1000:5.0f} k {l['expirations']:3d} {l['cout_usd']:8.3f}  {l['description']}"
+            f"{l['premier_ctx'] / 1000:6.1f} k {l['pic_ctx'] / 1000:5.0f} k {l['expirations']:3d} {l['cout_usd']:8.3f} {fourchette(l['gwp_gco2e_min'], l['gwp_gco2e_max'], 1):>11}  {l['description']}"
         )
-    print(f"\nTotal : {sum(l['cout_usd'] for l in lignes):.2f} $ sur {len(lignes)} agents. Détail : {options.out}/")
+    gwp_bas, gwp_haut = (sum(l[f"gwp_gco2e_{b}"] for l in lignes) for b in ("min", "max"))
+    nrj_bas, nrj_haut = (sum(l[f"energie_wh_{b}"] for l in lignes) for b in ("min", "max"))
+    eau_bas, eau_haut = (sum(l[f"eau_l_{b}"] for l in lignes) for b in ("min", "max"))
+    print(
+        f"\nTotal : {sum(l['cout_usd'] for l in lignes):.2f} $ sur {len(lignes)} agents. "
+        f"Impact (EcoLogits, mix {options.mix}, sortie seule) : {fourchette(gwp_bas, gwp_haut, 0)} gCO2e, "
+        f"{fourchette(nrj_bas, nrj_haut, 0)} Wh, {fourchette(eau_bas, eau_haut, 1)} L d'eau. Détail : {options.out}/"
+    )
     return 0
 
 
-def resume(dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict]) -> None:
+def resume(
+    dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str, replis: list[str] | None = None
+) -> None:
     sous = [l for l in lignes if l["type"] != "MAIN"]
     main_ = [l for l in lignes if l["type"] == "MAIN"]
     sortie = [f"# Coût des agents : {projet.name}", ""]
@@ -342,6 +497,53 @@ def resume(dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict]) 
         for jour in sorted({l["jour"] for l in sous}):
             s = [l for l in sous if l["jour"] == jour]
             sortie.append(f"| {jour} | {len(s)} | {mediane([l['premier_ctx'] for l in s]) / 1000:.1f} k | {mediane([l['pic_ctx'] for l in s]) / 1000:.0f} k |")
+    sortie += ["", "## Impact environnemental (EcoLogits)", ""]
+    sortie.append(
+        f"Estimation en fourchette min-max, mix électrique {mix}, méthodologie "
+        "[EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/) (données du 2026-10-14)."
+    )
+    sortie.append("")
+    sortie.append("| Périmètre | Énergie | GWP (usage + fabrication) | Eau |")
+    sortie.append("|---|---|---|---|")
+    for nom, groupe in (("Sessions principales", main_), ("Sous-agents", sous), ("Total", lignes)):
+        if not groupe:
+            continue
+        v = {g: tuple(sum(l[f"{g}_{b}"] for l in groupe) for b in ("min", "max")) for g in ("energie_wh", "gwp_gco2e", "eau_l")}
+        sortie.append(
+            f"| {nom} | {fourchette(*v['energie_wh'], 1)} Wh | {fourchette(*v['gwp_gco2e'], 1)} gCO2e "
+            f"| {fourchette(*v['eau_l'], 2)} L |"
+        )
+    gros_impact = [a for a in arbres if a["agents"] > 1]
+    if gros_impact:
+        sortie += ["", "Médiane par arbre d'agents de plus d'un agent : "
+                   f"{fourchette(mediane([a['energie_wh_min'] for a in gros_impact]), mediane([a['energie_wh_max'] for a in gros_impact]), 1)} Wh, "
+                   f"{fourchette(mediane([a['gwp_gco2e_min'] for a in gros_impact]), mediane([a['gwp_gco2e_max'] for a in gros_impact]), 1)} gCO2e, "
+                   f"{fourchette(mediane([a['eau_l_min'] for a in gros_impact]), mediane([a['eau_l_max'] for a in gros_impact]), 2)} L."]
+    total_gwp = sum(m["gwp_gco2e"]["max"] + m["gwp_gco2e"]["min"] for m in par_modele.values()) or 1e-9
+    familles = sorted({fam for (_, fam) in par_modele})
+    sortie += ["", "| Modèle | Part du GWP (moyenne min-max) | GWP |", "|---|---|---|"]
+    for fam in sorted(familles, key=lambda f: -sum(par_modele[(m, f)]["gwp_gco2e"]["max"] for m in (True, False) if (m, f) in par_modele)):
+        bas = sum(par_modele[(m, fam)]["gwp_gco2e"]["min"] for m in (True, False) if (m, fam) in par_modele)
+        haut = sum(par_modele[(m, fam)]["gwp_gco2e"]["max"] for m in (True, False) if (m, fam) in par_modele)
+        sortie.append(f"| {fam} | {(bas + haut) / total_gwp:.0%} | {fourchette(bas, haut, 1)} gCO2e |")
+    sortie += [
+        "",
+        "Mises en garde :",
+        "",
+        "- Seuls les tokens de **sortie** comptent, comme dans EcoLogits : ni l'entrée ni le cache n'ont d'impact dans ce modèle. "
+        "Or le cache fait environ 85 % du coût en dollars : l'empreinte n'est pas proportionnelle au coût.",
+        "- La réflexion masquée n'est pas dans les tokens comptés : l'estimation est une borne basse.",
+        "- Les paramètres des modèles Anthropic ne sont pas publiés ; EcoLogits les estime et le signale "
+        "(avertissement « architecture non publiée »), d'où la fourchette. "
+        "Latence : formule de repli ML.ENERGY (pas de mesure).",
+        f"- Mix électrique {mix} (USA : choix d'EcoLogits pour Anthropic) ; changez-le avec `--mix`. "
+        "La fabrication du matériel est incluse dans le GWP, pas dans l'eau.",
+    ]
+    if replis:
+        sortie.append(
+            "- Modèles absents de la table du script, estimés avec les paramètres de leur famille : "
+            + ", ".join(f"`{m}`" for m in replis) + "."
+        )
     (dossier / "resume.md").write_text("\n".join(sortie) + "\n", encoding="utf-8")
 
 

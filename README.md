@@ -134,6 +134,17 @@ Les choix de modèles du kit valent pour Opus, Sonnet et Haiku 5.5, aux prix d'o
 
 Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 3 essais par cellule.
 
+## Empreinte environnementale (GreenOps)
+
+Le script estime aussi l'énergie, le GWP (gCO2e, usage et fabrication du matériel), l'eau, l'énergie primaire et l'ADPe des mêmes appels, en fourchette min-max, selon la méthodologie [EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/). Les coefficients sont intégrés au script (données du 2026-10-14) : pas de dépendance. Mix électrique des États-Unis par défaut, `--mix {USA,FRA,SWE,WOR}` pour en changer.
+
+Trois limites, dites dans `resume.md` :
+- seuls les tokens de **sortie** comptent, comme dans EcoLogits ; le cache, qui fait environ 85 % du coût en dollars, n'a aucun impact dans ce modèle, donc empreinte et coût ne sont pas proportionnels ;
+- la réflexion masquée n'est pas comptée : c'est une borne basse ;
+- les tailles des modèles Anthropic sont estimées par EcoLogits, d'où la fourchette.
+
+`bancs/ecologits_ecart.py` vérifie que le calcul du script reproduit la librairie officielle (écart de l'ordre de 1e-16).
+
 ## Limites
 
 - Trois projets, un seul développeur, Windows, Python, méthode BMAD. Les constats convergents devraient tenir ailleurs ; les seuils, non.
@@ -143,6 +154,7 @@ Comptez environ 60 $ pour tout refaire. Ne changez un réglage qu'avec au moins 
 
 ## Historique
 
+- **0.4.0** (2026-10-18) : estimation de l'impact environnemental (EcoLogits) dans `mesurer_couts.py` : énergie, GWP, eau, énergie primaire et ADPe en fourchette par agent (`agents.csv`), énergie, GWP et eau par arbre et en résumé ; option `--mix` ; banc `bancs/ecologits_ecart.py` contre la librairie ;
 - **0.3.3** (2026-10-17) :
   - tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) : consignes globales pour couper la session principale entre cadrage, exécution et recette, ne jamais sauter le second avis, relire la spec des stories à risque, lancer la suite complète à mi-parcours, vérifier la branche principale après chaque fusion et documenter en parallèle de la revue ; dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ; le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent ;
   - mesure en série de l'enchaînement 0.2 sur une nuit autonome de 5 stories (`mesures/2026-10-16-nuit-autonome-5-stories.md`) ;
