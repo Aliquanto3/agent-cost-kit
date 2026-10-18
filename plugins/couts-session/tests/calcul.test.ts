@@ -38,6 +38,27 @@ describe('coût API', () => {
     expect(cout('claude-haiku-5-5', { input: 0, output: 1e6, cacheRead: 1e6, cacheWrite: 0 })).toBe(0.51)
     expect(cout('claude-fable-5-1', { ...million, input: 0, cacheRead: 1e6 })).toBe(0.25)
     expect(cout('gpt-x', million)).toBeUndefined()
+  })
+
+  test('prix par génération : un ancien modèle ne prend pas le tarif du 5.5', () => {
+    const entree = { input: 1e6, output: 0, cacheRead: 0, cacheWrite: 0 }
+    const sortie = { input: 0, output: 1e6, cacheRead: 0, cacheWrite: 0 }
+    const lecture = { input: 0, output: 0, cacheRead: 1e6, cacheWrite: 0 }
+    expect(cout('claude-opus-4-6', entree)).toBe(5)
+    expect(cout('claude-opus-4-6-20260101', sortie)).toBe(25)
+    expect(cout('claude-opus-4-6', lecture)).toBe(0.5)
+    expect(cout('claude-opus-4-1', sortie)).toBe(75)
+    expect(cout('claude-sonnet-4-5', sortie)).toBe(15)
+    expect(cout('claude-sonnet-5', lecture)).toBe(0.2)
+    expect(cout('claude-sonnet-5-5', lecture)).toBe(0.1)
+    expect(cout('claude-haiku-4-5', sortie)).toBe(5)
+    expect(cout('claude-fable-5', lecture)).toBe(1)
+    expect(cout('claude-opus-5-5', sortie)).toBe(20)
+    expect(cout('claude-opus-9', sortie)).toBe(20) // inconnu : repli par famille, tarif le plus récent
+    expect(cout('claude-opus-4-6[1m]', sortie)).toBe(25)
+    expect(cout('claude-opus-4-50', sortie)).toBe(75) // frontière de numéro : pas le tarif de claude-opus-4-5
+    expect(cout('claude-mythos-5-1', lecture)).toBe(0.25)
+    expect(cout('claude-mythos-5', lecture)).toBe(1)
     expect(famille('claude-sonnet-5-5')).toBe('sonnet')
   })
 })
