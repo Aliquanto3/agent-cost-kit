@@ -246,6 +246,32 @@ describe('sous-agents en cours', () => {
     expect(colonnes(court)).toBeLessThanOrEqual(52)
   })
 
+  test('ordre de coupe : mention, 🧠, libellés ; coût et carbone restent', () => {
+    const cumul: Cumul = {
+      sessionId: 'S1',
+      startedAt: 1,
+      tours: 1,
+      modeles: { 'claude-opus-5-5': { input: 1000, output: 62_000, cacheRead: 17_000_000, cacheWrite: 0 } },
+      agents: {},
+      enCours: { A1: { type: 'x', description: '', debut: 0 } },
+    }
+    const plein = tete(cumul, '▸', 300, 238_000)
+    expect(plein).toMatch(/💰 ≈ .+ \$ · 📥 17 M lus · 📤 62 k écrits · 🧠 238 k · 🌱 .+ estimé · ⏳ 1 en cours ▸$/)
+    const sans = (l: number) => tete(cumul, '▸', l, 238_000)
+    const w = colonnes(plein)
+    expect(sans(w - 1)).not.toContain('⏳')
+    expect(sans(w - 1)).toContain('🧠 238 k')
+    const sansMention = colonnes(sans(w - 1))
+    expect(sans(sansMention - 1)).not.toContain('🧠')
+    expect(sans(sansMention - 1)).toContain('lus')
+    const sansCtx = colonnes(sans(sansMention - 1))
+    const etroit = sans(sansCtx - 1)
+    expect(etroit).toMatch(/📥 17 M · 📤 62 k · 🌱/)
+    expect(etroit).toContain('💰')
+    expect(etroit).not.toContain('lus')
+    expect(colonnes(etroit)).toBeLessThan(sansCtx)
+  })
+
   test('durées lisibles', () => {
     expect(duree(0)).toBe('0 s')
     expect(duree(45_000)).toBe('45 s')
