@@ -1,6 +1,6 @@
 {
   "name": "agent-cost-kit",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Setup de développement par agents économe en tokens pour Claude Code : quatre sous-agents routés par rôle (dev-story Sonnet, second-avis Haiku, reviewer Opus, lookup Haiku), un contrôle rapide de fin de story, un script de mesure du coût réel des agents depuis les transcriptions, un skill d'installation, et des bancs pour re-tester le kit quand de nouveaux modèles sortent.",
   "author": {
     "name": "Anaël Yahi"

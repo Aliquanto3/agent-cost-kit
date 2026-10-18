@@ -1,0 +1,152 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 10-18-2026 16:55
+last_updated: 10-18-2026 17:30
+project: wavedevsecops
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: done
+  1-1-amorcer-le-dépôt-et-la-ci-sur-trois-systèmes: done
+  1-2-lancer-l-application-sur-un-serveur-local-protégé: done
+  1-3-afficher-la-coquille-d-interface-avec-l-identité-wavestack: done
+  1-4-sonder-les-outils-requis-à-partir-d-un-registre-unique: done
+  1-5-consulter-la-page-diagnostic-et-savoir-quoi-régler: done
+  1-6-installer-l-application-sous-windows-sans-droits-administrat: done
+  1-7-installer-l-application-sous-macos-et-linux-sans-droits-admi: done
+  epic-1-retrospective: optional
+
+  epic-2: in-progress
+  2-1-préparer-un-bac-à-sable-déterministe-à-partir-d-un-yaml: done
+  2-2-faire-passer-chaque-action-par-la-file-d-opérations-de-l-esp: done
+  2-3-afficher-la-disposition-principale-et-gérer-les-volets: done
+  2-4-taper-de-vraies-commandes-git-dans-le-terminal: in-progress
+  2-5-utiliser-les-commandes-de-fichiers-confinées-au-bac-à-sable: backlog
+  2-6-calculer-l-état-du-dépôt-et-un-graphe-stable-côté-serveur: in-progress
+  2-7-voir-le-graphe-la-liste-des-commits-et-l-index: backlog
+  2-8-éditer-un-fichier-dans-la-vue-code-et-lire-un-diff: backlog
+  2-9-voir-les-vues-suivre-une-modification-faite-hors-de-l-applic: backlog
+  2-10-suivre-un-élément-d-une-vue-à-l-autre-et-lire-son-explicatio: backlog
+  2-11-préparer-les-gabarits-d-exercice-des-deux-parcours: done
+  epic-2-retrospective: optional
+
+  epic-3: in-progress
+  3-1-tenir-un-modèle-de-pr-complet-prêt-pour-les-stations: in-progress
+  3-2-ouvrir-une-pr-et-la-merger: backlog
+  3-3-voir-le-distant-et-les-pr-dans-la-vue-distant-pr: backlog
+  3-4-recevoir-la-revue-et-les-commits-d-un-collègue-simulé: backlog
+  3-5-protéger-une-branche-pour-de-vrai-par-un-hook-pre-receive: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-valider-une-étape-sur-l-état-réel-du-dépôt: backlog
+  4-2-enregistrer-les-faits-du-premier-passage: backlog
+  4-3-prendre-des-instantanés-et-rétablir-un-état-exact: backlog
+  4-4-recommencer-un-scénario-sans-perdre-son-score: backlog
+  4-5-exécuter-une-mauvaise-commande-de-quiz-puis-rétablir-l-état: backlog
+  4-6-ouvrir-des-indices-par-paliers: backlog
+  4-7-lire-le-bilan-à-la-fin-d-un-scénario: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-rejouer-les-actes-de-l-agent-b-de-façon-déterministe: backlog
+  5-2-corriger-une-désignation-côté-serveur-en-un-seul-essai: backlog
+  5-3-désigner-un-élément-dans-les-vues: backlog
+  5-4-choisir-dans-une-liste-ou-par-sha: backlog
+  5-5-lire-la-correction-dans-les-vues-et-dans-le-panneau: backlog
+  5-6-le-scénario-b-env-committé: backlog
+  5-7-le-scénario-b-push-force-qui-écrase-un-collègue: backlog
+  5-8-les-scénarios-b-stash-oublié-et-rebase-laissé-en-conflit: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-choisir-son-parcours-et-parcourir-le-catalogue: backlog
+  6-2-les-scénarios-a-add-commit-push-pull-branche-et-pr-merge: backlog
+  6-3-les-scénarios-a-conflit-stash-rebase-et-récupération: backlog
+  6-4-reprendre-le-dernier-scénario-là-où-on-l-a-laissé: backlog
+  6-5-exporter-mon-rapport-de-progression: backlog
+  6-6-exécuter-en-option-le-code-d-exercice-du-parcours-llm: backlog
+  6-7-publier-la-release-v0-1-0-et-la-faire-tester-par-deux-collèg: backlog
+  epic-6-retrospective: optional
+
+  epic-7: in-progress
+  7-1-provisionner-les-outils-de-la-chaîne-pour-un-usage-hors-lign: done
+  7-2-lancer-ruff-et-pytest-dans-le-terminal-station-1-poste-local: backlog
+  7-3-être-protégé-par-le-hook-pre-commit-gitleaks: backlog
+  7-4-faire-tourner-le-pipeline-simulé-sur-chaque-pr: backlog
+  7-5-voir-la-revue-obligatoire-et-la-protection-de-main-bloquer-s: backlog
+  7-6-lire-le-même-pipeline-en-github-actions-jenkins-et-gitlab-ci: backlog
+  epic-7-retrospective: optional
+
+  epic-8: in-progress
+  8-1-bloquer-une-pr-sur-du-code-vulnérable-avec-bandit-sast: backlog
+  8-2-servir-une-base-de-vulnérabilités-locale-et-figée: done
+  8-3-bloquer-une-pr-sur-une-dépendance-vulnérable-et-lire-le-sbom: backlog
+  8-4-bloquer-une-pr-quand-la-couverture-du-nouveau-code-passe-sou: backlog
+  8-5-le-scénario-llm-outil-trop-puissant-flow-4: backlog
+  8-6-la-clé-d-api-en-dur-le-test-de-config-llm-et-l-injection-de: backlog
+  epic-8-retrospective: optional
+
+  epic-9: in-progress
+  9-1-se-situer-grâce-au-bandeau-de-la-chaîne: in-progress
+  9-2-déplier-la-carte-de-la-chaîne: backlog
+  9-3-trouver-les-scénarios-de-station-dans-le-catalogue: backlog
+  9-4-relier-chaque-terme-du-vocabulaire-à-sa-barrière: backlog
+  9-5-publier-la-release-v0-2-0: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-poser-un-tag-semver-annoté: backlog
+  10-2-construire-la-version-taguée: backlog
+  10-3-promouvoir-une-version-vers-la-prod-simulée-après-approbatio: backlog
+  10-4-revenir-à-la-version-précédente-par-un-rollback: backlog
+  10-5-les-scénarios-de-la-station-4-livraison-dans-les-deux-parcou: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-décrire-les-barrières-leurs-risques-et-leurs-correspondances: backlog
+  11-2-répondre-à-une-question-du-rssi-avec-une-réponse-et-une-preu: backlog
+  11-3-passer-l-entretien-rssi: backlog
+  11-4-exporter-la-fiche-barrière-risque-preuve: backlog
+  11-5-publier-la-release-v0-3-0: backlog
+  epic-11-retrospective: optional
+
+  epic-12: backlog
+  12-1-vérifier-l-installation-complète-puis-l-usage-hors-ligne-sur: backlog
+  12-2-mettre-à-jour-l-application-sans-perdre-sa-progression: backlog
+  12-3-auditer-et-corriger-l-accessibilité: backlog
+  12-4-intégrer-les-retours-du-test-v0-1-et-des-ateliers: backlog
+  12-5-relire-les-correspondances-réglementaires: backlog
+  12-6-chronométrer-les-séances-et-finir-tous-les-scénarios-sans-in: backlog
+  12-7-mesurer-le-transfert-hors-de-l-application: backlog
+  12-8-publier-v1-0-0-et-la-présenter: backlog
+  epic-12-retrospective: optional
