@@ -26,10 +26,15 @@ export function famille(modele: string): string | undefined {
 
 type Tarif = { entree: number; sortie: number; lecture: number }
 
+/** `cle` préfixe `modele` sans couper un numéro : claude-opus-4-5 couvre claude-opus-4-5[1m], pas claude-opus-4-50. */
+export function prefixe(modele: string, cle: string): boolean {
+  return modele.startsWith(cle) && !/^\d/.test(modele.slice(cle.length))
+}
+
 /** Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille (comme mesurer_couts.py). */
 export function tarif(modele: string): Tarif | undefined {
   const table: Record<string, Tarif> = PRIX.modeles
-  const candidats = Object.keys(table).filter(cle => modele.startsWith(cle))
+  const candidats = Object.keys(table).filter(cle => prefixe(modele, cle))
   if (candidats.length > 0) return table[candidats.reduce((a, b) => (b.length > a.length ? b : a))]
   const nom = famille(modele)
   const familles: Record<string, Tarif> = PRIX.familles

@@ -55,6 +55,10 @@ describe('coût API', () => {
     expect(cout('claude-fable-5', lecture)).toBe(1)
     expect(cout('claude-opus-5-5', sortie)).toBe(20)
     expect(cout('claude-opus-9', sortie)).toBe(20) // inconnu : repli par famille, tarif le plus récent
+    expect(cout('claude-opus-4-6[1m]', sortie)).toBe(25)
+    expect(cout('claude-opus-4-50', sortie)).toBe(75) // frontière de numéro : pas le tarif de claude-opus-4-5
+    expect(cout('claude-mythos-5-1', lecture)).toBe(0.25)
+    expect(cout('claude-mythos-5', lecture)).toBe(1)
     expect(famille('claude-sonnet-5-5')).toBe('sonnet')
   })
 })

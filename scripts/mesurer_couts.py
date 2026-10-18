@@ -59,7 +59,10 @@ from pathlib import Path
 # Prix et coefficients EcoLogits : une seule table, plugins/couts-session/donnees/tarifs.json
 # (partagée avec le mod couts-session). Ce script la lit, il n'a plus de constantes de prix.
 TARIFS_JSON = Path(__file__).resolve().parent.parent / "plugins" / "couts-session" / "donnees" / "tarifs.json"
-_TARIFS = json.loads(TARIFS_JSON.read_text(encoding="utf-8"))
+try:
+    _TARIFS = json.loads(TARIFS_JSON.read_text(encoding="utf-8"))
+except (OSError, ValueError) as erreur:
+    sys.exit(f"Table des prix illisible ({TARIFS_JSON}) : {erreur}. Ce script doit rester dans le dépôt agent-cost-kit.")
 _PRIX = _TARIFS["prix"]
 _ECO = _TARIFS["ecologits"]
 
@@ -105,9 +108,15 @@ def famille(modele: str) -> str | None:
     return next((nom for nom in PRIX_FAMILLES if nom in modele), None)
 
 
+def prefixe(modele: str, cle: str) -> bool:
+    """``cle`` préfixe ``modele`` sans couper un numéro : claude-opus-4-5 couvre claude-opus-4-5-20251101
+    et claude-opus-4-5[1m], pas claude-opus-4-50."""
+    return modele.startswith(cle) and not modele[len(cle) : len(cle) + 1].isdigit()
+
+
 def prix(modele: str) -> dict:
     """Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille."""
-    candidats = [cle for cle in PRIX_MODELES if modele.startswith(cle)]
+    candidats = [cle for cle in PRIX_MODELES if prefixe(modele, cle)]
     if candidats:
         return PRIX_MODELES[max(candidats, key=len)]
     return PRIX_FAMILLES[famille(modele) or FAMILLE_PAR_DEFAUT]
@@ -175,7 +184,7 @@ def parametres(modele: str) -> tuple[float, float, float, float]:
     candidats = [cle for cle in PARAMETRES if modele.startswith(cle)]
     if candidats:
         return PARAMETRES[max(candidats, key=len)]
-    return PARAMETRES_FAMILLE[famille(modele) or FAMILLE_PAR_DEFAUT]
+    return PARAMETRES_FAMILLE.get(famille(modele) or "", PARAMETRES_FAMILLE[FAMILLE_PAR_DEFAUT])
 
 
 def impact(modele: str, sortie: float, mix: str = MIX_DEFAUT) -> dict[str, dict[str, float]]:

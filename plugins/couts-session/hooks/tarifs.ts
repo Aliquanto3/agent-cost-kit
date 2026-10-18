@@ -17,6 +17,16 @@ export const TARIFS = {
         "sortie": 50.0,
         "lecture": 1.0
       },
+      "claude-mythos-5-1": {
+        "entree": 10.0,
+        "sortie": 50.0,
+        "lecture": 0.25
+      },
+      "claude-mythos-5": {
+        "entree": 10.0,
+        "sortie": 50.0,
+        "lecture": 1.0
+      },
       "claude-opus-5-5": {
         "entree": 4.0,
         "sortie": 20.0,
@@ -105,6 +115,11 @@ export const TARIFS = {
     },
     "familles": {
       "fable": {
+        "entree": 10.0,
+        "sortie": 50.0,
+        "lecture": 0.25
+      },
+      "mythos": {
         "entree": 10.0,
         "sortie": 50.0,
         "lecture": 0.25
