@@ -193,6 +193,7 @@ Limites :
 
 ## Historique
 
+- **0.6.1** (2026-10-18) : prix par génération de modèle, vérifiés sur la page officielle (Opus 4.5 à 5, Sonnet 4.x, Haiku 4.5, Fable 5 et Sonnet 5 n'ont plus le tarif des 5.5 / 5.1) ; `tarifs.json` devient la seule source des prix et coefficients, `mesurer_couts.py` le lit ; multiplicateur x 1,1 de `inference_geo: "us"` appliqué par le script (le mod, dont l'usage ne porte pas ce champ, ne l'applique pas) ; mod `couts-session` 0.1.1 ;
 - **0.6.0** (2026-10-18) : commande `/agent-cost-kit:avancement-run` et script `avancement_run.py` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée en fourchette, météo, tableau par epic, détail par story, `--detail`) ; convention d'heure dans le journal du run ;
 - **0.5.0** (2026-10-18) : nouveau plugin `couts-session` 0.1.0, installable seul, un mod qui affiche au-dessus du prompt le coût API estimé, les tokens et l'impact carbone estimé de la session, par modèle et par sous-agent, et le remplissage du contexte ; prix et coefficients dans `plugins/couts-session/donnees/tarifs.json` ;
 - **0.4.0** (2026-10-18) : estimation de l'impact environnemental (EcoLogits) dans `mesurer_couts.py` : énergie, GWP, eau, énergie primaire et ADPe en fourchette par agent (`agents.csv`), énergie, GWP et eau par arbre et en résumé ; option `--mix` ; banc `bancs/ecologits_ecart.py` contre la librairie ;

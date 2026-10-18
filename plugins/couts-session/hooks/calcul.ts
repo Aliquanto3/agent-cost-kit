@@ -21,16 +21,30 @@ export function totalTokens(c: Compteurs): number {
 
 /** La première famille de la table dont le nom figure dans l'identifiant, comme mesurer_couts.py. */
 export function famille(modele: string): string | undefined {
-  return PRIX.familles.find(f => modele.includes(f.nom))?.nom
+  return Object.keys(PRIX.familles).find(nom => modele.includes(nom))
+}
+
+type Tarif = { entree: number; sortie: number; lecture: number }
+
+/** Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille (comme mesurer_couts.py). */
+export function tarif(modele: string): Tarif | undefined {
+  const table: Record<string, Tarif> = PRIX.modeles
+  const candidats = Object.keys(table).filter(cle => modele.startsWith(cle))
+  if (candidats.length > 0) return table[candidats.reduce((a, b) => (b.length > a.length ? b : a))]
+  const nom = famille(modele)
+  const familles: Record<string, Tarif> = PRIX.familles
+  return nom ? familles[nom] : undefined
 }
 
 /**
  * Coût API estimé en dollars, ou undefined pour un modèle hors table. L'usage ne ventile pas
- * l'écriture du cache entre 5 min et 1 h : tarif 5 min. Le surcoût Haiku au-delà de 100 k tokens
- * de prompt se juge requête par requête ; l'usage d'un tour les additionne, il n'est donc pas appliqué.
+ * l'écriture du cache entre 5 min et 1 h : tarif 5 min. Deux limites : le palier Haiku 5.5 au-delà
+ * de 100 k tokens de prompt se juge requête par requête, l'usage d'un tour les additionne, il n'est
+ * donc pas appliqué ; et l'usage du tour (ModelUsage) ne porte pas inference_geo, le multiplicateur
+ * x 1,1 de `inference_geo: "us"` n'est donc pas appliqué non plus.
  */
 export function cout(modele: string, c: Compteurs): number | undefined {
-  const f = PRIX.familles.find(one => modele.includes(one.nom))
+  const f = tarif(modele)
   if (!f) return undefined
   const ecriture = PRIX.ecriture_cache['5m']
   return (

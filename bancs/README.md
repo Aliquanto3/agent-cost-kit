@@ -4,8 +4,8 @@ Les réglages du kit (Sonnet pour coder, Opus pour relire, Haiku pour le second 
 
 ## Avant de commencer
 
-1. **Prix.** Relevez la page officielle (`platform.claude.com/docs/en/about-claude/pricing`) : entrée, écriture du cache à 5 min et à 1 h, lecture du cache, sortie, et seuils de contexte long. Mettez à jour `PRIX` et les constantes Haiku de `scripts/mesurer_couts.py`. Un écart sur la lecture du cache fausse tout : c'est 40 % du coût, et Sonnet a déjà été compté au double par erreur.
-2. **Noms des modèles.** `famille()` reconnaît les modèles par le nom de leur famille (`opus`, `sonnet`, `haiku`, `fable`). Ajoutez toute nouvelle famille dans `PRIX`.
+1. **Prix.** Relevez la page officielle (`platform.claude.com/docs/en/about-claude/pricing`) : entrée, écriture du cache à 5 min et à 1 h, lecture du cache, sortie, et seuils de contexte long. Mettez à jour `prix` dans `plugins/couts-session/donnees/tarifs.json` (une entrée par identifiant de modèle, avec repli par famille), puis `py plugins/couts-session/donnees/generer_tarifs.py` pour le mod. Un écart sur la lecture du cache fausse tout : c'est 40 % du coût, et Sonnet a déjà été compté au double par erreur.
+2. **Noms des modèles.** `famille()` reconnaît les modèles par le nom de leur famille (`opus`, `sonnet`, `haiku`, `fable`). Ajoutez toute nouvelle famille dans `prix.familles` de `tarifs.json`, et chaque nouvelle génération dans `prix.modeles` (une génération n'a pas le tarif de la précédente).
 3. **Réglages de Claude Code.** Vérifiez dans la doc que `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, `subagentPromptCacheTtl`, `syncClaudeAiSkills` et les champs `model`, `effort` et `disallowedTools` du frontmatter existent toujours, avec le même sens.
 4. **Corpus.** Gardez 5 à 10 stories déjà livrées, sur au moins deux dépôts, avec leur base Git. On rejoue les bancs dessus, chaque story dans son propre worktree.
 
@@ -64,7 +64,7 @@ Relisez les cas notés faux, car le corrigé peut se tromper. Référence : Haik
 
 ### 8. Écart avec EcoLogits
 
-`uv run --with ecologits python bancs/ecologits_ecart.py` compare, pour chaque modèle et pour 1 000 et 100 000 tokens de sortie, l'énergie, le GWP, l'eau, l'énergie primaire et l'ADPe du script à ceux de la librairie officielle, et sort en erreur au-delà de 1e-6 d'écart relatif. À relancer quand EcoLogits change ses coefficients ou ses paramètres de modèles : mettez alors à jour `PARAMETRES` et les constantes d'impact de `scripts/mesurer_couts.py`. Référence du 2026-10-18 (ecologits 0.11.3) : écart maximal 4e-16.
+`uv run --with ecologits python bancs/ecologits_ecart.py` compare, pour chaque modèle et pour 1 000 et 100 000 tokens de sortie, l'énergie, le GWP, l'eau, l'énergie primaire et l'ADPe du script à ceux de la librairie officielle, et sort en erreur au-delà de 1e-6 d'écart relatif. À relancer quand EcoLogits change ses coefficients ou ses paramètres de modèles : mettez alors à jour `ecologits` dans `plugins/couts-session/donnees/tarifs.json`. Référence du 2026-10-18 (ecologits 0.11.3) : écart maximal 4e-16.
 
 ### 5 à 7. Mesures gratuites
 

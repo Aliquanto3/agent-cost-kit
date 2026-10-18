@@ -36,7 +36,10 @@ Sorties : agents.csv, arbres.csv, resume.md dans --out (par défaut ./mesures-co
 tableau par agent sur la sortie standard. Aucun contenu de transcription n'est recopié, sauf la
 description courte de chaque agent.
 
-Prix vérifiés le 2026-10-13 sur https://platform.claude.com/docs/en/about-claude/pricing.
+Prix : plugins/couts-session/donnees/tarifs.json, vérifiés sur https://platform.claude.com/docs/en/about-claude/pricing
+(date dans le fichier), par identifiant de modèle (l'ancienne génération n'a pas le tarif de la récente).
+Multiplicateur x 1,1 des appels dont ``usage.inference_geo`` vaut "us" (modèles 4.6 et suivants) ; les
+transcriptions observées ne portent que "global" ou "not_available".
 Coefficients d'impact : EcoLogits (https://ecologits.ai), commit d0b76e3, données du 2026-10-14.
 """
 
@@ -53,59 +56,42 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-# $/Mtok : entrée, sortie, lecture du cache. L'écriture coûte 1,25 x l'entrée (5 min) ou 2 x (1 h).
-PRIX = {
-    "fable": (10.0, 50.0, 0.25),
-    "opus": (4.0, 20.0, 0.20),
-    "sonnet": (2.0, 10.0, 0.10),
-    "haiku": (0.10, 0.50, 0.01),  # prompts de 100 k tokens au plus ; au-delà, tout est x5
-}
-HAIKU_SEUIL_LONG = 100_000
-HAIKU_FACTEUR_LONG = 5.0
-ECRITURE = {"5m": 1.25, "1h": 2.0}
+# Prix et coefficients EcoLogits : une seule table, plugins/couts-session/donnees/tarifs.json
+# (partagée avec le mod couts-session). Ce script la lit, il n'a plus de constantes de prix.
+TARIFS_JSON = Path(__file__).resolve().parent.parent / "plugins" / "couts-session" / "donnees" / "tarifs.json"
+_TARIFS = json.loads(TARIFS_JSON.read_text(encoding="utf-8"))
+_PRIX = _TARIFS["prix"]
+_ECO = _TARIFS["ecologits"]
+
+PRIX_MODELES = _PRIX["modeles"]  # {préfixe d'identifiant: {entree, sortie, lecture, ...}} en $/Mtok
+PRIX_FAMILLES = _PRIX["familles"]  # repli, dans l'ordre : la première famille dont le nom figure dans l'identifiant
+ECRITURE = _PRIX["ecriture_cache"]  # l'écriture coûte entrée x 1,25 (5 min) ou x 2 (1 h)
+GEO_US_FACTEUR = _PRIX["inference_geo_us"]["facteur"]
 TTL_S = {"5m": 300, "1h": 3600}
 CARACTERES_PAR_TOKEN = 2.2
 SEUIL_REECRITURE = 20_000
 
-# Impact environnemental, méthodologie EcoLogits (commit d0b76e3, données du 2026-10-14).
-# Paramètres en milliards : (total_min, total_max, actif_min, actif_max). MoE : total fixe ; dense : total = actif.
+# Impact environnemental, méthodologie EcoLogits. Paramètres en milliards :
+# (total_min, total_max, actif_min, actif_max). MoE : total fixe ; dense : total = actif.
 # Le plus long préfixe de l'identifiant du modèle l'emporte ; à défaut, repli par famille.
-PARAMETRES = {
-    "claude-opus-5-5": (670, 670, 70, 200),
-    "claude-opus-5": (670, 670, 67, 200),
-    "claude-opus-4": (670, 670, 67, 200),
-    "claude-sonnet-5": (293, 293, 29, 88),
-    "claude-sonnet-4": (440, 440, 44, 132),
-    "claude-haiku-5": (10, 35, 10, 35),
-    "claude-haiku-4": (10, 35, 10, 35),
-    "claude-fable-5": (1340, 1340, 134, 400),
-}
-PARAMETRES_FAMILLE = {
-    "opus": (670, 670, 67, 200),
-    "sonnet": (293, 293, 29, 88),
-    "haiku": (10, 35, 10, 35),
-    "fable": (1340, 1340, 134, 400),
-}
-LOT = 64  # taille de lot supposée par EcoLogits
-GPU_ENERGIE = (1.1665273170451914e-06, -0.011205921025579175, 4.052928146734005e-05)  # Wh/token
-GPU_LATENCE = (0.0006785088094353663, 0.0003119310311688259, 0.019473717579473387)  # s/token
-GPU_MEMOIRE_GO = 80
-SERVEUR_PUISSANCE_W = 1200
-SERVEUR_GPUS = 8
-DUREE_VIE_S = 3 * 365 * 24 * 3600
+PARAMETRES = {k: tuple(v) for k, v in _ECO["parametres"].items()}
+PARAMETRES_FAMILLE = {k: tuple(v) for k, v in _ECO["parametres_famille"].items()}
+FAMILLE_PAR_DEFAUT = _ECO["famille_par_defaut"]
+LOT = _ECO["lot"]  # taille de lot supposée par EcoLogits
+GPU_ENERGIE = tuple(_ECO["gpu_energie_wh_par_token"])  # Wh/token
+GPU_LATENCE = tuple(_ECO["gpu_latence_s_par_token"])  # s/token
+GPU_MEMOIRE_GO = _ECO["gpu_memoire_go"]
+SERVEUR_PUISSANCE_W = _ECO["serveur_puissance_w"]
+SERVEUR_GPUS = _ECO["serveur_gpus"]
+DUREE_VIE_S = _ECO["duree_vie_s"]
 # Fabrication : (kgCO2e, MJ, kgSbe) du serveur sans GPU et d'un GPU H100.
-FAB_SERVEUR = (5700.0, 70000.0, 0.37)
-FAB_GPU = (273.0, 3721.0, 0.00895)
-PUE = (1.09, 1.14)  # Anthropic
-WUE_SITE = (0.13, 0.999)  # L/kWh, Anthropic
+FAB_SERVEUR = tuple(_ECO["fabrication_serveur"].values())
+FAB_GPU = tuple(_ECO["fabrication_gpu"].values())
+PUE = tuple(_ECO["pue"])  # Anthropic
+WUE_SITE = tuple(_ECO["wue_site_l_par_kwh"])  # L/kWh, Anthropic
 # Mix électrique par kWh : (kgCO2e, MJ d'énergie primaire, kgSbe, L d'eau).
-MIX = {
-    "USA": (0.3844, 9.6884, 9.855e-08, 3.1321),
-    "FRA": (0.04144, 9.3135, 4.858e-08, 3.6737),
-    "SWE": (0.03526, 4.73, 7.771e-08, 6.0315),
-    "WOR": (0.45829, 2.5871, 1.349e-08, 3.908),
-}
-MIX_DEFAUT = "USA"
+MIX = {k: tuple(v.values()) for k, v in _ECO["mix"].items()}
+MIX_DEFAUT = _ECO["mix_par_defaut"]
 GRANDEURS = ("energie_wh", "gwp_gco2e", "eau_l", "pe_mj", "adpe_mgsbe")
 
 
@@ -116,7 +102,15 @@ def dossier_transcriptions(projet: Path, racine: Path) -> Path:
 
 
 def famille(modele: str) -> str | None:
-    return next((nom for nom in PRIX if nom in modele), None)
+    return next((nom for nom in PRIX_FAMILLES if nom in modele), None)
+
+
+def prix(modele: str) -> dict:
+    """Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille."""
+    candidats = [cle for cle in PRIX_MODELES if modele.startswith(cle)]
+    if candidats:
+        return PRIX_MODELES[max(candidats, key=len)]
+    return PRIX_FAMILLES[famille(modele) or FAMILLE_PAR_DEFAUT]
 
 
 def instant(texte: str) -> datetime:
@@ -163,6 +157,7 @@ def appels(chemin: Path) -> list[dict]:
             {
                 "fam": appel["fam"],
                 "modele": appel["modele"],
+                "geo": u.get("inference_geo"),
                 "ts": appel["ts"],
                 "entree": int(u.get("input_tokens") or 0),
                 "ecrit_5m": ecrit - ecrit_1h,
@@ -180,7 +175,7 @@ def parametres(modele: str) -> tuple[float, float, float, float]:
     candidats = [cle for cle in PARAMETRES if modele.startswith(cle)]
     if candidats:
         return PARAMETRES[max(candidats, key=len)]
-    return PARAMETRES_FAMILLE[famille(modele) or "opus"]
+    return PARAMETRES_FAMILLE[famille(modele) or FAMILLE_PAR_DEFAUT]
 
 
 def impact(modele: str, sortie: float, mix: str = MIX_DEFAUT) -> dict[str, dict[str, float]]:
@@ -257,13 +252,17 @@ def couts(liste: list[dict]) -> dict:
     precedent = None
     ctx_precedent = 0
     for a in liste:
-        p_entree, p_sortie, p_lu = PRIX[a["fam"]]
+        tarif = prix(a["modele"])
+        p_entree, p_sortie, p_lu = tarif["entree"], tarif["sortie"], tarif["lecture"]
         ttl = "1h" if a["ecrit_1h"] > a["ecrit_5m"] else "5m"
         autre = "5m" if ttl == "1h" else "1h"
         ecrit = a["ecrit_5m"] + a["ecrit_1h"]
         ctx = a["entree"] + ecrit + a["lu"]
-        if a["fam"] == "haiku" and ctx > HAIKU_SEUIL_LONG:
-            p_entree, p_sortie, p_lu = (p * HAIKU_FACTEUR_LONG for p in (p_entree, p_sortie, p_lu))
+        long = tarif.get("long_contexte")
+        if long and ctx > long["seuil_tokens"]:
+            p_entree, p_sortie, p_lu = (p * long["facteur"] for p in (p_entree, p_sortie, p_lu))
+        if a.get("geo") == "us" and tarif.get("geo_us", True):
+            p_entree, p_sortie, p_lu = (p * GEO_US_FACTEUR for p in (p_entree, p_sortie, p_lu))
         total["entree"] += a["entree"] * p_entree / 1e6
         total["ecriture"] += (a["ecrit_5m"] * ECRITURE["5m"] + a["ecrit_1h"] * ECRITURE["1h"]) * p_entree / 1e6
         total["lecture"] += a["lu"] * p_lu / 1e6

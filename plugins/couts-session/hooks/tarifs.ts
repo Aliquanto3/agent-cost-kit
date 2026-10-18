@@ -1,45 +1,141 @@
 // Généré par donnees/generer_tarifs.py depuis donnees/tarifs.json : ne pas modifier à la main.
 export const TARIFS = {
-  "version": 1,
+  "version": 2,
   "prix": {
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
     "verifie_le": "2026-10-18",
     "unite": "USD par million de tokens",
-    "note": "Prix par famille, la première dont le nom figure dans l'identifiant du modèle l'emporte (ordre de 'familles'). Lecture du cache = 'lecture'. Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h).",
-    "familles": [
-      {
-        "nom": "fable",
+    "note": "Une entrée par identifiant de modèle : le plus long préfixe de l'identifiant l'emporte, sinon repli par 'familles' (la première dont le nom figure dans l'identifiant, au tarif de la dernière génération). Lecture du cache = 'lecture' (0,1 x l'entrée, 0,05 x pour Opus 5.5 et Sonnet 5.5, 0,025 x pour Fable 5.1). Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h). 'long_contexte' : une requête dont le prompt (entrée + lecture + écriture du cache) dépasse le seuil paie tous ses prix x facteur. 'geo_us' : false pour les modèles antérieurs à Claude 4.6, hors du multiplicateur inference_geo.",
+    "modeles": {
+      "claude-fable-5-1": {
         "entree": 10.0,
         "sortie": 50.0,
         "lecture": 0.25
       },
-      {
-        "nom": "opus",
+      "claude-fable-5": {
+        "entree": 10.0,
+        "sortie": 50.0,
+        "lecture": 1.0
+      },
+      "claude-opus-5-5": {
         "entree": 4.0,
         "sortie": 20.0,
         "lecture": 0.2
       },
-      {
-        "nom": "sonnet",
+      "claude-opus-5": {
+        "entree": 5.0,
+        "sortie": 25.0,
+        "lecture": 0.5
+      },
+      "claude-opus-4-8": {
+        "entree": 5.0,
+        "sortie": 25.0,
+        "lecture": 0.5
+      },
+      "claude-opus-4-7": {
+        "entree": 5.0,
+        "sortie": 25.0,
+        "lecture": 0.5
+      },
+      "claude-opus-4-6": {
+        "entree": 5.0,
+        "sortie": 25.0,
+        "lecture": 0.5
+      },
+      "claude-opus-4-5": {
+        "entree": 5.0,
+        "sortie": 25.0,
+        "lecture": 0.5,
+        "geo_us": false
+      },
+      "claude-opus-4-1": {
+        "entree": 15.0,
+        "sortie": 75.0,
+        "lecture": 1.5,
+        "geo_us": false
+      },
+      "claude-opus-4": {
+        "entree": 15.0,
+        "sortie": 75.0,
+        "lecture": 1.5,
+        "geo_us": false
+      },
+      "claude-sonnet-5-5": {
         "entree": 2.0,
         "sortie": 10.0,
         "lecture": 0.1
       },
-      {
-        "nom": "haiku",
+      "claude-sonnet-5": {
+        "entree": 2.0,
+        "sortie": 10.0,
+        "lecture": 0.2
+      },
+      "claude-sonnet-4-6": {
+        "entree": 3.0,
+        "sortie": 15.0,
+        "lecture": 0.3
+      },
+      "claude-sonnet-4": {
+        "entree": 3.0,
+        "sortie": 15.0,
+        "lecture": 0.3,
+        "geo_us": false
+      },
+      "claude-haiku-5-5": {
         "entree": 0.1,
         "sortie": 0.5,
-        "lecture": 0.01
+        "lecture": 0.01,
+        "long_contexte": {
+          "seuil_tokens": 100000,
+          "facteur": 5.0
+        }
+      },
+      "claude-haiku-4-5": {
+        "entree": 1.0,
+        "sortie": 5.0,
+        "lecture": 0.1,
+        "geo_us": false
+      },
+      "claude-3-5-haiku": {
+        "entree": 0.8,
+        "sortie": 4.0,
+        "lecture": 0.08,
+        "geo_us": false
       }
-    ],
+    },
+    "familles": {
+      "fable": {
+        "entree": 10.0,
+        "sortie": 50.0,
+        "lecture": 0.25
+      },
+      "opus": {
+        "entree": 4.0,
+        "sortie": 20.0,
+        "lecture": 0.2
+      },
+      "sonnet": {
+        "entree": 2.0,
+        "sortie": 10.0,
+        "lecture": 0.1
+      },
+      "haiku": {
+        "entree": 0.1,
+        "sortie": 0.5,
+        "lecture": 0.01,
+        "long_contexte": {
+          "seuil_tokens": 100000,
+          "facteur": 5.0
+        }
+      }
+    },
     "ecriture_cache": {
       "5m": 1.25,
       "1h": 2.0
     },
-    "haiku_long_contexte": {
-      "seuil_tokens": 100000,
-      "facteur": 5.0,
-      "note": "Prompt de plus de 100 000 tokens (entrée + lecture + écriture du cache) d'une requête Haiku : tous ses prix x 5."
+    "inference_geo_us": {
+      "facteur": 1.1,
+      "note": "inference_geo 'us' : x 1,1 sur tous les prix (entrée, sortie, écriture et lecture du cache, y compris le palier Haiku 5.5 au-delà de 100 000 tokens), pour les modèles Claude 4.6 et suivants. Le script lit usage.inference_geo ; l'usage des tours du mod (ModelUsage) ne porte pas ce champ, le mod facture donc toujours au tarif global."
     }
   },
   "ecologits": {
