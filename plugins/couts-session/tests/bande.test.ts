@@ -20,7 +20,7 @@ const BREAKDOWN = {
   percentage: 25,
 } as unknown as SessionContextBreakdown
 
-type Monde = { sessionId: string; startedAt: number; breakdowns: number; fulls: number }
+type Monde = { sessionId: string; startedAt: number; breakdowns: number; fulls: number; panne?: boolean }
 
 /** Le moteur sous le plugin : session, usage, agents, fin de tour, store en mémoire (lisible). */
 function monde(on: On, store: Record<string, unknown> = {}, bande = true): Monde {
@@ -36,6 +36,7 @@ function monde(on: On, store: Record<string, unknown> = {}, bande = true): Monde
   on('session.usage', (_$, e) => {
     if (e.breakdown === 'summary') m.breakdowns += 1
     if (e.breakdown === 'full') m.fulls += 1
+    if (m.panne) throw new Error('usage indisponible')
     return {
       value: {
         startedAt: m.startedAt,
@@ -221,6 +222,16 @@ describe('bande', () => {
       viewport: { ...plein, isFullscreen: false },
     })
     expect(JSON.stringify(await ui.find({ key: 'niveau' }))).toContain('(touche 1)')
+  })
+
+  test('usage en échec : la bande reste, sans 🧠', async ($, on) => {
+    const m = monde(on)
+    await $.turn.complete(tour('claude-opus-5-5', 2000))
+    m.panne = true
+    const ui = await $.ui.mount({ plugin: PLUGIN, surface: 'terminal', component: 'AbovePrompt', props: props(100) })
+    const ligne = JSON.stringify(await ui.find({ key: 'niveau' }))
+    expect(ligne).toMatch(/💰 ≈ .+ · 📥 .+ lus · 📤 .+ écrits · 🌱/)
+    expect(ligne).not.toContain('🧠')
   })
 
   test('/clear : la bande quitte l’ancienne session sans attendre un tour', async ($, on) => {

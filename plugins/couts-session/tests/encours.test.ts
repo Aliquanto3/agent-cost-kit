@@ -272,6 +272,12 @@ describe('sous-agents en cours', () => {
     expect(colonnes(etroit)).toBeLessThan(sansCtx)
   })
 
+  test('emoji du plan de base à présentation emoji : deux colonnes', () => {
+    for (const e of ['⏳', '⌛', '⚡', '✅', '❌', '⭐']) expect(colonnes(e)).toBe(2)
+    expect(colonnes('▸ ▾ ₂ é')).toBe(7)
+    expect(colonnes('💰')).toBe(2)
+  })
+
   test('durées lisibles', () => {
     expect(duree(0)).toBe('0 s')
     expect(duree(45_000)).toBe('45 s')

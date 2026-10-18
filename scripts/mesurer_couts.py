@@ -177,7 +177,7 @@ def appels(chemin: Path) -> list[dict]:
                 "sortie": max(sortie_declaree, int(appel["car"] / CARACTERES_PAR_TOKEN)),
             }
         )
-    return sorted((a for a in resultat if a["ts"]), key=lambda a: a["ts"])
+    return sorted((a for a in resultat if a["ts"]), key=lambda a: instant(a["ts"]))
 
 
 def dedoublonner(agents: list[tuple]) -> tuple[list[tuple], int]:
@@ -186,16 +186,20 @@ def dedoublonner(agents: list[tuple]) -> tuple[list[tuple], int]:
     Une session reprise ou redémarrée recopie les réponses de l'ancienne avec les mêmes message.id, et un
     sous-agent peut figurer sous les deux sessions. On garde la première occurrence chronologique (à égalité,
     la session qui a démarré en premier), rattachée à sa session d'origine ; les agents devenus vides sont
-    retirés. ``agents`` : [(session, ident, chemin, meta, appels)]. Retourne (agents, nombre de doublons).
+    retirés. Les instants sont comparés parsés (formats « .500Z » et « Z » mêlés).
+    ``agents`` : [(session, ident, chemin, meta, appels)]. Retourne ([(session, ident, chemin, meta, gardés,
+    tous)], nombre de doublons) : ``tous`` garde les appels retirés, qui restent le « précédent » des
+    suivants pour les pauses et les expirations (une reprise qui attend après la réponse recopiée expire).
     """
-    debut: dict[str, str] = {}
+    debut: dict[str, datetime] = {}
     for session, _, _, _, liste in agents:
         for a in liste:
-            debut[session] = min(debut.get(session, a["ts"]), a["ts"])
+            t = instant(a["ts"])
+            debut[session] = min(debut.get(session, t), t)
     proprietaire: dict[str, tuple] = {}
     for session, ident, _, _, liste in agents:
         for a in liste:
-            cle = (a["ts"], debut[session], session, ident)
+            cle = (instant(a["ts"]), debut[session], session, ident)
             if a["id"] not in proprietaire or cle < proprietaire[a["id"]]:
                 proprietaire[a["id"]] = cle
     resultat, doublons = [], 0
@@ -203,7 +207,7 @@ def dedoublonner(agents: list[tuple]) -> tuple[list[tuple], int]:
         gardes = [a for a in liste if proprietaire[a["id"]][2:] == (session, ident)]
         doublons += len(liste) - len(gardes)
         if gardes:
-            resultat.append((session, ident, chemin, meta, gardes))
+            resultat.append((session, ident, chemin, meta, gardes, liste))
     return resultat, doublons
 
 
@@ -280,8 +284,12 @@ def hors_liste(modeles) -> list[str]:
     return sorted({m for m in modeles if not any(m.startswith(cle) for cle in PARAMETRES)})
 
 
-def couts(liste: list[dict]) -> dict:
-    """Coût réel, expirations et contrefactuel avec l'autre TTL."""
+def couts(liste: list[dict], compter: set[str] | None = None) -> dict:
+    """Coût réel, expirations et contrefactuel avec l'autre TTL.
+
+    ``compter`` : les message.id à compter (défaut : tous). Les autres appels de ``liste`` (recopiés d'une
+    autre session) ne coûtent rien ici mais servent de précédent pour la pause et le contexte.
+    """
     total: dict[str, float] = defaultdict(float)
     expirations = 0
     reecriture = 0.0
@@ -296,6 +304,10 @@ def couts(liste: list[dict]) -> dict:
         ecrit = a["ecrit_5m"] + a["ecrit_1h"]
         ctx = a["entree"] + ecrit + a["lu"]
         long = tarif.get("long_contexte")
+        if compter is not None and a["id"] not in compter:
+            precedent = a
+            ctx_precedent = ctx + a["sortie"]
+            continue
         if long and ctx > long["seuil_tokens"]:
             p_entree, p_sortie, p_lu = (p * long["facteur"] for p in (p_entree, p_sortie, p_lu))
         if a.get("geo") == "us" and tarif.get("geo_us", True):
@@ -378,9 +390,9 @@ def main() -> int:
         if liste:
             retenus.append((session, ident, chemin, meta, liste))
     retenus, doublons = dedoublonner(retenus)
-    for session, ident, chemin, meta, liste in retenus:
+    for session, ident, chemin, meta, liste, tous in retenus:
         description = str(meta.get("description", ""))
-        c = couts(liste)
+        c = couts(tous, {a["id"] for a in liste})
         imp = impact_appels(liste, options.mix)
         identifiants |= {a["modele"] for a in liste}
         est_main = ident == "MAIN"
@@ -429,11 +441,13 @@ def main() -> int:
         writer.writerows(lignes)
 
     index = {(l["session"], l["agent"]): l for l in lignes}
+    # Parent dont tous les appels sont rattachés à une autre session (dédoublonnage) : on le cherche là.
+    par_agent = {l["agent"]: l for l in lignes if l["type"] != "MAIN"}
 
     def racine(l):
         vus = 0
         while l["profondeur"] not in (0, 1, "") and l["parent"] and vus < 10:
-            parent = index.get((l["session"], l["parent"]))
+            parent = index.get((l["session"], l["parent"])) or par_agent.get(l["parent"])
             if parent is None:
                 break
             l, vus = parent, vus + 1
@@ -444,7 +458,7 @@ def main() -> int:
         if l["type"] == "MAIN":
             continue
         r = racine(l)
-        arbres[(l["session"], r["agent"])].append(l)
+        arbres[(r["session"], r["agent"])].append(l)
     lignes_arbres = []
     for (session, agent), membres in arbres.items():
         tete = index[(session, agent)]
@@ -477,7 +491,8 @@ def main() -> int:
             writer = csv.DictWriter(f, fieldnames=list(lignes_arbres[0]))
             writer.writeheader()
             writer.writerows(lignes_arbres)
-    resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix, hors_liste(identifiants), doublons)
+    resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix, hors_liste(identifiants), doublons,
+           bool(options.session or options.filtre))
     # Tableau par agent sur la sortie standard.
     print(f"{'session':8} {'agent':8} {'modèle':7} {'appels':>6} {'min':>6} {'1er ctx':>8} {'pic':>7} {'exp':>3} {'coût $':>8} {'gCO2e':>11}  description")
     for l in lignes:
@@ -497,7 +512,8 @@ def main() -> int:
 
 
 def resume(
-    dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str, replis: list[str] | None = None, doublons: int = 0
+    dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str, replis: list[str] | None = None, doublons: int = 0,
+    partiel: bool = False,
 ) -> None:
     sous = [l for l in lignes if l["type"] != "MAIN"]
     main_ = [l for l in lignes if l["type"] == "MAIN"]
@@ -507,6 +523,12 @@ def resume(
         sortie.append(
             f"{doublons} appels dédoublonnés : sessions reprises ou redémarrées qui recopient les réponses "
             "d'une autre (même message.id), comptées une seule fois, dans leur session d'origine."
+        )
+    if partiel:
+        sortie.append(
+            "Sélection partielle (--session ou --filtre) : le dédoublonnage ne porte que sur les transcriptions "
+            "retenues, une réponse recopiée compte dans la session retenue ; les totaux de plusieurs sélections "
+            "ne s'additionnent pas."
         )
     sortie.append("")
     sortie.append("| Périmètre | Agents | Coût | Écriture | Lecture | Sortie | Expirations | Coût avec l'autre TTL |")

@@ -21,13 +21,26 @@ export type Entree = {
   maintenant?: number
 }
 
-/** Colonnes occupées : un emoji (hors plan multilingue de base) en prend deux, un sélecteur de variante aucune. */
+/** Emoji du plan de base à présentation emoji (Emoji_Presentation=Yes) : les terminaux les dessinent sur deux colonnes. */
+const LARGES_BMP: [number, number][] = [
+  [0x231a, 0x231b], [0x23e9, 0x23ec], [0x23f0, 0x23f0], [0x23f3, 0x23f3], [0x25fd, 0x25fe], [0x2614, 0x2615],
+  [0x2648, 0x2653], [0x267f, 0x267f], [0x2693, 0x2693], [0x26a1, 0x26a1], [0x26aa, 0x26ab], [0x26bd, 0x26be],
+  [0x26c4, 0x26c5], [0x26ce, 0x26ce], [0x26d4, 0x26d4], [0x26ea, 0x26ea], [0x26f2, 0x26f3], [0x26f5, 0x26f5],
+  [0x26fa, 0x26fa], [0x26fd, 0x26fd], [0x2705, 0x2705], [0x270a, 0x270b], [0x2728, 0x2728], [0x274c, 0x274c],
+  [0x274e, 0x274e], [0x2753, 0x2755], [0x2757, 0x2757], [0x2795, 0x2797], [0x27b0, 0x27b0], [0x27bf, 0x27bf],
+  [0x2b1b, 0x2b1c], [0x2b50, 0x2b50], [0x2b55, 0x2b55],
+]
+
+/**
+ * Colonnes occupées : un emoji (hors plan multilingue de base, ou du plan de base à présentation emoji
+ * comme ⏳ ⌛ ⚡ ✅) en prend deux, un sélecteur de variante ou un liant aucune.
+ */
 export function colonnes(texte: string): number {
   let n = 0
   for (const c of texte) {
     const point = c.codePointAt(0) ?? 0
     if (point === 0xfe0f || point === 0x200d) continue
-    n += point >= 0x1f000 ? 2 : 1
+    n += point >= 0x1f000 || LARGES_BMP.some(([de, a]) => point >= de && point <= a) ? 2 : 1
   }
   return n
 }
@@ -54,8 +67,8 @@ export const EMOJI = { cout: '💰', lus: '📥', ecrits: '📤', impact: '🌱'
 
 /**
  * Ligne repliée : coût, 📥 lu (tout ce qui est renvoyé au modèle : entrée + cache, tous tours et
- * sous-agents), 📤 écrit (sortie), 🧠 contexte actuel de la session principale, carbone.
- * `ctx` absent (pas encore de réponse) : pas de 🧠. `libelles` faux : « 📥 17 M · 📤 62 k ».
+ * sous-agents), 📤 écrit (sortie), 🧠 contexte de la dernière réponse de la session principale, carbone.
+ * `ctx` absent (pas encore de réponse, ou juste après /compact) : pas de 🧠. `libelles` faux : « 📥 17 M · 📤 62 k ».
  */
 export function resume(cumul: Cumul | null, ctx?: number, opts: { contexte?: boolean; libelles?: boolean } = {}): string {
   const { contexte: avecCtx = true, libelles = true } = opts

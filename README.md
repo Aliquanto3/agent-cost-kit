@@ -137,9 +137,10 @@ La méthode : faites 3 à 5 stories avec votre méthode actuelle, installez le k
 
 Les prix (octobre 2026, vérifiés sur la page de prix officielle) sont dans l'en-tête du script : Opus 5.5 à 4 / 20 $, Sonnet 5.5 à 2 / 10 $ avec une lecture du cache à 0,10 $, Haiku 5.5 à 0,10 / 0,50 $, et 5 fois plus au-delà de 100 k tokens de prompt.
 
-Deux pièges du calcul, que le script corrige :
+Trois pièges du calcul, que le script corrige :
 - certaines transcriptions ne gardent que l'usage du début d'une réponse ; la sortie est alors réestimée à 2,2 caractères par token, valeur mesurée avec l'endpoint `count_tokens` ;
-- les écritures en cache de 5 minutes et d'une heure n'ont pas le même prix.
+- les écritures en cache de 5 minutes et d'une heure n'ont pas le même prix ;
+- une session reprise ou redémarrée recopie les réponses de l'ancienne (mêmes `message.id`) : chacune ne compte qu'une fois, dans sa session d'origine, mais reste le point de départ des pauses de la reprise (une reprise après plus de 5 min compte son expiration). Avec `--session` ou `--filtre`, le dédoublonnage ne porte que sur les transcriptions retenues : une réponse recopiée compte alors dans la session retenue, et les totaux de deux sélections ne s'additionnent pas. La durée et le premier contexte d'une reprise partent de sa première réponse propre.
 
 ## Quand de nouveaux modèles sortent
 
@@ -171,7 +172,7 @@ Un mod Claude Code, installable seul, affiche au-dessus du prompt ce que coûte 
 ```
 
 La bande a trois niveaux. Un clic sur la ligne (terminal plein écran) ou la touche `1` (prompt vide, ou après ctrl+x tab) passe au niveau suivant puis replie ; `2` remonte d'un niveau. Le niveau choisi est gardé d'une session à l'autre :
-1. une ligne discrète : `💰 ≈ 14,5 $ · 📥 17 M lus · 📤 62 k écrits · 🧠 238 k · 🌱 0,5–1 kgCO₂e estimé` (📥 : tout ce qui est renvoyé au modèle, entrée et cache, tous tours et sous-agents ; 📤 : sortie ; 🧠 : taille actuelle du contexte de la session principale, le chiffre de `/context`). Ligne trop large : la mention `⏳` tombe d'abord, puis le 🧠, puis les mots « lus » et « écrits » ; le coût et le carbone restent ;
+1. une ligne discrète : `💰 ≈ 14,5 $ · 📥 17 M lus · 📤 62 k écrits · 🧠 238 k · 🌱 0,5–1 kgCO₂e estimé` (📥 : tout ce qui est renvoyé au modèle, entrée et cache, tous tours et sous-agents ; 📤 : sortie ; 🧠 : contexte de la dernière réponse de la session principale, entrée et cache, le `total_input_tokens` de la status line, proche de `/context` sans lui être égal, absent après `/compact` jusqu'à la réponse suivante). Ligne trop large : la mention `⏳` tombe d'abord, puis le 🧠, puis les mots « lus » et « écrits » ; le coût et le carbone restent ;
 2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e) suivi d'une ligne d'aide (📥 relu à chaque tour, 📤 généré), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact, pour comparer le total `/cost` du moteur, et la commande d'analyse complète de la session (`/agent-cost-kit:mesurer-couts --session <id>`, du plugin `agent-cost-kit`), qui relit toutes les transcriptions pour chercher des optimisations ;
 3. en plus, le remplissage du contexte façon `/context`, par catégorie (estimation locale, gratuite).
 
@@ -195,7 +196,7 @@ Limites :
 
 ## Historique
 
-- **0.6.3** (2026-10-18) : `mesurer_couts.py` ne compte plus deux fois les réponses recopiées par une session reprise ou redémarrée (chaque `message.id` une seule fois, un sous-agent présent sous deux sessions une seule fois ; le nombre d'appels dédoublonnés figure dans `resume.md`), et le titre de `resume.md` porte le nom du dossier avec `--projet .` ; mod `couts-session` 0.1.3, la ligne repliée sépare 📥 lu (entrée + cache) et 📤 écrit (sortie) au lieu d'un total « tok » confondu avec `/context`, et ajoute 🧠, la taille actuelle du contexte ;
+- **0.6.3** (2026-10-18) : `mesurer_couts.py` ne compte plus deux fois les réponses recopiées par une session reprise ou redémarrée (chaque `message.id` une seule fois, un sous-agent présent sous deux sessions une seule fois ; le nombre d'appels dédoublonnés figure dans `resume.md`), et le titre de `resume.md` porte le nom du dossier avec `--projet .` ; mod `couts-session` 0.1.3, la ligne repliée sépare 📥 lu (entrée + cache) et 📤 écrit (sortie) au lieu d'un total « tok » confondu avec `/context`, et ajoute 🧠, le contexte de la dernière réponse de la session principale ;
 - **0.6.2** (2026-10-18) : mod `couts-session` 0.1.2, les sous-agents qui tournent apparaissent « en cours » (mention `· ⏳ N en cours` repliée, ligne avec durée aux niveaux dépliés) au lieu de n'apparaître qu'à la fin de leur exécution ;
 - **0.6.1** (2026-10-18) : prix par génération de modèle, vérifiés sur la page officielle (Opus 4.5 à 5, Sonnet 4.x, Haiku 4.5, Fable 5 et Sonnet 5 n'ont plus le tarif des 5.5 / 5.1 ; Mythos 5 et 5.1 ajoutés) ; préfixe d'identifiant borné au numéro (`claude-opus-4-5` ne couvre pas `claude-opus-4-50`, couvre `claude-opus-4-5[1m]`) ; `tarifs.json` devient la seule source des prix et coefficients, `mesurer_couts.py` le lit ; multiplicateur x 1,1 de `inference_geo: "us"` appliqué par le script (le mod, dont l'usage ne porte pas ce champ, ne l'applique pas) ; mod `couts-session` 0.1.1 ;
 - **0.6.0** (2026-10-18) : commande `/agent-cost-kit:avancement-run` et script `avancement_run.py` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée en fourchette, météo, tableau par epic, détail par story, `--detail`) ; convention d'heure dans le journal du run ;
