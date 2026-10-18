@@ -14,6 +14,11 @@ const maintenantRef = atom({ plugin: 'couts-session', key: 'maintenant' } as con
 
 /** Période de rafraîchissement des durées des sous-agents en cours. */
 const PERIODE_MS = 30_000
+/**
+ * Un en-cours absent de `$.agent.list()` depuis au moins ce délai est tenu pour fini : le moteur
+ * retire la tâche d'un sous-agent quelque temps après sa fin, et un tué peut n'avoir aucun `turn.complete`.
+ */
+const ABSENT_MS = 2 * PERIODE_MS
 
 /** Sessions gardées dans `$.store` pour `--resume` ; les plus anciennes sont effacées. */
 const SESSIONS_GARDEES = 30
@@ -73,16 +78,19 @@ function ajouter(c: Cumul, u: TurnUsage, agentId?: string, agent?: { type: strin
   const modeles = { ...c.modeles, [u.model]: additionner(c.modeles[u.model] ?? VIDE, tour) }
   if (!agentId) return { ...c, tours: c.tours + 1, modeles }
   const avant = c.agents[agentId] ?? { type: agent?.type ?? 'agent', description: agent?.description ?? '', modeles: {} }
-  const fiche = {
-    ...avant,
-    modeles: { ...avant.modeles, [u.model]: additionner(avant.modeles[u.model] ?? VIDE, tour) },
-  }
-  return { ...c, tours: c.tours + 1, modeles, agents: { ...c.agents, [agentId]: fiche } }
+  // Le modèle du tour passe en dernier : c'est lui que reprend une reprise (SendMessage).
+  const { [u.model]: dejaVu, ...autres } = avant.modeles
+  const fiche = { ...avant, modeles: { ...autres, [u.model]: additionner(dejaVu ?? VIDE, tour) } }
+  // Le tour est fini : le sous-agent n'est plus en cours (même écriture, sans rendu intermédiaire).
+  const { [agentId]: _fini, ...enCours } = c.enCours ?? {}
+  return { ...c, tours: c.tours + 1, modeles, agents: { ...c.agents, [agentId]: fiche }, enCours }
 }
 
 /**
  * Rafraîchissement des durées : un seul minuteur par module, démarré au premier sous-agent en cours
- * (lancement ou reprise : `session.start` n'en a pas encore) et arrêté quand plus rien ne tourne.
+ * (lancement ou reprise) et arrêté quand plus rien ne tourne. Un rechargement du mod annule ses
+ * minuteurs et remet cette variable à zéro alors que `enCours` survit dans `$.state` :
+ * `session.start`, qui suit chaque chargement, le relance.
  */
 let minuteur: Timer | undefined
 function arreter(): void {
@@ -102,10 +110,14 @@ async function battre($: EngineInterface): Promise<void> {
     const [cumul, id] = await Promise.all([read($, cumulRef), $.session.id()])
     const ids = cumul && cumul.sessionId === id ? Object.keys(cumul.enCours ?? {}) : []
     if (ids.length === 0) return arreter()
-    const liste = await $.agent.list()
-    const finis = ids.filter(i => ['completed', 'failed', 'killed'].includes(liste.find(a => a.id === i)?.status ?? ''))
+    const [liste, maintenant] = await Promise.all([$.agent.list(), $.clock.now()])
+    const statuts = new Map(liste.map(a => [a.id, a.status]))
+    const finis = ids.filter(i => {
+      const statut = statuts.get(i)
+      if (statut === undefined) return maintenant - (cumul!.enCours![i]?.debut ?? 0) >= ABSENT_MS
+      return statut === 'completed' || statut === 'failed' || statut === 'killed'
+    })
     if (finis.length > 0) await retirer($, finis)
-    const maintenant = await $.clock.now()
     await update($, maintenantRef, () => maintenant)
     const restant = await read($, cumulRef)
     if (Object.keys(restant?.enCours ?? {}).length === 0) arreter()
@@ -155,7 +167,9 @@ export const register: Register = on => {
         const stocke = await $.store.get('niveau')
         if (stocke === 0 || stocke === 1 || stocke === 2) await update($, niveauRef, () => stocke)
       }
-      await synchroniser($)
+      const cumul = await synchroniser($)
+      // Rechargement à chaud : des en-cours survivent, le minuteur non.
+      if (Object.keys(cumul.enCours ?? {}).length > 0) demarrer($)
     })
     return result
   })
@@ -194,9 +208,10 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     // Fin de tour, avec ou sans usage (interrompu, échec) : le sous-agent ne tourne plus. Sans
-    // usage la ligne « en cours » disparaît, sans trace chiffrée ni mention « interrompu ».
-    if (e.agentId) await sansEchec($, () => retirer($, [e.agentId!]))
+    // usage la ligne « en cours » disparaît, sans trace chiffrée ni mention « interrompu » ; avec
+    // usage, `ajouter` la retire dans la même écriture que les chiffres.
     const usage = e.usage
+    if (e.agentId && !usage) await sansEchec($, () => retirer($, [e.agentId!]))
     if (usage) {
       await sansEchec($, async () => {
         const courant = await synchroniser($)
@@ -208,6 +223,7 @@ export const register: Register = on => {
         }
         await update($, cumulRef, c => ajouter(c && c.sessionId === courant.sessionId ? c : courant, usage, agentId, agent))
         await persister($)
+        if (agentId) await retirer($, [agentId]) // arrête le minuteur s'il ne reste rien
       })
     }
     return result
