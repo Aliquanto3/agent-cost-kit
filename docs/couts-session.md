@@ -16,12 +16,16 @@ La bande a trois niveaux. Un clic sur la ligne (terminal plein écran) ou la tou
 2. un tableau par modèle (entrée, sortie, lecture et écriture du cache, coût, gCO₂e) suivi d'une ligne d'aide (📖 relu à chaque tour, 🪶 généré), une ligne par sous-agent (type, coût, impact, modèle, description), la source de l'impact, pour comparer le total `/cost` du moteur, et la commande d'analyse complète de la session (`/agent-cost-kit:mesurer-couts --session <id>`, du plugin `agent-cost-kit`), qui relit toutes les transcriptions pour chercher des optimisations ;
 3. en plus, le remplissage du contexte façon `/context`, par catégorie (estimation locale, gratuite).
 
-Les cumuls viennent de l'usage de chaque fin de tour, session principale et sous-agents. Ils survivent au rechargement du mod et à `--resume`, et repartent de zéro après `/clear`. Les prix et les coefficients EcoLogits sont dans `plugins/couts-session/donnees/tarifs.json`, les mêmes que ceux de `mesurer_couts.py` ; `donnees/generer_tarifs.py` en tire le module TypeScript du mod (`--verifier` contrôle les deux).
+Les cumuls viennent de l'usage de chaque fin de tour, session principale et sous-agents. Ils survivent au rechargement du mod et à `--resume`, et repartent de zéro après `/clear`. Quand le mod est activé en cours de session (hot reload, ou session reprise sans cumul mémorisé), il reconstitue une fois l'historique en relisant les transcriptions locales (`~/.claude/projects/…`), sous-agents compris, sans retarder l'affichage de la bande. Les prix et les coefficients EcoLogits sont dans `plugins/couts-session/donnees/tarifs.json`, les mêmes que ceux de `mesurer_couts.py` ; `donnees/generer_tarifs.py` en tire le module TypeScript du mod (`--verifier` contrôle les deux).
 
 Un sous-agent qui tourne est affiché « en cours » dès son lancement : replié, la ligne ajoute `· ⏳ 2 en cours` avant la flèche (première mention à tomber si la ligne est trop étroite, pour garder le coût visible) ; aux niveaux 2 et 3, il figure au-dessus des terminés avec `⏳ en cours · <durée>` à la place du coût (durée rafraîchie toutes les 30 s environ), et prend ses chiffres à la fin de son tour. Un tour interrompu ou en échec, sans usage, retire la ligne sans la chiffrer ; une reprise par SendMessage le remet en cours. Un sous-agent tué sans fin de tour quitte l'état « en cours » au battement suivant, ou une minute au moins après son lancement s'il n'est plus listé par le moteur.
 
 Limites :
-- les tours d'avant le chargement du mod et les tours interrompus (sans usage) ne sont pas comptés ;
+- les tours interrompus (sans usage) ne sont pas comptés ;
+- reprise de l'historique : une transcription de plus de 4 Mio (limite de lecture du moteur) est sautée ; le coût s'affiche alors précédé de `≥`, comme un minimum, et une ligne le dit dans le journal ;
+- un sous-agent au milieu d'un tour quand le mod se charge n'est compté que par la fin de ce tour : s'il avait été relancé par SendMessage, ses tours précédents ne sont pas repris ;
+- une fin de tour dont le mod n'a pas vu le début est retirée de l'historique relu : ce tour peut être sous-compté, jamais compté deux fois ;
+- une session rouverte par `/resume` dans un process où le mod tourne déjà n'est pas reprise depuis ses transcriptions ;
 - l'écriture du cache est comptée au tarif 5 min : l'usage d'un tour ne sépare pas 5 min et 1 h ;
 - le surcoût Haiku au-delà de 100 k tokens de prompt n'est pas appliqué : l'usage d'un tour additionne ses requêtes ;
 - l'impact ne compte que les tokens de sortie, comme EcoLogits ; c'est une estimation, en fourchette ;
