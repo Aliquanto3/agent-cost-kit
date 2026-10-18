@@ -12,7 +12,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/avancement_run.py" . $ARGUMENTS
 
 Si `python` n'est pas dans le PATH, utilise `uv run python …` ou `.venv/Scripts/python`. Le script lit `_bmad-output/implementation-artifacts/sprint-status.yaml`, `run-autonome.md` (périmètre, vagues, journal), `planning-artifacts/epics.md` (titres) et `git log` ; il ne modifie rien.
 
-Le rapport tient déjà lieu de synthèse : taux d'avancement, fin estimée (centrale et fourchette), météo (🟢 dans les temps, 🟡 vigilance, 🔴 bloqué), « Ce qu'il faut savoir », tableau par epic, détail par story. Affiche-le tel quel, sans le recopier ni le recalculer, et sans refaire de tableau.
+Le rapport tient déjà lieu de synthèse : taux d'avancement, fin estimée (centrale et fourchette), météo (🟢 dans les temps, 🟡 vigilance, 🔴 bloqué), « Ce qu'il faut savoir », tableau par epic, détail par story. La sortie d'une commande shell est repliée dans l'interface de Claude Code : l'utilisateur ne la voit pas. Reproduis donc le rapport Markdown **intégralement dans ta réponse**, tel que le script l'a produit, sans le modifier, le recalculer ni refaire de tableau (s'il s'affiche mal, remplace seulement les balises `<details>`/`<summary>` par un titre « Détail par story »).
 
 Ensuite, seulement si tu as un jugement qui n'est pas déjà dans les puces « Ce qu'il faut savoir », ajoute au plus 3 puces sous le titre « Avis » : risque pour la date de fin (chemin critique, story pivot en retard, reprise en cas d'échec), étape humaine qui va bloquer, créneau libre mal employé. Sans jargon technique. S'il n'y a rien à ajouter, n'ajoute rien.
 
