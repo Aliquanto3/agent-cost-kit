@@ -1,0 +1,41 @@
+# Installation et contenu du kit
+
+[← README](../README.md)
+
+## Installation
+
+```
+/plugin marketplace add Aliquanto3/agent-cost-kit
+/plugin install agent-cost-kit@agent-cost-kit
+```
+
+Ou, pour l'essayer sans installer : `claude --plugin-dir ./agent-cost-kit`.
+
+Sur un nouveau PC, ces deux commandes et un `/cost-kit-install` suffisent : les réglages globaux ne sont pas synchronisés d'une machine à l'autre, le script les réapplique. Après une mise à jour du kit, relancez-le (`python scripts/installer_global.py`) : il ne remplace que le bloc du kit dans `~/.claude/CLAUDE.md`.
+
+Puis, dans votre projet : `/cost-kit-install`. Le skill :
+- une fois par PC, applique avec votre accord les réglages utilisateur (`~/.claude/settings.json`) et les consignes de coût globales (`~/.claude/CLAUDE.md`), par `scripts/installer_global.py` : aperçu d'abord, sauvegarde, rien d'autre n'est touché ; il propose aussi le plugin `pyright-lsp` pour les projets Python et le blocage des connecteurs claude.ai inutiles ;
+- propose les réglages du projet (un plugin ne peut pas les imposer) ;
+- copie le modèle de contrôle rapide ;
+- explique l'enchaînement des agents ;
+- vous rappelle de redémarrer Claude Code.
+
+## Contenu
+
+| Élément | Rôle |
+|---|---|
+| `agents/dev-story.md` | Sonnet, `medium`, sans sous-agent (outil retiré) ni arrière-plan (par consigne). Implémente une story dans un worktree, tests ciblés pendant, suite complète une fois à la fin, au plus 3 cycles sur un même échec, rapport de 5 lignes. |
+| `agents/second-avis.md` | Haiku, lecture seule. Relecture adversariale du diff pour quelques centimes ; sa liste est transmise au reviewer. |
+| `agents/reviewer.md` | Opus, `medium`. Une passe : suit les appelants au-delà du diff, exécute le code, questionne les tests, vérifie ce que la CI installe, corrige les constats medium et high, consigne la revue dans la spec. |
+| `agents/lookup.md` | Haiku, `low`, lecture seule. Trouve un symbole, résume un log : 20 bonnes réponses sur 20, comme Sonnet, pour 18 fois moins cher. |
+| `skills/cost-kit-install` | Installation guidée : partie globale, réglages du projet, contrôle rapide, enchaînement, vérification. |
+| `scripts/installer_global.py` | Partie globale, une fois par PC : fusionne les réglages utilisateur, écrit le bloc de consignes entre marqueurs, signale les réglages contraires. Aperçu par défaut, `--appliquer` pour écrire. Python 3.10+, aucune dépendance. |
+| `modeles/CLAUDE.global.md` | Les consignes de coût écrites dans `~/.claude/CLAUDE.md`. |
+| `commands/mesurer-couts.md` | `/agent-cost-kit:mesurer-couts` : coût réel par agent et par story, pic de contexte, appels, expirations du cache, contrefactuel du TTL. |
+| `scripts/mesurer_couts.py` | Le script derrière la commande. Python 3.10+, aucune dépendance. Lit `~/.claude/projects/<projet>/` et la table des prix `plugins/couts-session/donnees/tarifs.json` du dépôt. |
+| `commands/avancement-run.md` | `/agent-cost-kit:avancement-run` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée, météo, epics, stories). |
+| `scripts/avancement_run.py` | Le script derrière la commande. Python 3.10+, aucune dépendance, lecture seule. Lit `sprint-status.yaml`, `run-autonome.md` et `git log`. |
+| `scripts/controle_rapide.py` | Modèle de contrôle de fin de story (lint, format, typage), à adapter. |
+| `bancs/` | Protocole et scripts pour re-tester le kit quand de nouveaux modèles sortent (`bancs/README.md`). |
+
+Le `model` et l'`effort` déclarés dans le frontmatter des agents s'appliquent bien aux agents de plugin. Vérifié : depuis une session Opus en `high`, `lookup` tourne en Haiku `low`.

@@ -1,0 +1,27 @@
+# Historique
+
+- **0.6.4** (2026-10-18) : `avancement-run` plus lisible : le tableau par story n'est plus affiché quand il existe un niveau de consolidation (epics), sauf avec la nouvelle option `--stories` (il reste affiché sans consolidation) ; barres d'avancement en `█` (plein) et `░` (vide) au lieu de `▰▱`, sans contour ambigu sur fond sombre ;
+- **0.6.3** (2026-10-18) : `mesurer_couts.py` ne compte plus deux fois les réponses recopiées par une session reprise ou redémarrée (chaque `message.id` une seule fois, un sous-agent présent sous deux sessions une seule fois ; le nombre d'appels dédoublonnés figure dans `resume.md`), et le titre de `resume.md` porte le nom du dossier avec `--projet .` ; mod `couts-session` 0.1.3, la ligne repliée sépare 📖 lu (entrée + cache) et 🪶 écrit (sortie) au lieu d'un total « tok » confondu avec `/context`, et ajoute 🧠, le contexte de la dernière réponse de la session principale ;
+- **0.6.2** (2026-10-18) : mod `couts-session` 0.1.2, les sous-agents qui tournent apparaissent « en cours » (mention `· ⏳ N en cours` repliée, ligne avec durée aux niveaux dépliés) au lieu de n'apparaître qu'à la fin de leur exécution ;
+- **0.6.1** (2026-10-18) : prix par génération de modèle, vérifiés sur la page officielle (Opus 4.5 à 5, Sonnet 4.x, Haiku 4.5, Fable 5 et Sonnet 5 n'ont plus le tarif des 5.5 / 5.1 ; Mythos 5 et 5.1 ajoutés) ; préfixe d'identifiant borné au numéro (`claude-opus-4-5` ne couvre pas `claude-opus-4-50`, couvre `claude-opus-4-5[1m]`) ; `tarifs.json` devient la seule source des prix et coefficients, `mesurer_couts.py` le lit ; multiplicateur x 1,1 de `inference_geo: "us"` appliqué par le script (le mod, dont l'usage ne porte pas ce champ, ne l'applique pas) ; mod `couts-session` 0.1.1 ;
+- **0.6.0** (2026-10-18) : commande `/agent-cost-kit:avancement-run` et script `avancement_run.py` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée en fourchette, météo, tableau par epic, détail par story, `--detail`) ; convention d'heure dans le journal du run ;
+- **0.5.0** (2026-10-18) : nouveau plugin `couts-session` 0.1.0, installable seul, un mod qui affiche au-dessus du prompt le coût API estimé, les tokens et l'impact carbone estimé de la session, par modèle et par sous-agent, et le remplissage du contexte ; prix et coefficients dans `plugins/couts-session/donnees/tarifs.json` ;
+- **0.4.0** (2026-10-18) : estimation de l'impact environnemental (EcoLogits) dans `mesurer_couts.py` : énergie, GWP, eau, énergie primaire et ADPe en fourchette par agent (`agents.csv`), énergie, GWP et eau par arbre et en résumé ; option `--mix` ; banc `bancs/ecologits_ecart.py` contre la librairie ;
+- **0.3.3** (2026-10-17) :
+  - tiré de la V1.1 de WaveStack (13 stories, 221 $, `mesures/2026-10-17-wavestack-v1-1.md`) : consignes globales pour couper la session principale entre cadrage, exécution et recette, ne jamais sauter le second avis, relire la spec des stories à risque, lancer la suite complète à mi-parcours, vérifier la branche principale après chaque fusion et documenter en parallèle de la revue ; dev-story réaligne les tests et E2E d'une structure partagée qu'il modifie ; le reviewer cherche les complexités au-delà de O(n) sur les structures qui grossissent ;
+  - mesure en série de l'enchaînement 0.2 sur une nuit autonome de 5 stories (`mesures/2026-10-16-nuit-autonome-5-stories.md`) ;
+  - l'installeur global autorise `gh pr merge`, `gh pr edit` et la suppression de branche distante (`permissions.allow`, fusionné sans retirer les règles existantes) ;
+  - consigne globale : recibler les PR empilées avant de fusionner leur base ;
+  - le reviewer cherche les tests qui appellent les fonctions modifiées.
+- **0.3.2** (2026-10-17) : l'étape de vérification de `cost-kit-install` ne renvoie plus vers `/agents`, assistant retiré de Claude Code ; elle passe par `claude plugin list` et par la liste des agents vue depuis une session.
+- **0.3.1** (2026-10-15) : l'installeur global pose aussi `ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-haiku-5-5` (l'alias `haiku` restait sur Haiku 4.5) et l'effort `high` pour Fable 5.1.
+- **0.3.0** (2026-10-15) :
+  - partie globale de l'installation, une fois par PC (`scripts/installer_global.py`, `modeles/CLAUDE.global.md`) ;
+  - options proposées : plugin `pyright-lsp`, blocage des connecteurs claude.ai inutiles.
+- **0.2.0** (2026-10-13) :
+  - le reviewer passe sur Opus, avec une consigne élargie ;
+  - nouvel agent `second-avis` (Haiku) ;
+  - sortie réestimée à 2,2 caractères par token (au lieu de 3,2) ;
+  - conseils d'installation mesurés ;
+  - ajout des bancs de re-test.
+- **0.1.0** (2026-10-13) : première version.
