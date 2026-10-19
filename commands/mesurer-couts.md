@@ -7,10 +7,10 @@ allowed-tools: Bash(python:*), Bash(uv run:*), Read
 Lance le script de mesure sur le projet courant, puis commente le résultat :
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/mesurer_couts.py" --projet . $ARGUMENTS
+uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/mesurer_couts.py" --projet . $ARGUMENTS
 ```
 
-Si `python` n'est pas dans le PATH, utilise l'interpréteur du projet (`uv run python …` ou `.venv/Scripts/python`).
+Sans `uv`, lance `python …` (`python3` hors Windows) ; `--no-project` évite que `uv` synchronise l'environnement du projet courant.
 
 Lis ensuite `mesures-couts/resume.md` et donne en 12 lignes au plus :
 1. le coût total, et la part des sessions principales ;

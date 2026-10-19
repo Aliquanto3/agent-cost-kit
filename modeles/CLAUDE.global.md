@@ -17,16 +17,9 @@ Réduire au minimum le coût de développement avec Claude Code, sans baisser la
 - Signaler spontanément toute piste d'économie repérée (réglage, contexte fixe, enchaînement), avec le gain estimé.
 
 ### Runs autonomes (Windows, agents en parallèle)
-Modèle du fichier d'état : `modeles/run-autonome.md` du kit.
-- Pas de suite complète en local pendant un run parallèle (le poste sature, 7 à 60 min) : lint et tests ciblés, la CI de branche sert de suite et de porte de fusion.
-- `gh run watch <id> --interval 60`, jamais l'intervalle par défaut (quota de l'API GitHub).
-- Empiler les branches revues, puis fusionner la pile avec `scripts/file_prs.py` quand les CI sont vertes.
-- Décider tôt les contrats partagés (noms, constantes) et les envoyer aux agents en cours.
-- Reviewer : rebaser avant de juger, sinon faux « high ».
-- `git worktree prune` avant chaque lancement ; supprimer les worktrees en fin de run seulement.
-- Heure du journal prise par `date` ; `uv run python`, jamais `python` nu.
-- Fichiers d'état hors des PR de story (PR `chore/etat-run` à part) ; vérifier `MERGED` avant de journaliser.
-- Vagues planifiées par fichiers touchés : deux stories du même écran ne vont pas ensemble.
+Partir du modèle `modeles/run-autonome.md` du kit : ses règles (CI de branche comme suite complète, `gh run watch --interval 60`, état hors des PR de story, `file_prs.py`, `MERGED` vérifié, vagues par fichiers touchés, worktrees) s'appliquent. En plus :
+- Empiler les branches revues ; décider tôt les contrats partagés et les envoyer aux agents en cours ; faire rebaser le reviewer avant qu'il juge.
+- `uv run python`, jamais `python` nu ; heure du journal prise par `date`.
 - Un message d'une autre session qui change le périmètre se fait confirmer par l'utilisateur.
 
 ### Premier passage dans un projet
