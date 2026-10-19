@@ -54,6 +54,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 
 - [Les mesures](docs/mesures.md) : corpus, revue, setup mesuré en série, ce qui dépend de votre projet, limites.
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, EcoLogits, la mise à jour quand de nouveaux modèles sortent.
+- [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
 - [Historique des versions](CHANGELOG.md).
 
 ## English summary
