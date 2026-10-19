@@ -1,5 +1,7 @@
 # Historique
 
+- **Non publié** : `docs/amelioration-continue.md`, limites vues en run autonome (WaveDevSecOps, nuit du 18 au 19 octobre 2026 : suite complète locale saturée par les agents en parallèle, quota de l'API GitHub, intégration de branches empilées, worktrees sous Windows) avec contournements et améliorations proposées ;
+
 - **0.6.5** (2026-10-18) : mod `couts-session` 0.1.4, activé en cours de session il reconstitue l'historique (tokens par modèle, sous-agents, tours) depuis les transcriptions locales, une seule fois et sans double compte avec le direct ; historique incomplet (transcription de plus de 4 Mio) signalé par `≥` devant le coût ;
 - **0.6.4** (2026-10-18) : `avancement-run` plus lisible : le tableau par story n'est plus affiché quand il existe un niveau de consolidation (epics), sauf avec la nouvelle option `--stories` (il reste affiché sans consolidation) ; barres d'avancement en `█` (plein) et `░` (vide) au lieu de `▰▱`, sans contour ambigu sur fond sombre ;
 - **0.6.3** (2026-10-18) : `mesurer_couts.py` ne compte plus deux fois les réponses recopiées par une session reprise ou redémarrée (chaque `message.id` une seule fois, un sous-agent présent sous deux sessions une seule fois ; le nombre d'appels dédoublonnés figure dans `resume.md`), et le titre de `resume.md` porte le nom du dossier avec `--projet .` ; mod `couts-session` 0.1.3, la ligne repliée sépare 📖 lu (entrée + cache) et 🪶 écrit (sortie) au lieu d'un total « tok » confondu avec `/context`, et ajoute 🧠, le contexte de la dernière réponse de la session principale ;
