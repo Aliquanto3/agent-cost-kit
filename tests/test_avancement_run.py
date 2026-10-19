@@ -28,6 +28,7 @@ def commits_exemple():
 @pytest.fixture()
 def projet(tmp_path, monkeypatch):
     monkeypatch.setattr(ar, "commits_git", lambda _p: commits_exemple())
+    monkeypatch.setattr(ar, "heures_commit_lignes", lambda _p, _f: {})
     cible = tmp_path / ar.DOSSIER
     cible.mkdir(parents=True)
     for f in FIXTURES.glob("*.*"):
@@ -279,6 +280,7 @@ def test_git_reel_pour_les_heures_sans_horodatage(projet, monkeypatch):
 def mini(tmp_path, monkeypatch, statuts, journal, maj="10-19-2026 10:00", vagues=None):
     """Projet minimal : `statuts` {id: statut}, `journal` lignes brutes, une vague par story sans dépendance."""
     monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    monkeypatch.setattr(ar, "heures_commit_lignes", lambda _p, _f: {})
     d = tmp_path / ar.DOSSIER
     d.mkdir(parents=True)
     ligne = lambda k, v: f"  {k.replace('.', '-')}-x: {v}"
@@ -375,3 +377,100 @@ def test_lignes_du_journal_dans_le_futur(tmp_path, monkeypatch):
     assert "Heure future au journal" in ar.rapport(a, detail=True)
     sans = ar.analyser(p, datetime(2026, 10, 20, 0, 0))
     assert sans["futures"] == [] and "heure future" not in ar.rapport(sans)
+
+
+# ----------------------------------------------------------------------------- revue S1 : extrait réel anonymisé
+
+PLAN_REEL = """## Sprint 1 — extrait
+
+Au plus 3 stories en développement à la fois
+
+| Vague | Stories en parallèle | Après |
+|---|---|---|
+| V14 | 4.9 ★ | — |
+| V14b | 1.12 · 2.7 | suite du correct course, fusionnées avant 3.6 et 4.9 |
+| V18 | 5.4 · 5.7 (mixte) · 6.3 | — |
+| V20 | 6.4 · 7.4 | 6.4 ← 6.3 |
+
+## Journal
+
+- 2026-10-19 02:41 · 1.12 · contrôles · verts · 1cdca6a
+- 2026-10-19 06:17 · 1.12 · fusion · PR #66 fusionnée · b90056e
+- 2026-10-19 01:44 · 2.7 · contrôles · verts ; PR ouverte, fusion après 3.2 · f424965
+- 2026-10-19 03:52 · 2.7 · fusion · PR #63 fusionnée · f6e3841
+- 2026-10-19 11:52 · 4.9 · PR · #79 ouverte, file de fusion · 47ee04f
+- 2026-10-19 12:05 · 4.9 · fusion · PR #79 fusionnée · 1a2b3c4
+- 2026-10-19 16:01 · 5.4 · dev · lancé · 2dbb19d
+- 2026-10-19 16:56 · 5.4 · second-avis · lancé (Haiku) · —
+- 2026-10-19 16:33 · 6.3 · dev · lancé · 19a01bd
+- 2026-10-19 16:55 · 6.3 · dev · fini · —
+- 2026-10-19 17:11 · 6.3 · fusion master · 6.1 fusionnée sans conflit · aeb37a8
+- 2026-10-19 17:11 · 6.3 · review · lancée (Opus) · aeb37a8
+- 2026-10-19 17:17 · 6.3 · review · 2 medium corrigés · —
+- 2026-10-19 17:42 · 6.3 · PR · #95 ouverte · —
+- 2026-10-19 19:39 · 6.3 · CI · verte sur les 3 OS ; PR en conflit après les fusions · —
+- 2026-10-19 19:39 · 6.3 · fusion master · conflit résolu ; poussé sur #95 · 7122bc2
+- 2026-10-19 17:25 · 6.4 · dev · lancé · 7db423c
+- 2026-10-19 18:21 · 6.4 · fusion 6.3 et master · conflit résolu · ff0ce9e
+- 2026-10-19 18:21 · 6.4 · review · lancée (Opus) · ff0ce9e
+- 2026-10-19 07:09 · 7.4 · fusion · refusée (PR #68 en conflit) ; master à fusionner dans la branche · —
+- 2026-10-19 18:32 · 7.4 · fusion master · sans conflit · —
+- 2026-10-19 17:37 · 5.7 · attente humaine · données du banc absentes · —
+- 2026-10-19 19:31 · 5.7 · décision · Anaël : 5.7 reportée après le run · —
+"""
+
+
+def test_extrait_reel_fusion_master_v14b_decision_pr(tmp_path, monkeypatch):
+    monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    monkeypatch.setattr(ar, "heures_commit_lignes", lambda _p, _f: {})
+    d = tmp_path / ar.DOSSIER
+    d.mkdir(parents=True)
+    statuts = {"4.9": "done", "1.12": "done", "2.7": "done", "5.4": "done", "5.7": "backlog",
+               "6.3": "done", "6.4": "in-progress", "7.4": "in-progress"}
+    (d / "sprint-status.yaml").write_text(
+        "last_updated: 10-19-2026 19:56\ndevelopment_status:\n"
+        + "".join(f"  {k.replace('.', '-')}-x: {v}\n" for k, v in statuts.items()), encoding="utf-8")
+    (d / "run-autonome.md").write_text(PLAN_REEL, encoding="utf-8")
+    a = ar.analyser(tmp_path, datetime(2026, 10, 19, 20, 0))
+    S = a["stories"]
+    assert len(S) == 8 and a["plan"]["ordre"] == ["V14", "V14b", "V18", "V20"]  # V14b lue, dans l'ordre
+    assert S["1.12"]["deps"] == [] and S["2.7"]["deps"] == []  # « avant 3.6 et 4.9 » n'est pas une dépendance
+    assert sorted(k for k, s in S.items() if s["etat"] == "fait") == ["1.12", "2.7", "4.9"]
+    # « fusion master », « fusion 6.3 et master », « refusée » : mise à jour de branche, pas une fusion
+    assert (S["6.3"]["etat"], S["6.3"]["pct"]) == ("en cours", 93) and "PR ouverte" in S["6.3"]["drapeaux"]
+    assert (S["6.4"]["etat"], S["6.4"]["etape"], S["6.4"]["pct"]) == ("en cours", "review en cours", 75)
+    assert S["7.4"]["etat"] == "en cours" and S["7.4"]["pct"] < 95
+    # « second-avis · lancé » : second avis en cours (60 %), pas fini
+    assert (S["5.4"]["etape"], S["5.4"]["pct"]) == ("second-avis en cours", 60)
+    # décision récente sur une story pas lancée : retenue, jamais « prête mais pas lancée »
+    assert "retenue" in S["5.7"]["drapeaux"] and not S["5.7"]["eligible"]
+    assert "prête mais pas lancée" not in ar.rapport(a)
+    # PR -> fusion : ouverture de la PR fusionnée (2.7 : « PR ouverte » dans les contrôles)
+    ry = a["rythme"]
+    assert ry["pr_fusion_echantillon"] == 2 and ry["pr_fusion_mediane_min"] == (13 + 128) / 2
+    assert a["ecarts"] == []  # done sans fusion : pas un retard de sprint-status
+
+
+def test_last_updated_iso_ou_illisible(tmp_path):
+    f = tmp_path / "s.yaml"
+    f.write_text("last_updated: '2026-10-19 19:56'\n", encoding="utf-8")
+    assert ar.lire_maj(f) == datetime(2026, 10, 19, 19, 56)
+    f.write_text("last_updated: hier\n", encoding="utf-8")
+    assert ar.lire_maj(f) is None
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git absent")
+def test_heure_posterieure_au_commit_qui_ajoute_la_ligne(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"1.1": "in-progress"}, [
+        "- 2026-10-19 19:55 · 1.1 · dev · lancé · —", "- 2026-10-19 21:30 · 1.1 · dev · fini · —"])
+    monkeypatch.undo()
+    monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+           "GIT_COMMITTER_EMAIL": "t@t", "GIT_AUTHOR_DATE": "2026-10-19T20:00:00",
+           "GIT_COMMITTER_DATE": "2026-10-19T20:00:00"}
+    subprocess.run(["git", "init", "-q", str(p)], check=True, env=env)
+    subprocess.run(["git", "-C", str(p), "add", "."], check=True, env=env)
+    subprocess.run(["git", "-C", str(p), "commit", "-q", "-m", "chore: état du run"], check=True, env=env)
+    a = ar.analyser(p, datetime(2026, 10, 20, 8, 0))  # 21:30 n'est plus « futur », mais postérieur au commit de 20:00
+    assert [(f["t"].hour, f["commit_t"]) for f in a["futures"]] == [(21, datetime(2026, 10, 19, 20, 0))]
+    assert "après le commit qui l'ajoute (2026-10-19 20:00)" in ar.rapport(a, detail=True)
