@@ -7,7 +7,7 @@ est bien MERGED. Une PR qui ne peut pas être fusionnée est sautée, la file co
 Usage : python scripts/file_prs.py 104 105 106 [--repo OWNER/NOM] [--methode merge|squash|rebase]
         [--supprimer-branche] [--intervalle 60] [--delai-max 60] [--json] [--a-sec]
 
-Code de retour : 0 si toutes les PR sont fusionnées, 1 sinon.
+Code de retour : 0 si toutes les PR sont fusionnées (ou déjà fusionnées ; prêtes en --a-sec), 1 sinon.
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ import time
 from collections.abc import Callable
 
 INTERVALLE_MIN = 30
+ERREURS_GH_MAX = 3  # lectures en erreur consécutives (quota, réseau) avant de sauter la PR
+OK = ("fusionnee", "deja_fusionnee")
 Gh = Callable[[list[str]], tuple[int, str]]
 
 
@@ -44,9 +46,18 @@ def _json(gh: Gh, args: list[str], defaut):
         return defaut
 
 
-def lire_controles(gh: Gh, pr: str) -> list[dict]:
-    donnees = _json(gh, ["pr", "checks", pr, "--json", "bucket,name,workflow,link"], [])
-    return donnees if isinstance(donnees, list) else []
+def lire_controles(gh: Gh, pr: str) -> list[dict] | str:
+    """Liste des contrôles ; [] si gh dit « no checks reported » ; sinon le message d'erreur (str)."""
+    code, sortie = gh(["pr", "checks", pr, "--json", "bucket,name,workflow,link"])
+    try:
+        donnees = json.loads(sortie)
+    except ValueError:
+        donnees = None
+    if isinstance(donnees, list):
+        return donnees
+    if "no checks reported" in sortie.lower():
+        return []
+    return (sortie.strip() or f"code {code}")[:200]
 
 
 def id_run(lien: str) -> str | None:
@@ -68,9 +79,27 @@ def traiter_pr(
 ) -> dict:
     """Renvoie {pr, statut: fusionnee|sautee, detail, commit, relance}."""
     resultat = {"pr": pr, "statut": "sautee", "detail": "", "commit": None, "relance": False}
+    etat = _json(gh, ["pr", "view", pr, "--json", "state,mergeCommit"], {})
+    etat_initial = etat.get("state") if isinstance(etat, dict) else None
+    if etat_initial == "MERGED":
+        oid = (etat.get("mergeCommit") or {}).get("oid") or ""
+        resultat.update(statut="deja_fusionnee", commit=oid[:7])
+        return resultat
+    if etat_initial == "CLOSED":
+        resultat["detail"] = "fermée sans fusion"
+        return resultat
     limite = horloge() + delai_max * 60
+    erreurs = 0
     while True:
         controles = lire_controles(gh, pr)
+        if isinstance(controles, str):
+            erreurs += 1
+            if erreurs >= ERREURS_GH_MAX or horloge() >= limite:
+                resultat["detail"] = f"contrôles illisibles : {controles}"
+                return resultat
+            sleep(intervalle)
+            continue
+        erreurs = 0
         actifs = [c for c in controles if c.get("bucket") != "skipping"]
         if not actifs:
             resultat["detail"] = "aucun contrôle (conflit ?)"
@@ -114,7 +143,7 @@ def traiter_pr(
         resultat["detail"] = f"non fusionnable ({mergeable}, conflit ?)"
         return resultat
     if a_sec:
-        resultat["detail"] = "prête à fusionner (à sec : pas de merge)"
+        resultat.update(statut="prete", detail="prête à fusionner (à sec : pas de merge)")
         return resultat
     args = ["pr", "merge", pr, f"--{methode}"] + (["--delete-branch"] if supprimer_branche else [])
     code, sortie = gh(args)
@@ -135,6 +164,10 @@ def ligne(r: dict) -> str:
     suffixe = " (relancé une fois)" if r["relance"] else ""
     if r["statut"] == "fusionnee":
         return f"#{r['pr']} fusionnée {r['commit']}{suffixe}"
+    if r["statut"] == "deja_fusionnee":
+        return f"#{r['pr']} déjà fusionnée {r['commit']}"
+    if r["statut"] == "prete":
+        return f"#{r['pr']} prête à fusionner (à sec){suffixe}"
     return f"#{r['pr']} sautée : {r['detail']}"
 
 
@@ -167,19 +200,20 @@ def main(argv: list[str] | None = None, gh: Gh = gh_reel, **injections) -> int:
         a_sec=o.a_sec,
         **injections,
     )
-    fusionnees = sum(r["statut"] == "fusionnee" for r in resultats)
+    fusionnees = sum(r["statut"] in OK for r in resultats)
+    reussies = sum(r["statut"] in (*OK, "prete") for r in resultats) if o.a_sec else fusionnees
     if o.json:
         print(json.dumps({"prs": resultats, "fusionnees": fusionnees, "total": len(resultats)}, ensure_ascii=False))
     else:
         for r in resultats:
             print(ligne(r))
         print(f"Résumé : {fusionnees}/{len(resultats)} fusionnée(s).")
-    return 0 if fusionnees == len(resultats) else 1
+    return 0 if reussies == len(resultats) else 1
 
 
 if __name__ == "__main__":
     try:
-        sys.stdout.reconfigure(errors="replace")
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
     raise SystemExit(main())

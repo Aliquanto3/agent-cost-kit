@@ -37,7 +37,7 @@ def main() -> int:
     analyseur.add_argument("--max-blocages", type=int, default=2)
     options = analyseur.parse_args()
     try:
-        sys.stderr.reconfigure(errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
         pass
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
