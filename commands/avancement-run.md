@@ -7,10 +7,10 @@ allowed-tools: Bash(python:*), Bash(uv run:*), Read
 Lance le script d'avancement sur le projet courant (ou celui donné en argument) :
 
 ```
-python "${CLAUDE_PLUGIN_ROOT}/scripts/avancement_run.py" . $ARGUMENTS
+uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/avancement_run.py" . $ARGUMENTS
 ```
 
-Si `python` n'est pas dans le PATH, utilise `uv run python …` ou `.venv/Scripts/python`. Le script lit `_bmad-output/implementation-artifacts/sprint-status.yaml`, `run-autonome.md` (périmètre, vagues, journal), `planning-artifacts/epics.md` (titres) et `git log` ; il ne modifie rien.
+Sans `uv`, lance `python …` (`python3` hors Windows) ; `--no-project` évite que `uv` synchronise l'environnement du projet courant. Le script lit `_bmad-output/implementation-artifacts/sprint-status.yaml`, `run-autonome.md` (périmètre, vagues, journal), `planning-artifacts/epics.md` (titres) et `git log` ; il ne modifie rien.
 
 Le rapport tient déjà lieu de synthèse : taux d'avancement, fin estimée (centrale et fourchette), météo (🟢 dans les temps, 🟡 vigilance, 🔴 bloqué), « Ce qu'il faut savoir », tableau par epic (le détail par story seulement avec `--stories`, ou sans niveau de consolidation). La sortie d'une commande shell est repliée dans l'interface de Claude Code : l'utilisateur ne la voit pas. Reproduis donc le rapport Markdown **intégralement dans ta réponse**, tel que le script l'a produit, sans le modifier, le recalculer ni refaire de tableau.
 
