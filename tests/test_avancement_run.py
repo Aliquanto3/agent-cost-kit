@@ -484,8 +484,8 @@ STATUTS_DEC = {"1.1": "done", "1.2": "done", "1.3": "backlog", "1.4": "backlog"}
 
 
 def test_decision_qui_reporte_sort_de_l_estimation(tmp_path, monkeypatch):
-    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · décision · Anaël : 1.3 reportée après le run ; prévenir Anaël "
-                       "quand Ollama est libre · —"]
+    j = JOURNAL_DEC + [("- 2026-10-19 10:00 · 1.3 · décision · Anaël : 1.3 reportée après le run ; prévenir Anaël "
+                        "quand Ollama est libre · —")]
     a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j), NOW)
     s = a["stories"]["1.3"]
     assert "retenue" in s["drapeaux"] and "reportée" in s["drapeaux"] and not s["eligible"]
@@ -495,22 +495,54 @@ def test_decision_qui_reporte_sort_de_l_estimation(tmp_path, monkeypatch):
     assert "1.3 retenue par décision du journal (reportée après le run)" in r
     assert "attend la fin d'une autre story" not in r
     assert "reportée, hors estimation" in r and "reportées hors estimation : 1.3" in r
-    assert any("prévenir Anaël" in d for d in a["decisions"])
+    # décision déjà prise : pas de « décision à prendre », seulement la suite demandée, tronquée
+    assert a["decisions"] == [] and "décision à prendre" not in r
+    assert ("1.3 reportée après le run (décision prise), à faire ensuite : prévenir Anaël quand Ollama est libre"
+            in " ".join(r.split()))
 
 
-def test_report_sort_de_l_estimation_mais_decision_simple_reste_comptee(tmp_path, monkeypatch):
-    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · report · hors run · —",
-                       "- 2026-10-19 10:05 · 1.4 · décision · attendre l'accord sur le schéma · —"]
+@pytest.mark.parametrize("texte", ["report · non lancé : attend 1.4", "report · déplacée en V3",
+                                   "report · non reportée après le run", "décision · pas reportée hors run",
+                                   "décision · vérifier l'écran après le run", "décision · attendre l'accord"])
+def test_report_ou_decision_sans_sortie_du_run_reste_compte(tmp_path, monkeypatch, texte):
+    j = JOURNAL_DEC + [f"- 2026-10-19 10:00 · 1.3 · {texte} · —"]
     a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j), NOW)
-    assert "reportée" in a["stories"]["1.3"]["drapeaux"]
-    assert a["stories"]["1.4"]["drapeaux"] == ["retenue"]
-    assert a["estimation"]["reste"] == 1
-    assert "1.4 retenue par décision du journal" in ar.rapport(a) and "1.4 retenue par décision du journal (reportée" not in ar.rapport(a)
+    s = a["stories"]["1.3"]
+    assert s["drapeaux"] == ["retenue"] and a["estimation"]["reste"] == 2
+    etape = texte.split(" · ")[0]
+    assert s["raison"] == f"{etape} du journal"
+    r = " ".join(ar.rapport(a).split())
+    assert f"1.3 retenue par {etape} du journal;" in r and "(reportée" not in r
 
 
-def test_chemin_critique_ignore_la_dependance_d_une_story_deja_demarree():
-    def st(etat, pct, deps=()):
-        return {"etat": etat, "pct": pct, "type": "dev", "drapeaux": [], "deps": list(deps)}
-    s = {"1": st("en cours", 93), "2": st("en cours", 30, ["1"]), "3": st("à faire", 0, ["2"])}
-    longueur, chemin = ar.chemin_critique(s)
-    assert chemin == ["2", "3"] and longueur == pytest.approx(1.7)
+@pytest.mark.parametrize("texte", ["report · hors run", "report · reportée au prochain run",
+                                   "décision · 1.3 retirée du run", "report · report après la fin du run"])
+def test_sortie_explicite_du_run(tmp_path, monkeypatch, texte):
+    j = JOURNAL_DEC + [f"- 2026-10-19 10:00 · 1.3 · {texte} · —"]
+    a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j), NOW)
+    assert "reportée" in a["stories"]["1.3"]["drapeaux"] and a["estimation"]["reste"] == 1
+
+
+def test_relance_apres_report_redevient_normale(tmp_path, monkeypatch):
+    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · report · reportée après le run · —",
+                       "- 2026-10-19 11:00 · 1.3 · dev · lancé · —"]
+    a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j, maj="10-19-2026 09:50"), NOW)
+    s = a["stories"]["1.3"]
+    assert s["etat"] == "en cours" and not ar.hors_run(s) and a["estimation"]["reste"] == 2
+
+
+def test_dependante_d_une_reportee_sort_de_l_estimation(tmp_path, monkeypatch):
+    statuts = dict(STATUTS_DEC, **{"1.5": "backlog", "1.6": "backlog"})
+    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · décision · 1.3 reportée après le run · —"]
+    p = mini(tmp_path, monkeypatch, statuts, j)
+    f = p / ar.DOSSIER / "run-autonome.md"
+    f.write_text(f.read_text(encoding="utf-8").replace("| V3 | 1.4 | — |", "| V3 | 1.4 | 1.4 ← 1.3 |")
+                 .replace("| V4 | 1.5 | — |", "| V4 | 1.5 | 1.5 ← 1.4 |"), encoding="utf-8")
+    a = ar.analyser(p, NOW)
+    S = a["stories"]
+    assert S["1.4"]["raison"] == "bloquée par 1.3 reportée" and S["1.5"]["raison"] == "bloquée par 1.3 reportée"
+    assert not ar.hors_run(S["1.6"]) and "bloquée" not in S["1.4"]["drapeaux"]
+    assert a["estimation"]["reste"] == 1 and "1.4" not in a["estimation"]["chemin"]
+    r = ar.rapport(a, detail=True)
+    assert "1.4 bloquée par 1.3 reportée (hors estimation)" in " ".join(r.split())
+    assert "Hors estimation, en attente d'une story reportée : 1.4 (bloquée par 1.3 reportée)" in r
