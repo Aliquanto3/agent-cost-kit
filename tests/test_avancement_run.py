@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -242,11 +242,15 @@ def test_tout_termine_puis_rien_de_mesure(projet):
     sp = projet / ar.DOSSIER / "sprint-status.yaml"
     original = sp.read_text(encoding="utf-8")
     sp.write_text(original.replace(": backlog", ": done").replace(": in-progress", ": done"), encoding="utf-8")
+    run = projet / ar.DOSSIER / "run-autonome.md"
+    journal_initial = run.read_text(encoding="utf-8")
+    ids = " ".join(ar.ids_statut(ar.lire_statuts(sp)))
+    # une story `done` dont le journal n'a aucune fusion n'est pas terminée : on journalise les fusions
+    run.write_text(journal_initial.rstrip("\n") + f"\n- 2026-10-18 20:00 · {ids} · fusion · ok · —\n", encoding="utf-8")
     a = ar.analyser(projet, MAINTENANT)
     assert a["estimation"]["reste"] == 0 and "Tous les développements prévus sont terminés" in ar.rapport(a)
     # journal vide : aucune durée mesurable, donc pas d'estimation chiffrée
-    run = projet / ar.DOSSIER / "run-autonome.md"
-    run.write_text(run.read_text(encoding="utf-8").split("## Journal")[0] + "## Journal\n", encoding="utf-8")
+    run.write_text(journal_initial.split("## Journal")[0] + "## Journal\n", encoding="utf-8")
     sp.write_text(original, encoding="utf-8")
     b = ar.analyser(projet, MAINTENANT)
     assert b["estimation"]["fin"] is None and "pas assez de stories" in ar.rapport(b)
@@ -268,3 +272,106 @@ def test_git_reel_pour_les_heures_sans_horodatage(projet, monkeypatch):
     a = ar.analyser(projet, MAINTENANT)
     assert a["stories"]["1.1"]["fini"] == datetime(2026, 10, 18, 14, 20)
     assert a["sources_heures"].get("suivi") == 1
+
+
+# ----------------------------------------------------------------------------- S1 : PR, fusion, journal qui prime
+
+def mini(tmp_path, monkeypatch, statuts, journal, maj="10-19-2026 10:00", vagues=None):
+    """Projet minimal : `statuts` {id: statut}, `journal` lignes brutes, une vague par story sans dépendance."""
+    monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    d = tmp_path / ar.DOSSIER
+    d.mkdir(parents=True)
+    ligne = lambda k, v: f"  {k.replace('.', '-')}-x: {v}"
+    (d / "sprint-status.yaml").write_text(
+        f"last_updated: {maj}\ndevelopment_status:\n" + "\n".join(ligne(k, v) for k, v in statuts.items()) + "\n",
+        encoding="utf-8")
+    tab = "\n".join(f"| V{i} | {k} | — |" for i, k in enumerate(statuts))
+    (d / "run-autonome.md").write_text(
+        "## Sprint 1\n\n| Vague | Stories en parallèle | Après |\n|---|---|---|\n" + tab
+        + "\n\n## Journal\n\n" + "\n".join(journal) + "\n", encoding="utf-8")
+    return tmp_path
+
+
+NOW = datetime(2026, 10, 19, 22, 0)
+
+
+def test_normaliser_etape_pr():
+    assert ar.normaliser_etape("PR") == "pr" and ar.normaliser_etape(" pr ouverte") == "pr"
+    assert ar.normaliser_etape("PR #104") == "pr"
+    assert ar.normaliser_etape("report") == "report" and ar.normaliser_etape("review") == "review"
+    assert ar.normaliser_etape("préparation") != "pr"
+
+
+def test_done_sans_fusion_n_est_pas_terminee(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"1.1": "done", "1.2": "done", "1.3": "done", "1.4": "done"}, [
+        "- 2026-10-19 09:00 · 1.1 · dev · lancé · —",
+        "- 2026-10-19 09:30 · 1.1 · review · finie · —",
+        "- 2026-10-19 09:00 · 1.2 · dev · lancé · —",
+        "- 2026-10-19 09:40 · 1.2 · PR · #12 ouverte · abc1234",
+        "- 2026-10-19 09:00 · 1.3 · dev · lancé · —",
+        "- 2026-10-19 09:50 · 1.3 · fusion · PR #13 fusionnée · abc1235"])  # 1.4 : aucune ligne
+    S = ar.analyser(p, NOW)["stories"]
+    assert (S["1.1"]["etat"], S["1.1"]["etape"], S["1.1"]["pct"]) == ("en cours", "revue faite", 90)
+    assert (S["1.2"]["etat"], S["1.2"]["etape"], S["1.2"]["pct"]) == ("en cours", "fusion en attente", 93)
+    assert "PR ouverte" in S["1.2"]["drapeaux"] and "fusion attendue" in S["1.1"]["drapeaux"]
+    assert S["1.3"]["etat"] == "fait" and S["1.3"]["pct"] == 100
+    assert S["1.4"]["etat"] == "fait"  # compatibilité : aucune ligne de journal
+    texte = " ".join(ar.rapport(ar.analyser(p, NOW)).split())
+    assert "2 en attente de fusion" in texte and "1.1, 1.2" in texte and "2 / 4 stories terminées" in texte
+
+
+def test_goulot_fusion_au_dela_de_trois_pr(tmp_path, monkeypatch):
+    ids = ["1.1", "1.2", "1.3", "1.4"]
+    j = [f"- 2026-10-19 10:0{i} · {s} · PR · #{i} ouverte · —" for i, s in enumerate(ids)]
+    p = mini(tmp_path, monkeypatch, {s: "done" for s in ids}, j)
+    assert "goulot CI / fusion : 4 PR attendent" in " ".join(ar.rapport(ar.analyser(p, NOW)).split())
+    p2 = mini(tmp_path / "b", monkeypatch, {s: "done" for s in ids[:3]}, j[:3])
+    assert "goulot" not in ar.rapport(ar.analyser(p2, NOW))
+
+
+def test_mediane_pr_fusion_et_estimation(tmp_path, monkeypatch):
+    statuts = {"1.1": "done", "1.2": "done", "1.3": "done", "1.4": "in-progress", "1.5": "done", "1.6": "done"}
+    j = ["- 2026-10-19 08:00 · 1.1 · dev · lancé · —", "- 2026-10-19 08:30 · 1.1 · PR · #1 ouverte · —",
+         "- 2026-10-19 09:00 · 1.1 · fusion · ok · —",       # 30 min
+         "- 2026-10-19 08:00 · 1.2 · dev · lancé · —", "- 2026-10-19 09:00 · 1.2 · PR · #2 ouverte · —",
+         "- 2026-10-19 10:00 · 1.2 · fusion · ok · —",       # 60 min -> médiane 45
+         "- 2026-10-19 10:30 · 1.5 · PR · #5 ouverte · —", "- 2026-10-19 10:31 · 1.6 · PR · #6 ouverte · —"]
+    a = ar.analyser(mini(tmp_path, monkeypatch, statuts, j), NOW)
+    ry = a["rythme"]
+    assert ry["pr_fusion_mediane_min"] == 45 and ry["pr_fusion_echantillon"] == 2
+    assert "« PR ouverte -> fusion » : médiane 45 min" in ar.rapport(a, detail=True)
+    # 2 PR en attente x 45 min = 90 min bornent la fin ; sans les lignes PR, rien ne change
+    assert a["estimation"]["bornant"] == "fusions en série"
+    assert a["estimation"]["fin"]["optimiste"] >= NOW + timedelta(minutes=90)
+
+
+def test_journal_prime_sur_sprint_status_en_retard(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"1.1": "ready-for-dev", "1.2": "ready-for-dev", "1.3": "ready-for-dev"}, [
+        "- 2026-10-19 11:00 · 1.1 · dev · lancé · —",
+        "- 2026-10-19 11:05 · 1.2 · attente humaine · clé API · —",
+        "- 2026-10-19 09:00 · 1.3 · dev · lancé · —"])  # plus ancien que last_updated : pas d'écart
+    a = ar.analyser(p, NOW)
+    S = a["stories"]
+    assert S["1.1"]["etat"] == "en cours" and S["1.1"]["etape"] == "dev en cours" and not S["1.1"]["eligible"]
+    assert S["1.2"]["etat"] == "à faire" and "attente humaine" in S["1.2"]["drapeaux"] and not S["1.2"]["eligible"]
+    assert S["1.3"]["etat"] == "à faire" and S["1.3"]["eligible"]  # journal plus ancien : le statut prime
+    assert a["ecarts"] == ["1.1"]
+    texte = " ".join(ar.rapport(a).split())
+    assert "sprint-status en retard sur le journal pour 1.1" in texte
+    assert "prête mais pas lancée : 1.2" not in texte
+
+
+def test_journal_fusion_plus_recente_que_sprint_status(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"1.1": "review"}, ["- 2026-10-19 11:00 · 1.1 · fusion · ok · —"])
+    a = ar.analyser(p, NOW)
+    assert a["stories"]["1.1"]["etat"] == "fait" and a["ecarts"] == ["1.1"]
+
+
+def test_lignes_du_journal_dans_le_futur(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"1.1": "in-progress"}, ["- 2026-10-19 23:30 · 1.1 · dev · lancé · —"])
+    a = ar.analyser(p, NOW)
+    assert len(a["futures"]) == 1 and a["futures"][0]["stories"] == ["1.1"]
+    assert "heure future au journal pour 1.1" in " ".join(ar.rapport(a).split())
+    assert "Heure future au journal" in ar.rapport(a, detail=True)
+    sans = ar.analyser(p, datetime(2026, 10, 20, 0, 0))
+    assert sans["futures"] == [] and "heure future" not in ar.rapport(sans)

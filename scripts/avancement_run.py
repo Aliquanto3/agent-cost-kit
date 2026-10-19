@@ -37,11 +37,12 @@ BAREME = [
     ("dev fini", "second-avis en cours", 60),
     ("second-avis fini", "review en cours", 75),
     ("review finie", "fusion en cours", 90),
+    ("PR ouverte", "fusion en attente", 93),
     ("fusion faite", "CI de main", 95),
     ("CI rouge", "correctif CI", 85),
 ]
 POURCENT = {"dev lancé": 30, "dev fini": 60, "second-avis fini": 75, "review finie": 90,
-            "fusion faite": 95, "CI rouge": 85}
+            "PR ouverte": 93, "fusion faite": 95, "CI rouge": 85}
 ETAPE = {k: e for k, e, _ in BAREME}
 
 
@@ -62,6 +63,18 @@ def lire_statuts(chemin: Path) -> dict[str, str]:
             cle, _, val = brut.strip().partition(":")
             statuts[cle.strip().strip("\"'")] = val.strip().strip("\"'")
     return statuts
+
+
+def lire_maj(chemin: Path) -> datetime | None:
+    """``last_updated: MM-DD-YYYY HH:MM`` de sprint-status.yaml (None si absent ou illisible)."""
+    m = re.search(r"^last_updated:\s*(\d\d)-(\d\d)-(\d{4})[ T](\d\d:\d\d)",
+                  chemin.read_text(encoding="utf-8"), re.MULTILINE)
+    if not m:
+        return None
+    try:
+        return datetime.strptime(f"{m[3]}-{m[1]}-{m[2]} {m[4]}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
 
 
 def ids_statut(statuts: dict[str, str]) -> dict[str, str]:
@@ -170,6 +183,8 @@ def lire_journal(texte: str) -> list[dict]:
 
 def normaliser_etape(brut: str) -> str:
     e = brut.strip().lower()
+    if re.match(r"pr(?![a-zà-ÿ])", e):
+        return "pr"
     for cle in ("second-avis", "review", "fusion", "ci", "blocked", "attente humaine", "report",
                 "décision", "dev"):
         if e.startswith(cle):
@@ -258,6 +273,8 @@ def etape_story(evts: list[dict]) -> tuple[str, str, int] | None:
             jalon = "second-avis fini"
         elif et == "review":
             jalon = "review finie"
+        elif et == "pr":
+            jalon = "PR ouverte" if jalon != "fusion faite" else jalon
         elif et == "fusion":
             jalon = "fusion faite"
         elif et == "ci":
@@ -274,6 +291,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     plan = lire_plan(texte)
     statuts_bruts = lire_statuts(fichier_statut)
     statuts = ids_statut(statuts_bruts)
+    maj = lire_maj(fichier_statut)
     evts = lire_journal(texte)
     repli = datetime.fromtimestamp(fichier_plan.stat().st_mtime)
     dater(evts, commits_git(projet), repli)
@@ -291,9 +309,24 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
             info = etape_story(hist)
             dernier = hist[-1] if hist else None
             etat = "fait" if st == "done" else ("en cours" if st in ("in-progress", "review") else "à faire")
+            fusionnee = any(e["etape"] == "fusion" for e in hist)
+            attend_fusion = False
+            if etat == "fait" and hist and not fusionnee:  # done sans fusion au journal : pas terminée
+                etat, attend_fusion = "en cours", True
+            retard = False
+            if maj and dernier and dernier["t"] and dernier["t"] > maj and info:
+                # le journal, plus récent que sprint-status, prime quand il contredit le statut
+                if info[0] == "fusion faite" and etat != "fait":
+                    etat, retard, attend_fusion = "fait", True, False
+                elif info[0] != "fusion faite" and (st in ("backlog", "ready-for-dev") or st == "done"):
+                    etat, retard, attend_fusion = "en cours", True, False
             pct = 100 if etat == "fait" else 0
             etape = ""
             if etat == "en cours":
+                if attend_fusion and not info:
+                    info = ("review finie", "revue faite", 90)
+                elif attend_fusion and info[0] == "review finie":
+                    info = (info[0], "revue faite", info[2])
                 _, etape, pct = info or ("", "dev en cours" if st == "in-progress" else "review en cours",
                                          30 if st == "in-progress" else 75)
             lance = next((e["t"] for e in reversed(hist) if e["etape"] == "dev" and "lanc" in e["resultat"].lower()), None)
@@ -307,6 +340,12 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("attente humaine")
             if etat == "à faire" and dernier and dernier["etape"] == "report" and "non lancé" in dernier["resultat"].lower():
                 drapeaux.append("retenue")
+            if etat != "fait" and info and info[0] == "PR ouverte":
+                drapeaux.append("PR ouverte")
+            if etat != "fait" and attend_fusion:
+                drapeaux.append("fusion attendue")
+            if retard:
+                drapeaux.append("journal en avance")
             if etat == "fait" and any(re.search(r"en attente d'Anaël|attente humaine", e["resultat"]) for e in hist):
                 drapeaux.append("vérification humaine due")
             if etat != "fait" and any(re.search(r"\brepris(e|es)?\b", e["resultat"]) for e in hist):
@@ -323,7 +362,8 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     for sid, s in stories.items():
         manque = [d for d in s["deps"] if stories.get(d, {}).get("etat") != "fait"]
         s["eligible"] = (s["etat"] == "à faire" and not manque and s["type"] != "humaine"
-                         and "retenue" not in s["drapeaux"])
+                         and "retenue" not in s["drapeaux"]
+                         and "attente humaine" not in s["drapeaux"])
         s["attend"] = manque
     decisions = [e["resultat"] for e in evts if "pour anaël" in e["brut"].lower()]
     rythme = rythme_observe(stories, maintenant, evts)
@@ -335,6 +375,9 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     meteo_ = meteo(stories, estimation)
     return {"projet": projet.name, "maintenant": maintenant, "plan": plan, "stories": stories,
             "noms": noms, "meteo": meteo_,
+            "ecarts": [k for k, s in stories.items() if "journal en avance" in s["drapeaux"]],
+            "futures": [{"t": e["t"], "stories": e["stories"], "etape": e["brut"]} for e in evts
+                        if e["source"] == "journal" and e["t"] and e["t"] > maintenant],
             "rythme": rythme, "estimation": estimation, "decisions": decisions, "sources_heures": sources,
             "hors_run": sorted(plan["hors_run"])}
 
@@ -356,9 +399,24 @@ def rythme_observe(stories: dict, maintenant: datetime, evts: list[dict]) -> dic
     p75 = None
     if durees:
         p75 = statistics.quantiles(durees, n=4)[2] if len(durees) >= 4 else max(durees)
-    return {"fusionnees": len(fusions), "fenetre_h": round(fenetre, 2), "dans_fenetre": len(recent),
+    pr_fus = []
+    for hist in par_story_evts(evts).values():
+        fus = next((e["t"] for e in hist if e["etape"] == "fusion" and e["t"]), None)
+        pr = [e["t"] for e in hist if e["etape"] == "pr" and e["t"] and (fus is None or e["t"] <= fus)]
+        if fus and pr:
+            pr_fus.append((fus - pr[-1]).total_seconds() / 60)
+    return {"pr_fusion_mediane_min": statistics.median(pr_fus) if pr_fus else None,
+            "pr_fusion_echantillon": len(pr_fus), "fusionnees": len(fusions), "fenetre_h": round(fenetre, 2), "dans_fenetre": len(recent),
             "par_heure": len(recent) / fenetre, "echantillon": len(durees),
             "mediane_min": statistics.median(durees) if durees else None, "p75_min": p75}
+
+
+def par_story_evts(evts: list[dict]) -> dict[str, list[dict]]:
+    sortie: dict[str, list[dict]] = {}
+    for e in evts:
+        for s in e["stories"]:
+            sortie.setdefault(s, []).append(e)
+    return sortie
 
 
 def chemin_critique(stories: dict) -> tuple[float, list[str]]:
@@ -401,12 +459,18 @@ def estimer(stories: dict, parallelisme: int, rythme: dict, maintenant: datetime
     # (b) chemin critique x durée par story.
     b_opt, b_pess = longueur * med, longueur * p75
     opt, pess = max(a_opt, b_opt), max(a_pess, b_pess)
+    bornant = "chemin critique" if b_opt >= a_opt else "débit"
+    attente = sum(1 for s in stories.values() if "PR ouverte" in s["drapeaux"])
+    serie = attente * rythme["pr_fusion_mediane_min"] if attente and rythme.get("pr_fusion_mediane_min") else 0
+    if serie > opt:  # les fusions se font en série : les PR ouvertes bornent la fin
+        bornant = "fusions en série"
+    opt, pess = max(opt, serie), max(pess, serie)
     horloge = lambda m: maintenant + timedelta(minutes=m)
     return {"reste": len(reste), "effort": effort, "chemin": chemin, "longueur": longueur,
             "debit": {"optimiste_min": a_opt, "pessimiste_min": a_pess},
             "critique": {"optimiste_min": b_opt, "pessimiste_min": b_pess},
             "fin": {"optimiste": horloge(opt), "centrale": horloge((opt + pess) / 2), "pessimiste": horloge(pess)},
-            "bornant": "chemin critique" if b_opt >= a_opt else "débit"}
+            "bornant": bornant}
 
 
 # ----------------------------------------------------------------------------- rapport
@@ -467,6 +531,9 @@ def rapport_detail(a: dict) -> str:
           f"({ry['par_heure']:.1f} par heure) ;",
           f"- durée « dev lancé -> fusion » : médiane {fmt_d(ry['mediane_min'])}, 75e centile {fmt_d(ry['p75_min'])} "
           f"({ry['echantillon']} stories mesurées)."]
+    if ry.get("pr_fusion_mediane_min") is not None:
+        L.append(f"- durée « PR ouverte -> fusion » : médiane {fmt_d(ry['pr_fusion_mediane_min'])} "
+                 f"({ry['pr_fusion_echantillon']} PR mesurées) ; les fusions sont en série.")
     L += ["", "### Calcul de la fin", ""]
     if es["reste"] == 0:
         L.append("Tout est terminé.")
@@ -495,6 +562,16 @@ def rapport_detail(a: dict) -> str:
     L.append(f"- Éligibles non lancées (dépendances terminées) : {', '.join(elig) or 'aucune'}"
              + (" -> créneau libre" if elig and libres > 0 else
                 (" (créneaux pleins)" if elig else "")) + ".")
+    pr_ouv = [sid for sid, s in S.items() if "PR ouverte" in s["drapeaux"]]
+    att_fus = [sid for sid, s in S.items() if "fusion attendue" in s["drapeaux"] or "PR ouverte" in s["drapeaux"]]
+    if att_fus:
+        L.append(f"- Développées mais pas fusionnées : {', '.join(att_fus)}"
+                 + (f" (PR ouvertes : {', '.join(pr_ouv)})" if pr_ouv else "") + ".")
+    if a["ecarts"]:
+        L.append(f"- sprint-status en retard sur le journal : {', '.join(a['ecarts'])}.")
+    for fu in a["futures"]:
+        L.append(f"- Heure future au journal (estimée à tort ?) : {fmt_t(fu['t'])} · "
+                 f"{', '.join(fu['stories'])} · {fu['etape']}.")
     if ret:
         L.append(f"- Retenues par le journal (report) : {', '.join(ret)}.")
     if verif:
@@ -599,7 +676,11 @@ def puces(a: dict) -> list[str]:
     fm = f"{len(fait)} stories sur {len(S)} sont livrées"
     if epics_finis:
         fm += " ; terminé : " + ", ".join(f"epic {e} ({court(N['epics'].get(e, ''), 40)})" for e in epics_finis)
-    out.append(fm + ".")
+    fm += "."
+    pr_att = [k for k, s in S.items() if "PR ouverte" in s["drapeaux"] or "fusion attendue" in s["drapeaux"]]
+    if pr_att:
+        fm += f" {len(pr_att)} en attente de fusion (PR ouverte ou revue faite) : {', '.join(pr_att)}."
+    out.append(fm)
     cours = [(k, s) for k, s in S.items() if s["etat"] == "en cours"]
     if cours:
         rel = [k for k, s in cours if s["pct"] > 30]
@@ -617,6 +698,14 @@ def puces(a: dict) -> list[str]:
     if elig:
         att.append(f"prête mais pas lancée : {', '.join(elig)}")
     att += a["meteo"]["raisons"]
+    n_pr = sum(1 for s in S.values() if "PR ouverte" in s["drapeaux"])
+    if n_pr > 3:
+        att.append(f"goulot CI / fusion : {n_pr} PR attendent")
+    if a["ecarts"]:
+        att.append(f"sprint-status en retard sur le journal pour {', '.join(a['ecarts'])}")
+    futures = sorted({s for fu in a["futures"] for s in fu["stories"]}, key=cle_id)
+    if a["futures"]:
+        att.append("heure future au journal" + (f" pour {', '.join(futures)}" if futures else ""))
     out.append("Points d'attention : " + ("; ".join(att) if att else "rien de bloquant") + ".")
     dec = [court(d, 110) for d in a["decisions"]]
     verif = [k for k, s in S.items() if "vérification humaine due" in s["drapeaux"]]
