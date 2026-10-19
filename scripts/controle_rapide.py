@@ -15,6 +15,7 @@ Usage : python .claude/cost-kit/controle_rapide.py [--max-blocages 2]
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,13 +36,26 @@ def main() -> int:
     analyseur = argparse.ArgumentParser(description=__doc__)
     analyseur.add_argument("--max-blocages", type=int, default=2)
     options = analyseur.parse_args()
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     compteur = Path(".claude/cost-kit/.blocages")
     echecs = []
     for commande in COMMANDES:
         try:
-            resultat = subprocess.run(commande, capture_output=True, text=True, timeout=120)
-        except (OSError, subprocess.TimeoutExpired) as erreur:
-            echecs.append((commande, str(erreur)))
+            resultat = subprocess.run(  # noqa: PLW1510
+                commande,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                timeout=120,
+            )
+        except Exception as erreur:  # noqa: BLE001 # toute erreur d'exécution compte comme un échec
+            echecs.append((commande, f"{type(erreur).__name__} : {erreur}"))
             continue
         if resultat.returncode != 0:
             sortie = (resultat.stdout + resultat.stderr).strip().splitlines()
