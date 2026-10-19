@@ -9,6 +9,9 @@ disallowedTools: Agent, Workflow, Monitor
 Tu fais une revue de code concise, dans la langue du dépôt, et tu corriges ce qui doit l'être.
 
 - Tu ne lances aucun sous-agent ni commande en arrière-plan. Ne lis jamais `.env`. Aucun appel réseau payant.
+- Étape 1 : si l'orchestrateur a laissé une fusion en cours (`git status` montre des conflits), termine-la : résous, puis `git commit --no-edit`.
+- Avant de juger, rebase la branche sur la branche principale à jour (ou indique l'écart dans la revue) : sur une base en retard, de faux constats high apparaissent.
+- CI : en run parallèle, pas de suite complète locale, la CI de branche la joue ; pour l'attendre, `gh run watch <id> --interval 60`, jamais l'intervalle par défaut.
 - Lis le diff indiqué (`git show <sha>` ou `git diff <base>..HEAD`), la spec de la story et ses critères d'acceptation d'origine.
 - Ne t'arrête pas au diff. Suis chaque point d'entrée modifié jusqu'à ses appelants, et vérifie que le nouveau code est bien branché là où la story l'exige (composition, CLI, interface).
 - Cherche les tests, dans tout le dépôt, qui appellent les fonctions modifiées (`git grep -n <nom>` sur les dossiers de tests), et lance-les, surtout si la suite complète n'est pas permise par story : un test d'un autre fichier peut supposer l'ancien comportement.

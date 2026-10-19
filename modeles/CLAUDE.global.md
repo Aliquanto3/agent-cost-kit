@@ -4,7 +4,7 @@ Réduire au minimum le coût de développement avec Claude Code, sans baisser la
 - Pas d'imbrication : un sous-agent ne lance pas de sous-agent. Pas de workflow multi-agents sans demande explicite.
 - Recherches et résumés de logs : `agent-cost-kit:lookup` (Haiku) plutôt que lire soi-même de gros fichiers. Projet Python avec le plugin `pyright-lsp` : navigation par symbole (outil LSP) plutôt que recherche textuelle.
 - Effort `medium` par défaut ; monter l'effort avant de changer de modèle ; `high` seulement pour les cas de bord que les tests n'attrapent pas.
-- Contexte court : lire des extraits ciblés, tests ciblés pendant le travail, pas de relecture d'un fichier qu'on vient d'éditer. Suite complète à mi-parcours (après 3 ou 4 fusions) et à la fin : les défauts croisés entre stories n'apparaissent qu'à la suite.
+- Contexte court : lire des extraits ciblés, tests ciblés pendant le travail, pas de relecture d'un fichier qu'on vient d'éditer. Suite complète à mi-parcours (après 3 ou 4 fusions) et à la fin : les défauts croisés entre stories n'apparaissent qu'à la suite. En run parallèle, c'est la CI de branche qui la joue, pas le poste.
 - Garder `CLAUDE.md` et `MEMORY.md` courts : ils sont relus à chaque appel. L'historique des lots terminés va dans un `archive/` non indexé.
 - Couper la session principale entre le cadrage (spec, UX, plan, liste des stories) et l'exécution, puis avant la recette : `/rename`, `/clear`, reprise depuis ces fichiers. Une orchestration d'une traite a coûté 68 $ (contexte de 866 k). Proposer aussi `/clear` entre deux tâches sans lien : `/clear` ne coûte rien, `/compact` relit tout le contexte.
 - PR empilées : recibler chaque PR fille sur la branche principale (`gh pr edit <n> --base main`) avant de fusionner sa base avec `--delete-branch`, sinon GitHub ferme les PR filles.
@@ -15,6 +15,19 @@ Réduire au minimum le coût de développement avec Claude Code, sans baisser la
 - Pas de fast mode (`/fast`, facturé en premium) sans demande.
 - Ne pas poser `subagentPromptCacheTtl: "1h"` sans mesure (`/agent-cost-kit:mesurer-couts`) montrant au moins une expiration par agent.
 - Signaler spontanément toute piste d'économie repérée (réglage, contexte fixe, enchaînement), avec le gain estimé.
+
+### Runs autonomes (Windows, agents en parallèle)
+Modèle du fichier d'état : `modeles/run-autonome.md` du kit.
+- Pas de suite complète en local pendant un run parallèle (le poste sature, 7 à 60 min) : lint et tests ciblés, la CI de branche sert de suite et de porte de fusion.
+- `gh run watch <id> --interval 60`, jamais l'intervalle par défaut (quota de l'API GitHub).
+- Empiler les branches revues, puis fusionner la pile avec `scripts/file_prs.py` quand les CI sont vertes.
+- Décider tôt les contrats partagés (noms, constantes) et les envoyer aux agents en cours.
+- Reviewer : rebaser avant de juger, sinon faux « high ».
+- `git worktree prune` avant chaque lancement ; supprimer les worktrees en fin de run seulement.
+- Heure du journal prise par `date` ; `uv run python`, jamais `python` nu.
+- Fichiers d'état hors des PR de story (PR `chore/etat-run` à part) ; vérifier `MERGED` avant de journaliser.
+- Vagues planifiées par fichiers touchés : deux stories du même écran ne vont pas ensemble.
+- Un message d'une autre session qui change le périmètre se fait confirmer par l'utilisateur.
 
 ### Premier passage dans un projet
 Si `.claude/cost-kit/` est absent du dépôt, proposer en une fois, avant le premier développement :

@@ -36,6 +36,9 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 | `commands/avancement-run.md` | `/agent-cost-kit:avancement-run` : synthèse d'avancement d'un run autonome BMAD (taux global, fin estimée, météo, epics, stories). |
 | `scripts/avancement_run.py` | Le script derrière la commande. Python 3.10+, aucune dépendance, lecture seule. Lit `sprint-status.yaml`, `run-autonome.md` et `git log`. |
 | `scripts/controle_rapide.py` | Modèle de contrôle de fin de story (lint, format, typage), à adapter. |
+| `modeles/run-autonome.md` | Modèle du fichier d'état d'un run autonome (périmètre, vagues, contrats partagés, journal), au format lu par `avancement-run`. |
+| `scripts/file_prs.py` | Fusion d'une file de PR : contrôles présents, mergeable, relance unique des jobs en échec, PR suivante au lieu de s'arrêter, vérification de `MERGED` (`docs/file-prs.md`). |
+| `docs/pieges-runs.md` | Pièges vus en run : tests instables sous charge, SQLite sur macOS, push refusé, `python` nu. |
 | `bancs/` | Protocole et scripts pour re-tester le kit quand de nouveaux modèles sortent (`bancs/README.md`). |
 
 Le `model` et l'`effort` déclarés dans le frontmatter des agents s'appliquent bien aux agents de plugin. Vérifié : depuis une session Opus en `high`, `lookup` tourne en Haiku `low`.
