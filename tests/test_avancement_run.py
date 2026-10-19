@@ -474,3 +474,43 @@ def test_heure_posterieure_au_commit_qui_ajoute_la_ligne(tmp_path, monkeypatch):
     a = ar.analyser(p, datetime(2026, 10, 20, 8, 0))  # 21:30 n'est plus « futur », mais postérieur au commit de 20:00
     assert [(f["t"].hour, f["commit_t"]) for f in a["futures"]] == [(21, datetime(2026, 10, 19, 20, 0))]
     assert "après le commit qui l'ajoute (2026-10-19 20:00)" in ar.rapport(a, detail=True)
+
+
+# ----------------------------------------------------------------------------- 0.7.1 : stories reportées
+
+JOURNAL_DEC = ["- 2026-10-19 08:00 · 1.1 · dev · lancé · —", "- 2026-10-19 09:00 · 1.1 · fusion · ok · —",
+               "- 2026-10-19 09:30 · 1.2 · dev · lancé · —", "- 2026-10-19 09:40 · 1.2 · fusion · ok · —"]
+STATUTS_DEC = {"1.1": "done", "1.2": "done", "1.3": "backlog", "1.4": "backlog"}
+
+
+def test_decision_qui_reporte_sort_de_l_estimation(tmp_path, monkeypatch):
+    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · décision · Anaël : 1.3 reportée après le run ; prévenir Anaël "
+                       "quand Ollama est libre · —"]
+    a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j), NOW)
+    s = a["stories"]["1.3"]
+    assert "retenue" in s["drapeaux"] and "reportée" in s["drapeaux"] and not s["eligible"]
+    assert a["estimation"]["reste"] == 1  # seule 1.4 compte
+    assert len(a["stories"]) == 4
+    r = ar.rapport(a, detail=True)
+    assert "1.3 retenue par décision du journal (reportée après le run)" in r
+    assert "attend la fin d'une autre story" not in r
+    assert "reportée, hors estimation" in r and "reportées hors estimation : 1.3" in r
+    assert any("prévenir Anaël" in d for d in a["decisions"])
+
+
+def test_report_sort_de_l_estimation_mais_decision_simple_reste_comptee(tmp_path, monkeypatch):
+    j = JOURNAL_DEC + ["- 2026-10-19 10:00 · 1.3 · report · hors run · —",
+                       "- 2026-10-19 10:05 · 1.4 · décision · attendre l'accord sur le schéma · —"]
+    a = ar.analyser(mini(tmp_path, monkeypatch, STATUTS_DEC, j), NOW)
+    assert "reportée" in a["stories"]["1.3"]["drapeaux"]
+    assert a["stories"]["1.4"]["drapeaux"] == ["retenue"]
+    assert a["estimation"]["reste"] == 1
+    assert "1.4 retenue par décision du journal" in ar.rapport(a) and "1.4 retenue par décision du journal (reportée" not in ar.rapport(a)
+
+
+def test_chemin_critique_ignore_la_dependance_d_une_story_deja_demarree():
+    def st(etat, pct, deps=()):
+        return {"etat": etat, "pct": pct, "type": "dev", "drapeaux": [], "deps": list(deps)}
+    s = {"1": st("en cours", 93), "2": st("en cours", 30, ["1"]), "3": st("à faire", 0, ["2"])}
+    longueur, chemin = ar.chemin_critique(s)
+    assert chemin == ["2", "3"] and longueur == pytest.approx(1.7)

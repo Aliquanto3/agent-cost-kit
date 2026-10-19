@@ -334,6 +334,11 @@ def etape_story(evts: list[dict]) -> tuple[str, str, int] | None:
     return (jalon, ETAPE[jalon], POURCENT[jalon]) if jalon else None
 
 
+RE_REPORT = re.compile(r"\breport[ée]e?s?\b|\bapr[èe]s le run\b", re.IGNORECASE)
+RE_ANAEL = re.compile(r"\b(pr[ée]venir|demander|avertir|attend|pour)\b[^|;]{0,40}\bAna[ëe]l\b"
+                      r"|\bAna[ëe]l\b[^|;]{0,20}\b(doit|décide|valide)\b", re.IGNORECASE)
+
+
 def analyser(projet: Path, maintenant: datetime) -> dict:
     dossier = projet / DOSSIER
     fichier_plan, fichier_statut = dossier / "run-autonome.md", dossier / "sprint-status.yaml"
@@ -349,7 +354,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     par_story = par_story_evts(evts)
     futures_commit = lignes_apres_commit(projet, fichier_plan, evts)
 
-    stories = {}
+    stories, demandes = {}, []
     for vague in plan["ordre"]:
         for sid in plan["vagues"][vague]:
             st = statuts.get(sid, "backlog")
@@ -387,9 +392,12 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("bloquée")
             if etat != "fait" and any(e["etape"] == "attente humaine" for e in hist[-1:]):
                 drapeaux.append("attente humaine")
-            if etat == "à faire" and dernier and (dernier["etape"] == "décision" or (
-                    dernier["etape"] == "report" and "non lancé" in dernier["resultat"].lower())):
+            if etat == "à faire" and dernier and (dernier["etape"] in ("décision", "report")):
                 drapeaux.append("retenue")  # une décision sur une story pas lancée la retient (5.7 reportée)
+                if RE_REPORT.search(dernier["resultat"]) or dernier["etape"] == "report":
+                    drapeaux.append("reportée")  # reportée hors du run : ni reste à faire, ni débit, ni date de fin
+                    if RE_ANAEL.search(dernier["resultat"]):
+                        demandes.append(dernier["resultat"])
             if etat != "fait" and info and info[0] == "PR ouverte":
                 drapeaux.append("PR ouverte")
             if etat != "fait" and attend_fusion:
@@ -405,9 +413,13 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("coupée")
             if info and info[0] == "CI rouge" and etat != "fait":
                 drapeaux.append("CI rouge")
+            raison = ""
+            if "retenue" in drapeaux:
+                raison = (("report" if dernier["etape"] == "report" else "décision") + " du journal"
+                          + (" (reportée après le run)" if "reportée" in drapeaux else ""))
             stories[sid] = {"vague": vague, "epic": int(sid.split(".")[0]), "statut": st, "etat": etat,
                             "pct": pct, "etape": etape, "type": plan["type"].get(sid, "dev"),
-                            "pivot": sid in plan["pivot"], "deps": sorted(plan["deps"][sid], key=cle_id),
+                            "pivot": sid in plan["pivot"], "deps": sorted(plan["deps"][sid], key=cle_id), "raison": raison,
                             "lance": lance, "fini": fini if etat == "fait" else None, "drapeaux": drapeaux}
     for sid, s in stories.items():
         manque = [d for d in s["deps"] if stories.get(d, {}).get("etat") != "fait"]
@@ -416,6 +428,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                          and "attente humaine" not in s["drapeaux"])
         s["attend"] = manque
     decisions = [e["resultat"] for e in evts if "pour anaël" in e["brut"].lower()]
+    decisions += [d for d in demandes if d not in decisions]
     rythme = rythme_observe(stories, maintenant, evts)
     estimation = estimer(stories, plan["parallelisme"], rythme, maintenant)
     sources = {}
@@ -476,7 +489,8 @@ def par_story_evts(evts: list[dict]) -> dict[str, list[dict]]:
 
 def chemin_critique(stories: dict) -> tuple[float, list[str]]:
     """Plus long chemin (en stories restantes) dans le graphe des dépendances non terminées."""
-    poids = {s: (0 if v["etat"] == "fait" or v["type"] == "humaine" else 1 - v["pct"] / 100)
+    poids = {s: (0 if v["etat"] == "fait" or v["type"] == "humaine" or "reportée" in v["drapeaux"]
+                 else 1 - v["pct"] / 100)
              for s, v in stories.items()}
     memo: dict[str, tuple[float, list[str]]] = {}
 
@@ -484,7 +498,7 @@ def chemin_critique(stories: dict) -> tuple[float, list[str]]:
         if s in memo:
             return memo[s]
         meilleur = (0.0, [])
-        for d in stories[s]["deps"]:
+        for d in ([] if stories[s]["etat"] == "en cours" else stories[s]["deps"]):  # déjà démarrée : dépendance acquise
             if d in stories and d not in pile and stories[d]["etat"] != "fait":
                 c = f(d, pile | {s})
                 if c[0] > meilleur[0] or (c[0] == meilleur[0] and len(c[1]) > len(meilleur[1])):
@@ -497,7 +511,8 @@ def chemin_critique(stories: dict) -> tuple[float, list[str]]:
 
 
 def estimer(stories: dict, parallelisme: int, rythme: dict, maintenant: datetime) -> dict:
-    reste = [s for s in stories.values() if s["etat"] != "fait" and s["type"] != "humaine" and "coupée" not in s["drapeaux"]]
+    reste = [s for s in stories.values() if s["etat"] != "fait" and s["type"] != "humaine" and "coupée" not in s["drapeaux"]
+            and "reportée" not in s["drapeaux"]]
     effort = sum(1 - s["pct"] / 100 for s in reste)
     longueur, chemin = chemin_critique(stories)
     med, p75 = rythme["mediane_min"], rythme["p75_min"]
@@ -547,7 +562,8 @@ def code(sid: str, s: dict) -> str:
         return f"{sid}{marque} ✓"
     if s["etat"] == "en cours":
         return f"{sid}{marque} ▶{s['pct']}%"
-    return f"{sid}{marque} ·" + (" (retenue)" if "retenue" in s["drapeaux"] else "")
+    return f"{sid}{marque} ·" + (" (reportée, hors estimation)" if "reportée" in s["drapeaux"]
+                                 else " (retenue)" if "retenue" in s["drapeaux"] else "")
 
 
 def agregat(liste: list[dict]) -> tuple[int, int, int, float]:
@@ -607,6 +623,7 @@ def rapport_detail(a: dict) -> str:
     bloq = [sid for sid, s in S.items() if "bloquée" in s["drapeaux"]]
     att = [sid for sid, s in S.items() if "attente humaine" in s["drapeaux"]]
     ret = [sid for sid, s in S.items() if "retenue" in s["drapeaux"]]
+    rep_ = [sid for sid, s in S.items() if "reportée" in s["drapeaux"]]
     verif = [sid for sid, s in S.items() if "vérification humaine due" in s["drapeaux"]]
     elig = [sid for sid, s in S.items() if s["eligible"]]
     mixtes = [sid for sid, s in S.items() if s["type"] != "dev" and s["etat"] != "fait"]
@@ -631,7 +648,8 @@ def rapport_detail(a: dict) -> str:
         L.append(f"- Heure future au journal (estimée à tort ?) : {fmt_t(fu['t'])}, {quand} · "
                  f"{', '.join(fu['stories']) or 'run'} · {fu['etape']}.")
     if ret:
-        L.append(f"- Retenues par le journal (report) : {', '.join(ret)}.")
+        L.append(f"- Retenues par le journal (report) : {', '.join(ret)}"
+                 + (f" ; reportées hors estimation : {', '.join(rep_)}" if rep_ else "") + ".")
     if verif:
         L.append(f"- Terminées mais avec une vérification humaine citée au journal : {', '.join(verif)}.")
     if a["decisions"]:
@@ -751,7 +769,7 @@ def puces(a: dict) -> list[str]:
         att.append("bloquée(s) : " + ", ".join(bloq))
     ret = [k for k, s in S.items() if "retenue" in s["drapeaux"]]
     if ret:
-        att.append(f"{', '.join(ret)} attend la fin d'une autre story du même module")
+        att.append("; ".join(f"{k} retenue par {S[k]['raison']}" for k in ret))
     elig = [k for k, s in S.items() if s["eligible"]]
     if elig:
         att.append(f"prête mais pas lancée : {', '.join(elig)}")
