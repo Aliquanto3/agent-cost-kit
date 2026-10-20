@@ -546,3 +546,58 @@ def test_dependante_d_une_reportee_sort_de_l_estimation(tmp_path, monkeypatch):
     r = ar.rapport(a, detail=True)
     assert "1.4 bloquée par 1.3 reportée (hors estimation)" in " ".join(r.split())
     assert "Hors estimation, en attente d'une story reportée : 1.4 (bloquée par 1.3 reportée)" in r
+
+
+# ----------------------------------------------------------------------------- run hors epics
+
+HORS_EPICS = Path(__file__).parent / "fixtures" / "avancement-hors-epics"
+
+
+@pytest.fixture()
+def projet_hors_epics(tmp_path, monkeypatch):
+    monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    monkeypatch.setattr(ar, "heures_commit_lignes", lambda _p, _f: {})
+    cible = tmp_path / ar.DOSSIER
+    cible.mkdir(parents=True)
+    for f in HORS_EPICS.glob("*.*"):
+        shutil.copy(f, cible / f.name)
+    return tmp_path
+
+
+def test_ids_alphanumeriques_sans_faux_positifs():
+    assert ar.ID.findall("C1 · O4a · E1b · S3 · 3.2") == ["C1", "O4a", "E1b", "S3", "3.2"]
+    assert ar.ID.findall("v14 #C1 m1 a1b2c3d 10:30 abcdef1 PR12ab") == []
+    assert ar.ids_perimetre("Stories C1 à C3, O1, O4a") == ["C1", "C2", "C3", "O1", "O4a"]
+    assert ar.cle_id("O4a") > ar.cle_id("12.3") and ar.cle_id("C2") < ar.cle_id("C10")
+
+
+def test_plan_hors_epics(projet_hors_epics):
+    plan = ar.lire_plan((HORS_EPICS / "run-autonome.md").read_text(encoding="utf-8"))
+    assert plan["vagues"]["V0"] == ["C1", "C2"] and plan["vagues"]["V1"] == ["O1", "O4a"]
+    assert plan["perimetre"] == ["C1", "C2", "C3", "O1", "O4a"] and "—" not in plan["vagues"]
+    assert plan["deps"]["C1"] == {"C2"} and plan["deps"]["C3"] == {"O1", "O4a"}  # V0 et M1 ne sont pas des stories
+    assert plan["pivot"] == {"C2"} and plan["type"]["C3"] == "mixte" and plan["parallelisme"] == 2
+    assert plan["titres"] == {"C1": "Correctif du filtre", "C2": "Expérience d'entraînement"}
+
+
+def test_perimetre_sans_vagues():
+    plan = ar.lire_plan("| Périmètre | Epics | Note |\n|---|---|---|\n| Dans le run | Stories C1 à C2, S3 | x |\n")
+    assert plan["vagues"]["—"] == ["C1", "C2", "S3"] and plan["deps"]["S3"] == set()
+
+
+def test_journal_hors_epics_seul(projet_hors_epics):
+    a = ar.analyser(projet_hors_epics, datetime(2026, 10, 20, 10, 0))
+    S = a["stories"]
+    assert set(S) == {"C1", "C2", "C3", "O1", "O4a"}
+    assert S["C1"]["etat"] == "fait" and S["C1"]["pct"] == 100
+    assert S["C2"]["etat"] == "en cours" and S["C2"]["etape"] == "dev en cours"
+    assert S["O1"]["etape"] == "second-avis en cours" and S["O1"]["pct"] == 60
+    assert "bloquée" in S["O4a"]["drapeaux"] and S["C3"]["etat"] == "à faire"
+    assert a["noms"]["stories"]["C1"] == "Correctif du filtre" and a["noms"]["stories"]["O1"] == "O1"
+    assert ar.agregat(list(S.values()))[0] == 1  # 1 terminée sur 5, pas « 1/1 »
+
+
+def test_rapport_hors_epics(projet_hors_epics):
+    texte = ar.rapport(ar.analyser(projet_hors_epics, datetime(2026, 10, 20, 10, 0)))
+    assert "1 / 5 stories terminées" in texte and "## Détail par story" in texte
+    assert "| C1 | Correctif du filtre | ✅ | 100 % |" in texte and "Par epic" not in texte
