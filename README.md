@@ -22,6 +22,8 @@ Pour voir en direct ce que coûte la session, au-dessus du prompt, le mod seul s
 /plugin install couts-session@agent-cost-kit
 ```
 
+Le mod exige les mods de code de Claude Code, en accès anticipé : ajoutez `"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"` au bloc `env` de `~/.claude/settings.json`, puis redémarrez Claude Code. Sans cette variable, la bande ne s'affiche pas, sans message d'erreur. Testé avec Claude Code 2.1.280 et 2.1.306.
+
 ## Ce que vous obtenez
 
 | Quoi | Pour quoi faire |

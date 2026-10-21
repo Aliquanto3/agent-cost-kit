@@ -39,9 +39,3 @@ export type Cumul = {
 
 /** 0 : une ligne ; 1 : tableau par modèle et sous-agents ; 2 : plus le contexte. */
 export type Niveau = 0 | 1 | 2
-
-declare module 'claude-code' {
-  interface PluginState {
-    'couts-session': { cumul: Cumul | null; niveau: Niveau; maintenant: number }
-  }
-}
