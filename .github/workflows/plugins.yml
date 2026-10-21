@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: "20"
       - name: Installer Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.280
       - name: Valider les mods (strict)
         run: |
           set -e

@@ -73,6 +73,8 @@ async function synchroniser($: EngineInterface): Promise<Cumul> {
     const tournent = new Set(liste.filter(a => EN_TOUR.includes(a.status)).map(a => a.id))
     for (const [agentId, fiche] of Object.entries(stocke!.enCours)) if (tournent.has(agentId)) enCours[agentId] = fiche
   }
+  // Un synchroniser concurrent a pu poser (et enrichir) le cumul pendant les await : ne pas l'écraser.
+  if (cumul && cumul.sessionId === id && cumul.startedAt === usage.startedAt) return cumul
   const neuf = relu ? { ...stocke, enCours } : vide(id, usage.startedAt)
   const cle = `${id}:${usage.startedAt}`
   if (!relu && !sessionNeeDuMod && reprise?.cle !== cle) reprise = { cle, lancee: false, finie: false, lues: new Set(), orphelins: [] }
@@ -202,10 +204,12 @@ function persister($: EngineInterface): Promise<void> {
 }
 
 async function ecrire($: EngineInterface): Promise<void> {
-  if (!cumul) return
-  await $.store.set(cleSession(cumul.sessionId), cumul)
+  // Instantané avant tout await : un /clear pendant l'écriture remet `cumul` à null.
+  const c = cumul
+  if (!c) return
+  await $.store.set(cleSession(c.sessionId), c)
   const index = ((await $.store.get('sessions')) as string[] | undefined) ?? []
-  const suite = [...index.filter(id => id !== cumul!.sessionId), cumul.sessionId]
+  const suite = [...index.filter(id => id !== c.sessionId), c.sessionId]
   for (const ancien of suite.slice(0, Math.max(0, suite.length - SESSIONS_GARDEES))) {
     await $.store.delete(cleSession(ancien))
   }
@@ -392,7 +396,10 @@ export const register: Register = on => {
         if (orphelin && r && r.cle === `${courant.sessionId}:${courant.startedAt}`) {
           if (!r.finie) r.orphelins.push({ usage, agentId })
           else if (r.lues.has(boucle)) {
-            if (agentId) retirer([agentId])
+            if (agentId) {
+              retirer([agentId])
+              await $.ui.invalidate('ui.render')
+            }
             return
           }
         }
