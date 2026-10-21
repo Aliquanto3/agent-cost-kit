@@ -1,4 +1,3 @@
-import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer, TurnUsage } from 'claude-code'
 
 import type { Cumul, Niveau } from '../types'
@@ -8,11 +7,20 @@ import type { Historique, ParModele } from './historique'
 import { colonnes, corps, tete } from './rendu'
 import type { Contexte } from './rendu'
 
-const cumulRef = atom({ plugin: 'couts-session', key: 'cumul' } as const, null)
-const NIVEAU = { plugin: 'couts-session', key: 'niveau' } as const
-const niveauRef = atom(NIVEAU, 0)
-/** Heure (ms) du dernier rafraîchissement : l'écrire redessine la bande, qui en tire les durées. */
-const maintenantRef = atom({ plugin: 'couts-session', key: 'maintenant' } as const, 0)
+/**
+ * État éphémère du module (une instance par processus, remis à zéro à chaque rechargement du mod) :
+ * `$` n'a plus de notion d'état partagé (`atom`/`read`/`update` n'existent plus depuis 2.1.280), donc
+ * tout ce qui doit survivre entre deux événements, mais pas forcément entre deux processus, est une
+ * simple variable de module plutôt qu'une lecture/écriture de `$`. Ce qui doit survivre au processus
+ * (pour `--resume`) reste dans `$.store`, via `cumul` lui-même (persisté par `persister`/`ecrire`) et
+ * `niveau` (persisté par `changerNiveau`).
+ */
+let cumul: Cumul | null = null
+let niveau: Niveau = 0
+/** Pose à la première `session.start` du processus : au-delà, `niveau` ne revient plus du store. */
+let niveauCharge = false
+/** Heure (ms) du dernier rafraîchissement : la poser hors cycle de rendu appelle `$.ui.invalidate`. */
+let maintenant = 0
 
 /** Période de rafraîchissement des durées des sous-agents en cours. */
 const PERIODE_MS = 30_000
@@ -50,18 +58,25 @@ const entendues = new Set<string>()
 /** Après /clear ou /resume dans le process, la nouvelle session naît sous le mod : rien à reprendre. */
 let sessionNeeDuMod = false
 
-/** Met `$.state` sur la session courante : reprise depuis `$.store`, ou zéro après `/clear`. */
+/** Pose `cumul` (variable de module) sur la session courante : reprise depuis `$.store`, ou zéro après `/clear`. */
 async function synchroniser($: EngineInterface): Promise<Cumul> {
   const [id, usage] = await Promise.all([$.session.id(), $.session.usage()])
-  const tenu = await read($, cumulRef)
-  if (tenu && tenu.sessionId === id && tenu.startedAt === usage.startedAt) return tenu
+  if (cumul && cumul.sessionId === id && cumul.startedAt === usage.startedAt) return cumul
   const stocke = (await $.store.get(cleSession(id))) as Cumul | undefined
-  // Un cumul relu du store n'a plus rien « en cours » : les sous-agents de l'ancien process sont finis.
   const relu = stocke && stocke.startedAt === usage.startedAt
-  const neuf = relu ? { ...stocke, enCours: {} } : vide(id, usage.startedAt)
+  // Un sous-agent du cumul relu n'est gardé « en cours » que si le moteur le confirme encore : ça
+  // distingue une reprise après --resume (processus neuf, rien à vérifier, tout est fini) d'un
+  // rechargement du mod en cours de session (même processus, l'agent tourne peut-être toujours).
+  let enCours: NonNullable<Cumul['enCours']> = {}
+  if (relu && stocke!.enCours && Object.keys(stocke!.enCours).length > 0) {
+    const liste = await $.agent.list()
+    const tournent = new Set(liste.filter(a => EN_TOUR.includes(a.status)).map(a => a.id))
+    for (const [agentId, fiche] of Object.entries(stocke!.enCours)) if (tournent.has(agentId)) enCours[agentId] = fiche
+  }
+  const neuf = relu ? { ...stocke, enCours } : vide(id, usage.startedAt)
   const cle = `${id}:${usage.startedAt}`
   if (!relu && !sessionNeeDuMod && reprise?.cle !== cle) reprise = { cle, lancee: false, finie: false, lues: new Set(), orphelins: [] }
-  await update($, cumulRef, () => neuf)
+  cumul = neuf
   return neuf
 }
 
@@ -151,7 +166,7 @@ async function lireHistorique(
  * en direct seulement. Les fins de tour orphelines déjà comptées en direct sont retranchées de
  * l'historique de leur boucle si elle a été relue. Une erreur marque la reprise partielle.
  */
-async function reprendre($: EngineInterface, cumul: Cumul, r: Reprise): Promise<void> {
+async function reprendre($: EngineInterface, depart: Cumul, r: Reprise): Promise<void> {
   let h: Historique | undefined
   let echec = false
   try {
@@ -159,26 +174,25 @@ async function reprendre($: EngineInterface, cumul: Cumul, r: Reprise): Promise<
     const enTour = new Set(liste.filter(a => EN_TOUR.includes(a.status)).map(a => a.id))
     // Session sans prompt ni sous-agent (démarrage à froid) : rien à relire, pas de parcours de `projects/`.
     if (tours > 0 || liste.length > 0) {
-      h = await lireHistorique($, cumul.sessionId, { debut: cumul.startedAt, fin }, tours, enTour, r.lues)
+      h = await lireHistorique($, depart.sessionId, { debut: depart.startedAt, fin }, tours, enTour, r.lues)
     }
   } catch (erreur) {
     echec = true
     r.lues.clear()
     $.ui.log(`couts-session : historique non repris (${erreur instanceof Error ? erreur.message : String(erreur)})`)
   }
-  // Sans `await` entre ces trois lignes : une fin de tour arrive avant (tenue, puis retranchée) ou après (écartée si relue).
   r.finie = true
   const deja = r.orphelins.splice(0)
   if (h) for (const o of deja) if (r.lues.has(o.agentId ?? '')) retrancher(h, o.usage.model, compteurs(o.usage), o.agentId)
-  const meme = (c: Cumul | null): c is Cumul => !!c && c.sessionId === cumul.sessionId && c.startedAt === cumul.startedAt
-  await update($, cumulRef, c => (!meme(c) ? c : h ? fusionner(c, h) : echec ? { ...c, reprise: { jusqua: 0, partielle: true } } : c))
+  const meme = (c: Cumul | null): c is Cumul => !!c && c.sessionId === depart.sessionId && c.startedAt === depart.startedAt
+  if (meme(cumul)) cumul = h ? fusionner(cumul, h) : echec ? { ...cumul, reprise: { jusqua: 0, partielle: true } } : cumul
   await persister($)
 }
 
 /**
- * Écrit dans `$.store` le cumul tel que `$.state` le tient au moment d'écrire. `$.store` n'a pas
- * d'écriture conditionnelle : deux fins de tour concurrentes (session et sous-agent en arrière-plan)
- * passent donc l'une après l'autre, et la dernière écriture porte toujours le cumul le plus récent.
+ * Écrit dans `$.store` le cumul tel que la variable de module `cumul` le tient au moment d'écrire.
+ * `$.store` n'a pas d'écriture conditionnelle : deux fins de tour concurrentes (session et sous-agent
+ * en arrière-plan) passent donc l'une après l'autre, et la dernière écriture porte le cumul le plus récent.
  */
 let file: Promise<void> = Promise.resolve()
 function persister($: EngineInterface): Promise<void> {
@@ -188,11 +202,10 @@ function persister($: EngineInterface): Promise<void> {
 }
 
 async function ecrire($: EngineInterface): Promise<void> {
-  const cumul = await read($, cumulRef)
   if (!cumul) return
   await $.store.set(cleSession(cumul.sessionId), cumul)
   const index = ((await $.store.get('sessions')) as string[] | undefined) ?? []
-  const suite = [...index.filter(id => id !== cumul.sessionId), cumul.sessionId]
+  const suite = [...index.filter(id => id !== cumul!.sessionId), cumul.sessionId]
   for (const ancien of suite.slice(0, Math.max(0, suite.length - SESSIONS_GARDEES))) {
     await $.store.delete(cleSession(ancien))
   }
@@ -224,8 +237,8 @@ function ajouter(c: Cumul, u: TurnUsage, agentId?: string, agent?: { type: strin
 /**
  * Rafraîchissement des durées : un seul minuteur par module, démarré au premier sous-agent en cours
  * (lancement ou reprise) et arrêté quand plus rien ne tourne. Un rechargement du mod annule ses
- * minuteurs et remet cette variable à zéro alors que `enCours` survit dans `$.state` :
- * `session.start`, qui suit chaque chargement, le relance.
+ * minuteurs et remet cette variable à zéro ; `session.start`, qui suit chaque chargement, le relance
+ * si `synchroniser` a retrouvé des en-cours encore actifs dans `$.store` (confirmés par `$.agent.list`).
  */
 let minuteur: Timer | undefined
 function arreter(): void {
@@ -238,43 +251,42 @@ function demarrer($: EngineInterface): void {
 
 /**
  * Un battement : retire les en-cours que `$.agent.list()` dit finis sans `turn.complete` (tué,
- * échec), écrit l'heure pour redessiner, arrête le minuteur s'il ne reste rien. Hors rendu.
+ * échec), pose `maintenant` et appelle `$.ui.invalidate` pour redessiner (minuteur hors cycle de
+ * rendu), arrête le minuteur s'il ne reste rien.
  */
 async function battre($: EngineInterface): Promise<void> {
   await sansEchec($, async () => {
-    const [cumul, id] = await Promise.all([read($, cumulRef), $.session.id()])
+    const id = await $.session.id()
     const ids = cumul && cumul.sessionId === id ? Object.keys(cumul.enCours ?? {}) : []
     if (ids.length === 0) return arreter()
-    const [liste, maintenant] = await Promise.all([$.agent.list(), $.clock.now()])
+    const [liste, instant] = await Promise.all([$.agent.list(), $.clock.now()])
     const statuts = new Map(liste.map(a => [a.id, a.status]))
     const finis = ids.filter(i => {
       const statut = statuts.get(i)
-      if (statut === undefined) return maintenant - (cumul!.enCours![i]?.debut ?? 0) >= ABSENT_MS
+      if (statut === undefined) return instant - (cumul!.enCours![i]?.debut ?? 0) >= ABSENT_MS
       return statut === 'completed' || statut === 'failed' || statut === 'killed'
     })
-    if (finis.length > 0) await retirer($, finis)
-    await update($, maintenantRef, () => maintenant)
-    const restant = await read($, cumulRef)
-    if (Object.keys(restant?.enCours ?? {}).length === 0) arreter()
+    if (finis.length > 0) retirer(finis)
+    maintenant = instant
+    await $.ui.invalidate('ui.render')
+    if (Object.keys(cumul?.enCours ?? {}).length === 0) arreter()
   })
 }
 
-async function retirer($: EngineInterface, ids: string[]): Promise<void> {
-  await update($, cumulRef, c => {
-    if (!c?.enCours || !ids.some(i => i in c.enCours!)) return c
-    const reste = { ...c.enCours }
-    for (const i of ids) delete reste[i]
-    return { ...c, enCours: reste }
-  })
-  const c = await read($, cumulRef)
-  if (Object.keys(c?.enCours ?? {}).length === 0) arreter()
+function retirer(ids: string[]): void {
+  if (!cumul?.enCours || !ids.some(i => i in cumul!.enCours!)) return
+  const reste = { ...cumul.enCours }
+  for (const i of ids) delete reste[i]
+  cumul = { ...cumul, enCours: reste }
+  if (Object.keys(cumul.enCours).length === 0) arreter()
 }
 
 /** Marque un sous-agent en cours (sans toucher à un début déjà noté) et lance le minuteur. */
 async function marquer($: EngineInterface, id: string, fiche: { type: string; description: string; model?: string }) {
   const debut = await $.clock.now()
-  await update($, cumulRef, c => (c && !c.enCours?.[id] ? { ...c, enCours: { ...c.enCours, [id]: { ...fiche, debut } } } : c))
-  await update($, maintenantRef, () => debut)
+  if (cumul && !cumul.enCours?.[id]) cumul = { ...cumul, enCours: { ...cumul.enCours, [id]: { ...fiche, debut } } }
+  maintenant = debut
+  await $.ui.invalidate('ui.render')
   demarrer($)
 }
 
@@ -289,27 +301,30 @@ async function sansEchec($: EngineInterface, travail: () => Promise<void>): Prom
 
 /** `suivant` fait le tour (replié, tableau, contexte, replié) ; -1 replie d'un niveau. */
 async function changerNiveau($: EngineInterface, pas: 'suivant' | -1): Promise<void> {
-  const niveau = await update($, niveauRef, n => (pas === 'suivant' ? (n + 1) % 3 : Math.max(0, n - 1)) as Niveau)
+  niveau = (pas === 'suivant' ? (niveau + 1) % 3 : Math.max(0, niveau - 1)) as Niveau
   await $.store.set('niveau', niveau)
+  await $.ui.invalidate('ui.render')
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await sansEchec($, async () => {
-      const { version } = await $.state.get(NIVEAU)
-      if (version === 0) {
+      // Une seule fois par processus : au-delà, `niveau` ne revient plus du store (un changement de
+      // niveau en session l'aurait déjà mis à jour en mémoire).
+      if (!niveauCharge) {
+        niveauCharge = true
         const stocke = await $.store.get('niveau')
-        if (stocke === 0 || stocke === 1 || stocke === 2) await update($, niveauRef, () => stocke)
+        if (stocke === 0 || stocke === 1 || stocke === 2) niveau = stocke
       }
-      const cumul = await synchroniser($)
-      // Rechargement à chaud : des en-cours survivent, le minuteur non.
-      if (Object.keys(cumul.enCours ?? {}).length > 0) demarrer($)
-      // Mod chargé en cours de session (ni state ni store) : l'historique se relit sans bloquer la bande.
+      const cumulCourant = await synchroniser($)
+      // Rechargement à chaud : des en-cours encore actifs survivent (via $.store), le minuteur non.
+      if (Object.keys(cumulCourant.enCours ?? {}).length > 0) demarrer($)
+      // Mod chargé en cours de session (ni store à jour ni en-cours) : l'historique se relit sans bloquer la bande.
       const r = reprise
-      if (r && !r.lancee && r.cle === `${cumul.sessionId}:${cumul.startedAt}` && !cumul.reprise) {
+      if (r && !r.lancee && r.cle === `${cumulCourant.sessionId}:${cumulCourant.startedAt}` && !cumulCourant.reprise) {
         r.lancee = true
-        void sansEchec($, () => reprendre($, cumul, r))
+        void sansEchec($, () => reprendre($, cumulCourant, r))
       }
     })
     return result
@@ -323,7 +338,7 @@ export const register: Register = on => {
       await sansEchec($, async () => {
         await synchroniser($)
         const fiche = { type: e.subagentType, description: e.description, modeles: {} }
-        await update($, cumulRef, c => (c && !c.agents[agentId] ? { ...c, agents: { ...c.agents, [agentId]: fiche } } : c))
+        if (cumul && !cumul.agents[agentId]) cumul = { ...cumul, agents: { ...cumul.agents, [agentId]: fiche } }
         await marquer($, agentId, { type: e.subagentType, description: e.description, model: result.model })
       })
     }
@@ -354,7 +369,12 @@ export const register: Register = on => {
     // usage la ligne « en cours » disparaît, sans trace chiffrée ni mention « interrompu » ; avec
     // usage, `ajouter` la retire dans la même écriture que les chiffres.
     const usage = e.usage
-    if (e.agentId && !usage) await sansEchec($, () => retirer($, [e.agentId!]))
+    if (e.agentId && !usage) {
+      await sansEchec($, async () => {
+        retirer([e.agentId!])
+        await $.ui.invalidate('ui.render')
+      })
+    }
     if (usage) {
       await sansEchec($, async () => {
         const courant = await synchroniser($)
@@ -372,13 +392,14 @@ export const register: Register = on => {
         if (orphelin && r && r.cle === `${courant.sessionId}:${courant.startedAt}`) {
           if (!r.finie) r.orphelins.push({ usage, agentId })
           else if (r.lues.has(boucle)) {
-            if (agentId) await retirer($, [agentId])
+            if (agentId) retirer([agentId])
             return
           }
         }
-        await update($, cumulRef, c => ajouter(c && c.sessionId === courant.sessionId ? c : courant, usage, agentId, agent))
+        cumul = ajouter(cumul && cumul.sessionId === courant.sessionId ? cumul : courant, usage, agentId, agent)
         await persister($)
-        if (agentId) await retirer($, [agentId]) // arrête le minuteur s'il ne reste rien
+        if (agentId) retirer([agentId]) // arrête le minuteur s'il ne reste rien
+        await $.ui.invalidate('ui.render')
       })
     }
     return result
@@ -390,9 +411,10 @@ export const register: Register = on => {
     const result = await next(e)
     if (e.reason === 'clear' || e.reason === 'resume') {
       sessionNeeDuMod = true
-      await sansEchec($, async () => {
-        await update($, cumulRef, c => (c && c.sessionId === e.sessionId ? null : c))
-      })
+      if (cumul && cumul.sessionId === e.sessionId) {
+        cumul = null
+        await sansEchec($, () => $.ui.invalidate('ui.render'))
+      }
     }
     return result
   })
@@ -402,11 +424,9 @@ export const register: Register = on => {
     // Ce que dessinent les plugins en dessous (et le moteur) reste affiché sous la bande.
     const dessous = await next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
-    const [tenu, id] = await Promise.all([read($, cumulRef), $.session.id()])
-    // Garde-fou au rendu (sans écrire) : un cumul d'une autre session n'est pas montré.
-    const cumul = tenu && tenu.sessionId === id ? tenu : null
-    const niveau = await read($, niveauRef)
-    const maintenant = await read($, maintenantRef)
+    const id = await $.session.id()
+    // Garde-fou au rendu : un cumul d'une autre session n'est pas montré.
+    const cumulAffiche = cumul && cumul.sessionId === id ? cumul : null
     const largeur = Math.max(20, e.props.bodyColumns)
     // Hors plein écran, le clic n'est pas rapporté : on rappelle la touche (prompt vide, ou ctrl+x tab).
     const aide = e.viewport?.isFullscreen === false ? (niveau === 0 ? ' (touche 1)' : ' (1 / 2)') : ''
@@ -437,15 +457,14 @@ export const register: Register = on => {
         }
       }
     }
-    const ligneTete = tete(cumul, niveau < 2 ? '▸' : '▾', largeur - place, ctxTokens)
-    const lignes = corps({ cumul, niveau, largeur, lignesMax: e.props.maxRows, coutMoteur, contexte, maintenant })
-    const libelle = niveau === 0 ? 'déplier' : niveau === 1 ? 'contexte' : 'replier'
+    const ligneTete = tete(cumulAffiche, niveau < 2 ? '▸' : '▾', largeur - place, ctxTokens)
+    const lignes = corps({ cumul: cumulAffiche, niveau, largeur, lignesMax: e.props.maxRows, coutMoteur, contexte, maintenant })
     return (
       <Box flexDirection="column">
         <Box flexDirection="row">
-          <Button key="niveau" label={libelle} plain hotkey="1" dimColor onPress={() => changerNiveau($, 'suivant')}>
-            {ligneTete}
-            {aide ? <Text dimColor>{aide}</Text> : null}
+          {/* Un <Button> prend soit `label`, soit un seul enfant texte, jamais les deux : `aide` est fondue dedans. */}
+          <Button key="niveau" plain hotkey="1" dimColor onPress={() => changerNiveau($, 'suivant')}>
+            {`${ligneTete}${aide}`}
           </Button>
           {niveau > 0 && (
             <Box marginLeft={1}>
