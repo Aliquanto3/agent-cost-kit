@@ -15,11 +15,12 @@ chaque agent, avec les mêmes règles :
 - le coût contrefactuel avec l'autre TTL (5 min <-> 1 h) ;
 - les arbres d'agents (racine de profondeur 1 et descendants), pour le coût par story ;
 - une estimation de l'impact environnemental (énergie, GWP, eau, énergie primaire, ADPe) en
-  fourchette min-max, selon la méthodologie EcoLogits
-  (https://ecologits.ai/latest/methodology/llm_inference/), sur les mêmes appels que le coût.
-  Limites, volontaires : EcoLogits ne compte que les tokens de SORTIE. Ni l'entrée ni le cache
-  n'ont d'impact dans ce modèle, alors que le cache fait environ 85 % du coût en dollars : l'empreinte
-  et le coût ne sont donc pas proportionnels. La réflexion masquée est absente des tokens comptés :
+  fourchette min-max, sur les mêmes appels que le coût, selon ``--methode`` :
+  ``impactia`` (défaut, expérimental : PR EcoLogits #259 non fusionnée, docs/impact-input-impactia.md)
+  ajoute la durée de prefill des tokens d'entrée (lecture du cache : 0 en borne basse, prefill complet
+  en borne haute), le réseau et le bâtiment du centre de données ; ``ecologits``
+  (https://ecologits.ai/latest/methodology/llm_inference/) ne compte que les tokens de SORTIE.
+  La réflexion masquée est absente des tokens comptés :
   l'estimation est une borne basse. Les paramètres des modèles Anthropic ne sont pas publiés,
   EcoLogits les estime (fourchettes). Latence : formule de repli ML.ENERGY d'EcoLogits (la voie
   OpenRouter n'est pas reproductible hors ligne). Mix électrique par défaut : USA (choix d'EcoLogits
@@ -95,6 +96,19 @@ WUE_SITE = tuple(_ECO["wue_site_l_par_kwh"])  # L/kWh, Anthropic
 # Mix électrique par kWh : (kgCO2e, MJ d'énergie primaire, kgSbe, L d'eau).
 MIX = {k: tuple(v.values()) for k, v in _ECO["mix"].items()}
 MIX_DEFAUT = _ECO["mix_par_defaut"]
+# Méthode ImpactIA (PR EcoLogits #259, expérimentale) : prefill selon les tokens d'entrée, réseau, bâtiment.
+_IMP = _TARIFS["impactia"]
+METHODES = ("impactia", "ecologits")
+METHODE_DEFAUT = _TARIFS["impact_methode_par_defaut"]
+PREFILL_COEF = _IMP["prefill_coef_ref_s_par_token"]  # s/token d'entrée, Mistral 7B (Agrawal et al., 2024)
+PREFILL_TTFT_REF = _IMP["prefill_ttft_ref_s"]  # s, TTFT médian OpenRouter de Mistral 7B
+PREFILL_ORDONNEE = _IMP["prefill_ordonnee_s"]  # s par appel
+RESEAU_W = _IMP["reseau_puissance_w"]
+RESEAU_FAB = _IMP["reseau_fabrication_kgco2e"]
+RESEAU_VIE_S = _IMP["reseau_duree_vie_s"]
+BATIMENT = _IMP["batiment_kgco2e_par_kwh"]
+TTFT = _IMP["ttft_s"]
+TTFT_FAMILLE = _IMP["ttft_famille_s"]
 GRANDEURS = ("energie_wh", "gwp_gco2e", "eau_l", "pe_mj", "adpe_mgsbe")
 
 
@@ -219,31 +233,56 @@ def parametres(modele: str) -> tuple[float, float, float, float]:
     return PARAMETRES_FAMILLE.get(famille(modele) or "", PARAMETRES_FAMILLE[FAMILLE_PAR_DEFAUT])
 
 
-def impact(modele: str, sortie: float, mix: str = MIX_DEFAUT) -> dict[str, dict[str, float]]:
-    """Impact de ``sortie`` tokens générés par ``modele`` : {grandeur: {"min", "max"}}.
+def ttft(modele: str) -> float:
+    """TTFT médian (s) : plus long préfixe de l'identifiant, sinon famille, sinon famille par défaut."""
+    candidats = [cle for cle in TTFT if modele.startswith(cle)]
+    if candidats:
+        return TTFT[max(candidats, key=len)]
+    return TTFT_FAMILLE.get(famille(modele) or "", TTFT_FAMILLE[FAMILLE_PAR_DEFAUT])
 
+
+def impact(
+    modele: str, sortie: float, mix: str = MIX_DEFAUT, *, entree: float = 0, lu: float = 0, appels: float = 0,
+    methode: str = METHODE_DEFAUT,
+) -> dict[str, dict[str, float]]:
+    """Impact de ``appels`` appels de ``modele`` : {grandeur: {"min", "max"}}.
+
+    ``sortie`` : tokens générés ; ``entree`` : entrée fraîche + écriture du cache (prefill complet) ;
+    ``lu`` : lecture du cache (0 en borne basse, prefill complet en borne haute). ``entree``, ``lu`` et
+    ``appels`` ne servent qu'à la méthode impactia ; ``ecologits`` ne compte que la sortie.
     Énergie en Wh, GWP en gCO2e, eau en L, énergie primaire en MJ, ADPe en mgSbe. Grandeurs
-    linéaires en ``sortie`` : on peut donc sommer les tokens avant d'appeler.
+    linéaires en chaque argument : on peut donc sommer les tokens et les appels avant d'appeler.
     """
+    if methode not in METHODES:
+        raise ValueError(f"méthode inconnue : {methode}")
     gwp_kwh, pe_kwh, adpe_kwh, wue_mix = MIX[mix]
     t_min, t_max, a_min, a_max = parametres(modele)
     alpha, beta, gamma = GPU_ENERGIE
     la, lb, lg = GPU_LATENCE
+    impactia = methode == "impactia"
+    # Prefill (PR #259, llm.py l. 105-144). En ecologits, les zéros ajoutés laissent le calcul identique bit à bit.
+    coef = PREFILL_COEF * ttft(modele) / PREFILL_TTFT_REF if impactia else 0.0
+    ordonnee = PREFILL_ORDONNEE * appels if impactia else 0.0
+    prefill = {"min": coef * entree + ordonnee, "max": coef * (entree + lu) + ordonnee}
+    reseau_w = RESEAU_W if impactia else 0.0
     resultat: dict[str, dict[str, float]] = {}
     for borne, total, actif, pue, wue in (
         ("min", t_min, a_min, PUE[0], WUE_SITE[0]),
         ("max", t_max, a_max, PUE[1], WUE_SITE[1]),
     ):
         f_energie = alpha * math.exp(beta * LOT) * actif + gamma
-        duree = sortie * (la * actif + lb * LOT + lg)
+        duree = sortie * (la * actif + lb * LOT + lg) + prefill[borne]
         gpus = 2 ** math.ceil(math.log2(max(1, math.ceil(1.2 * total * 16 / 8 / GPU_MEMOIRE_GO))))
-        e_ti_wh = duree / 3600 * SERVEUR_PUISSANCE_W * (gpus / SERVEUR_GPUS) / LOT + gpus * sortie * f_energie
+        part = gpus / SERVEUR_GPUS
+        e_ti_wh = duree / 3600 * (SERVEUR_PUISSANCE_W + reseau_w) * part / LOT + gpus * sortie * f_energie
         e_wh = pue * e_ti_wh
         e_kwh = e_wh / 1000
         fab = [
-            duree / (LOT * DUREE_VIE_S) * ((gpus / SERVEUR_GPUS) * serveur + gpus * gpu)
+            duree / (LOT * DUREE_VIE_S) * (part * serveur + gpus * gpu)
             for serveur, gpu in zip(FAB_SERVEUR, FAB_GPU)
         ]
+        if impactia:  # réseau et bâtiment : GWP seulement (llm.py l. 477-546)
+            fab[0] += duree / (LOT * RESEAU_VIE_S) * part * RESEAU_FAB + e_ti_wh / 1000 * BATIMENT
         valeurs = {
             "energie_wh": e_wh,
             "gwp_gco2e": (e_kwh * gwp_kwh + fab[0]) * 1000,
@@ -256,14 +295,18 @@ def impact(modele: str, sortie: float, mix: str = MIX_DEFAUT) -> dict[str, dict[
     return resultat
 
 
-def impact_appels(liste: list[dict], mix: str) -> dict[str, dict[str, float]]:
-    """Somme des impacts d'une liste d'appels (sortie réestimée uniquement)."""
-    tokens: dict[str, int] = defaultdict(int)
+def impact_appels(liste: list[dict], mix: str, methode: str = METHODE_DEFAUT) -> dict[str, dict[str, float]]:
+    """Somme des impacts d'une liste d'appels (sortie réestimée ; entrée et cache selon la méthode)."""
+    tokens: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0, 0])  # sortie, entrée + écriture, lecture, appels
     for a in liste:
-        tokens[a["modele"]] += a["sortie"]
+        t = tokens[a["modele"]]
+        t[0] += a["sortie"]
+        t[1] += a["entree"] + a["ecrit_5m"] + a["ecrit_1h"]
+        t[2] += a["lu"]
+        t[3] += 1
     total = {g: {"min": 0.0, "max": 0.0} for g in GRANDEURS}
-    for modele, n in tokens.items():
-        for g, bornes in impact(modele, n, mix).items():
+    for modele, (n, entree, lu, nb) in tokens.items():
+        for g, bornes in impact(modele, n, mix, entree=entree, lu=lu, appels=nb, methode=methode).items():
             for b in ("min", "max"):
                 total[g][b] += bornes[b]
     return total
@@ -369,6 +412,8 @@ def main() -> int:
     analyseur.add_argument("--filtre", help="motif (regex, insensible à la casse) sur la description des agents")
     analyseur.add_argument("--out", type=Path, default=Path("mesures-couts"))
     analyseur.add_argument("--mix", choices=sorted(MIX), default=MIX_DEFAUT, help="mix électrique pour l'impact (défaut : USA, choix d'EcoLogits pour Anthropic)")
+    analyseur.add_argument("--methode", choices=METHODES, default=METHODE_DEFAUT,
+                           help="méthode d'impact : impactia (défaut, entrée comptée, expérimental) ou ecologits (sortie seule)")
     analyseur.add_argument("--car-par-token", type=float, default=2.2, help="caractères par token pour la sortie réestimée (2,2 mesuré, voir bancs/)")
     options = analyseur.parse_args()
     global CARACTERES_PAR_TOKEN
@@ -393,11 +438,11 @@ def main() -> int:
     for session, ident, chemin, meta, liste, tous in retenus:
         description = str(meta.get("description", ""))
         c = couts(tous, {a["id"] for a in liste})
-        imp = impact_appels(liste, options.mix)
+        imp = impact_appels(liste, options.mix, options.methode)
         identifiants |= {a["modele"] for a in liste}
         est_main = ident == "MAIN"
         for fam in {a["fam"] for a in liste}:
-            part = impact_appels([a for a in liste if a["fam"] == fam], options.mix)
+            part = impact_appels([a for a in liste if a["fam"] == fam], options.mix, options.methode)
             for g in GRANDEURS:
                 for b in ("min", "max"):
                     par_modele[(est_main, fam)][g][b] += part[g][b]
@@ -429,6 +474,7 @@ def main() -> int:
                 "expirations": c["expirations"],
                 "cout_reecriture_usd": round(c["reecriture"], 4),
                 "cout_autre_ttl_usd": round(c["contrefactuel"], 4),
+                "methode_impact": options.methode,
                 **{f"{g}_{b}": float(f"{imp[g][b]:.4g}") for g in GRANDEURS for b in ("min", "max")},
             }
         )
@@ -492,7 +538,7 @@ def main() -> int:
             writer.writeheader()
             writer.writerows(lignes_arbres)
     resume(options.out, options.projet, lignes, lignes_arbres, par_modele, options.mix, hors_liste(identifiants), doublons,
-           bool(options.session or options.filtre))
+           bool(options.session or options.filtre), options.methode)
     # Tableau par agent sur la sortie standard.
     print(f"{'session':8} {'agent':8} {'modèle':7} {'appels':>6} {'min':>6} {'1er ctx':>8} {'pic':>7} {'exp':>3} {'coût $':>8} {'gCO2e':>11}  description")
     for l in lignes:
@@ -505,15 +551,26 @@ def main() -> int:
     eau_bas, eau_haut = (sum(l[f"eau_l_{b}"] for l in lignes) for b in ("min", "max"))
     print(
         f"\nTotal : {sum(l['cout_usd'] for l in lignes):.2f} $ sur {len(lignes)} agents. "
-        f"Impact (EcoLogits, mix {options.mix}, sortie seule) : {fourchette(gwp_bas, gwp_haut, 0)} gCO2e, "
+        f"Impact ({NOM_METHODE[options.methode]}, mix {options.mix}) : {fourchette(gwp_bas, gwp_haut, 0)} gCO2e, "
         f"{fourchette(nrj_bas, nrj_haut, 0)} Wh, {fourchette(eau_bas, eau_haut, 1)} L d'eau. Détail : {options.out}/"
     )
     return 0
 
 
+NOM_METHODE = {"impactia": "ImpactIA, expérimental", "ecologits": "EcoLogits, sortie seule"}
+MISE_EN_GARDE_ENTREE = {
+    "impactia": "- L'entrée compte par la durée de prefill (serveur, réseau, fabrication ; pas l'énergie GPU, que la PR ne "
+    "modélise pas). Lecture du cache : 0 en borne basse (le KV cache n'est pas recalculé), prefill complet en borne haute ; "
+    "la fourchette porte donc surtout cette incertitude. `--methode ecologits` : sortie seule, comme EcoLogits.",
+    "ecologits": "- Seuls les tokens de **sortie** comptent, comme dans EcoLogits : ni l'entrée ni le cache n'ont d'impact "
+    "dans ce modèle. Or le cache fait environ 85 % du coût en dollars : l'empreinte n'est pas proportionnelle au coût. "
+    "`--methode impactia` (défaut) compte l'entrée.",
+}
+
+
 def resume(
     dossier: Path, projet: Path, lignes: list[dict], arbres: list[dict], par_modele: dict, mix: str, replis: list[str] | None = None, doublons: int = 0,
-    partiel: bool = False,
+    partiel: bool = False, methode: str = METHODE_DEFAUT,
 ) -> None:
     sous = [l for l in lignes if l["type"] != "MAIN"]
     main_ = [l for l in lignes if l["type"] == "MAIN"]
@@ -563,11 +620,18 @@ def resume(
         for jour in sorted({l["jour"] for l in sous}):
             s = [l for l in sous if l["jour"] == jour]
             sortie.append(f"| {jour} | {len(s)} | {mediane([l['premier_ctx'] for l in s]) / 1000:.1f} k | {mediane([l['pic_ctx'] for l in s]) / 1000:.0f} k |")
-    sortie += ["", "## Impact environnemental (EcoLogits)", ""]
-    sortie.append(
-        f"Estimation en fourchette min-max, mix électrique {mix}, méthodologie "
-        "[EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/) (données du 2026-10-14)."
-    )
+    sortie += ["", f"## Impact environnemental ({NOM_METHODE[methode]})", ""]
+    if methode == "impactia":
+        sortie.append(
+            f"Estimation en fourchette min-max, mix électrique {mix}, méthode ImpactIA **expérimentale**, d'après la PR "
+            "[EcoLogits #259](https://github.com/mlco2/ecologits/pull/259) non fusionnée (docs/impact-input-impactia.md), "
+            "sur les données [EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/) du 2026-10-14."
+        )
+    else:
+        sortie.append(
+            f"Estimation en fourchette min-max, mix électrique {mix}, méthodologie "
+            "[EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/) (données du 2026-10-14)."
+        )
     sortie.append("")
     sortie.append("| Périmètre | Énergie | GWP (usage + fabrication) | Eau |")
     sortie.append("|---|---|---|---|")
@@ -596,8 +660,7 @@ def resume(
         "",
         "Mises en garde :",
         "",
-        "- Seuls les tokens de **sortie** comptent, comme dans EcoLogits : ni l'entrée ni le cache n'ont d'impact dans ce modèle. "
-        "Or le cache fait environ 85 % du coût en dollars : l'empreinte n'est pas proportionnelle au coût.",
+        MISE_EN_GARDE_ENTREE[methode],
         "- La réflexion masquée n'est pas dans les tokens comptés : l'estimation est une borne basse.",
         "- Les paramètres des modèles Anthropic ne sont pas publiés ; EcoLogits les estime et le signale "
         "(avertissement « architecture non publiée »), d'où la fourchette. "

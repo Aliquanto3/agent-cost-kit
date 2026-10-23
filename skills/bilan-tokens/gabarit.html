@@ -177,7 +177,7 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
       <button type="button" id="t-all">Tout déplier</button>
     </div>
     <div class="table-box"><table id="tbl"></table></div>
-    <p class="hint">Les fourchettes d'impact (bas – haut) reflètent l'incertitude d'EcoLogits sur la taille des modèles et l'efficacité des centres de données.</p>
+    <p class="hint" id="p-hint-impact"></p>
   </div>
 </section>
 
@@ -212,14 +212,14 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
         <div style="overflow-x:auto"><table class="price" id="tbl-prix"></table></div>
         <p id="p-long-contexte"></p>
         <p>Le résultat est un <b>équivalent API</b> : sous abonnement, la dépense réelle est différente.</p>
-        <p><b>🌍 Impact.</b> Méthode <a href="https://ecologits.ai/latest/methodology/llm_inference/">EcoLogits</a> : énergie des GPU et du serveur selon la taille estimée du modèle, PUE et consommation d'eau des centres de données, mix électrique <span id="p-mix"></span>, fabrication du matériel incluse dans le carbone. Seule la <b>génération de l'output</b> est comptée, pas le traitement de l'input : l'impact réel est plus élevé.</p>
+        <p id="p-impact"></p>
         <p><b>⚠️ Périmètre.</b> <span id="p-limite"></span></p>
       </div>
     </details>
   </div>
 </section>
 
-<footer><div class="container"><span id="footer-date">Bilan Claude Code</span><span>Calcul : agent-cost-kit · impact : EcoLogits</span></div></footer>
+<footer><div class="container"><span id="footer-date">Bilan Claude Code</span><span id="footer-methode">Calcul : agent-cost-kit</span></div></footer>
 
 <script>
 const BILAN=/*__BILAN__*/null;
@@ -371,7 +371,19 @@ const avecSeuil=Object.entries(BILAN.prix).filter(([,p])=>p.long_contexte);
 document.getElementById("p-long-contexte").innerHTML=avecSeuil.length
   ?avecSeuil.map(([id,p])=>`Au-delà de ${tok(p.long_contexte.seuil_tokens)} tokens de contexte, <b>${nomAffiche(id).nom}</b> est facturé ×${p.long_contexte.facteur}.`).join(" ")
   :"";
-document.getElementById("p-mix").textContent=BILAN.mix||"—";
+// --- Méthode d'impact : un bilan sans champ « methode » (avant 0.9.0) a été calculé en EcoLogits ---
+const METHODE=BILAN.methode||"ecologits";
+const MIX_TXT=esc(BILAN.mix||"—");
+const ECOLOGITS_LIEN=`<a href="https://ecologits.ai/latest/methodology/llm_inference/">EcoLogits</a>`;
+if(METHODE==="impactia"){
+  document.getElementById("p-hint-impact").textContent="Les fourchettes d'impact (bas – haut) reflètent surtout le cache : la lecture du cache compte pour zéro en bas de fourchette et comme un input complet en haut ; s'y ajoutent l'incertitude sur la taille des modèles et l'efficacité des centres de données.";
+  document.getElementById("p-impact").innerHTML=`<b>🌍 Impact.</b> Méthode ImpactIA, <b>expérimentale</b> : d'après la <a href="https://github.com/mlco2/ecologits/pull/259">PR EcoLogits #259</a>, non fusionnée (méthode <a href="https://github.com/SNCFdevelopers/ImpactIA">Impact'IA</a> de SNCF, Wavestone et Resilio), sur les données ${ECOLOGITS_LIEN}. L'<b>input est compté</b> : sa durée de traitement (prefill) croît avec le nombre de tokens et s'ajoute à celle de la génération, pour le serveur, le réseau du centre de données et la fabrication du matériel ; l'énergie des GPU reste celle de la génération de l'output. Input non caché et écriture du cache : traitement complet. Lecture du cache : zéro en bas de fourchette (le cache n'est pas recalculé), traitement complet en haut. Mix électrique ${MIX_TXT}, fabrication du matériel, du réseau et du bâtiment incluse dans le carbone.`;
+  document.getElementById("footer-methode").textContent="Calcul : agent-cost-kit · impact : ImpactIA (expérimental, PR EcoLogits #259)";
+}else{
+  document.getElementById("p-hint-impact").textContent="Les fourchettes d'impact (bas – haut) reflètent l'incertitude d'EcoLogits sur la taille des modèles et l'efficacité des centres de données.";
+  document.getElementById("p-impact").innerHTML=`<b>🌍 Impact.</b> Méthode ${ECOLOGITS_LIEN} : énergie des GPU et du serveur selon la taille estimée du modèle, PUE et consommation d'eau des centres de données, mix électrique ${MIX_TXT}, fabrication du matériel incluse dans le carbone. Seule la <b>génération de l'output</b> est comptée, pas le traitement de l'input : c'est une borne basse, l'impact réel est plus élevé.`;
+  document.getElementById("footer-methode").textContent="Calcul : agent-cost-kit · impact : EcoLogits (output seul)";
+}
 document.getElementById("p-limite").innerHTML=MULTI
   ?`Plusieurs PC consolidés : ${esc(MACHINES.join(", "))}.`
   :`Ce PC uniquement (<b>${esc(BILAN.machine)}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`;

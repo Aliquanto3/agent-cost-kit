@@ -20,7 +20,7 @@ export type Historique = {
 }
 
 type Usage = Record<string, unknown>
-const nombre = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
+export const nombre = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
 
 /**
  * Un appel par `message.id` : une même réponse occupe plusieurs lignes (un bloc par ligne), on garde

@@ -2,7 +2,9 @@
 
 Réutilise ``mesurer_couts.py`` (appels, couts, impact_appels, prix, MIX_DEFAUT, GRANDEURS,
 ECRITURE, dossier_transcriptions) : ce script ne redéfinit aucune table de prix ni aucun
-coefficient EcoLogits.
+coefficient d'impact. ``--methode`` (défaut ``impactia``, expérimental, entrée comptée ; ``ecologits`` :
+sortie seule) est écrite dans le JSON (champ ``methode``) ; la fusion refuse des méthodes différentes.
+Un bilan sans champ ``methode`` (avant 0.9.0) a été calculé en ``ecologits``.
 
 Deux modes :
 
@@ -76,7 +78,7 @@ def collecter(projets: list[Path], mois: str) -> list[dict]:
     return retenus
 
 
-def par_modele(appels_retenus: list[dict], mix: str) -> list[dict]:
+def par_modele(appels_retenus: list[dict], mix: str, methode: str = mc.METHODE_DEFAUT) -> list[dict]:
     """Un bloc par modèle (identifiant complet), dans l'ordre d'apparition."""
     ordre: list[str] = []
     groupes: dict[str, list[dict]] = {}
@@ -88,7 +90,7 @@ def par_modele(appels_retenus: list[dict], mix: str) -> list[dict]:
     for modele in ordre:
         liste = sorted(groupes[modele], key=lambda a: mc.instant(a["ts"]))
         c = mc.couts(liste)
-        imp = mc.impact_appels(liste, mix)
+        imp = mc.impact_appels(liste, mix, methode)
         entree = sum(a["entree"] for a in liste)
         ecrit_5m = sum(a["ecrit_5m"] for a in liste)
         ecrit_1h = sum(a["ecrit_1h"] for a in liste)
@@ -218,7 +220,7 @@ def commande_collecte(options) -> int:
     if not retenus:
         print(f"Aucun appel pour {mois}.", file=sys.stderr)
         return 1
-    modeles = par_modele(retenus, options.mix)
+    modeles = par_modele(retenus, options.mix, options.methode)
     bilan = {
         "schema": SCHEMA,
         "machine": options.machine,
@@ -228,6 +230,7 @@ def commande_collecte(options) -> int:
         "premier_appel": retenus[0]["ts"],
         "dernier_appel": retenus[-1]["ts"],
         "mix": options.mix,
+        "methode": options.methode,
         "modeles": modeles,
         "prix": table_prix([m["modele"] for m in modeles]),
     }
@@ -263,6 +266,9 @@ def commande_fusion(options) -> int:
     mixes = {b.get("mix", mc.MIX_DEFAUT) for b in bilans}
     if len(mixes) > 1:
         sys.exit(f"Mix électriques différents dans les bilans à fusionner : {sorted(mixes)}.")
+    methodes = {b.get("methode", "ecologits") for b in bilans}
+    if len(methodes) > 1:
+        sys.exit(f"Méthodes d'impact différentes dans les bilans à fusionner : {sorted(methodes)}. Recalculez-les avec la même --methode.")
     dossiers = [b.get("dossier") for b in bilans]
     if None in dossiers and any(dossiers):
         sys.exit(f"Portées différentes : certains bilans couvrent tous les projets, d'autres un dossier ({dossiers}).")
@@ -281,6 +287,7 @@ def commande_fusion(options) -> int:
         "dernier_appel": max(b["dernier_appel"] for b in bilans),
         "dossier": " ; ".join(distincts) if distincts else None,
         "mix": mixes.pop(),
+        "methode": methodes.pop(),
         "machines": machines,
         "par_machine": [
             {"machine": b["machine"], **totaux_machine(b["modeles"])} for b in bilans
@@ -307,6 +314,8 @@ def main() -> int:
     analyseur.add_argument("--machine", default=platform.node())
     analyseur.add_argument("--out", type=Path, default=Path.home() / ".claude" / "cost-kit" / "bilans")
     analyseur.add_argument("--mix", choices=sorted(mc.MIX), default=mc.MIX_DEFAUT)
+    analyseur.add_argument("--methode", choices=mc.METHODES, default=mc.METHODE_DEFAUT,
+                           help="méthode d'impact : impactia (défaut, entrée comptée, expérimental) ou ecologits (sortie seule)")
     analyseur.add_argument("--fusionner", nargs="+", metavar="JSON", help="fusionne ces bilans (une machine chacun) au lieu de collecter")
     options = analyseur.parse_args()
     if options.fusionner:

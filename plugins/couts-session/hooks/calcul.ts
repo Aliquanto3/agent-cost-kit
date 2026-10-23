@@ -3,6 +3,11 @@ import { TARIFS } from './tarifs'
 
 const PRIX = TARIFS.prix
 const ECO = TARIFS.ecologits
+const IMP = TARIFS.impactia
+
+/** impactia (défaut, expérimental, PR EcoLogits #259) : entrée comptée ; ecologits : sortie seule. */
+export type Methode = 'impactia' | 'ecologits'
+export const METHODE: Methode = TARIFS.impact_methode_par_defaut
 
 export const VIDE: Compteurs = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
@@ -71,29 +76,53 @@ export function parametres(modele: string): Parametres {
   return (familles[famille(modele) ?? ECO.famille_par_defaut] ?? familles[ECO.famille_par_defaut]) as Parametres
 }
 
+/** TTFT médian (s) : plus long préfixe, sinon famille, sinon famille par défaut (comme mesurer_couts.py). */
+export function ttft(modele: string): number {
+  const table: Record<string, number> = IMP.ttft_s
+  const candidats = Object.keys(table).filter(cle => modele.startsWith(cle))
+  if (candidats.length > 0) return table[candidats.reduce((a, b) => (b.length > a.length ? b : a))] as number
+  const familles: Record<string, number> = IMP.ttft_famille_s
+  return (familles[famille(modele) ?? ECO.famille_par_defaut] ?? familles[ECO.famille_par_defaut]) as number
+}
+
 export type Fourchette = { min: number; max: number }
 export type Impact = { energieWh: Fourchette; gco2e: Fourchette }
 
-/** Impact de `sortie` tokens générés, méthode EcoLogits reprise de mesurer_couts.py (mix USA). */
-export function impact(modele: string, sortie: number): Impact {
+/**
+ * Impact des tokens `c` de `modele`, calcul de mesurer_couts.py (mix USA). impactia : l'entrée et l'écriture
+ * du cache allongent la durée (prefill complet), la lecture du cache compte 0 en borne basse et un prefill
+ * complet en borne haute ; plus le réseau et le bâtiment. Les cumuls ne disent pas le nombre d'appels :
+ * l'ordonnée de 17,88 ms par appel est omise (0,5 à 0,7 % du prefill d'un appel de 10 k tokens d'entrée, moins de 0,1 % à 100 k). ecologits : sortie seule.
+ */
+export function impact(modele: string, c: Compteurs, methode: Methode = METHODE): Impact {
+  const sortie = c.output
   const mix = ECO.mix[ECO.mix_par_defaut]
   const [tMin, tMax, aMin, aMax] = parametres(modele)
   const [alpha, beta, gamma] = ECO.gpu_energie_wh_par_token
   const [la, lb, lg] = ECO.gpu_latence_s_par_token
   const lot = ECO.lot
-  const borne = (total: number, actif: number, pue: number) => {
+  const impactia = methode === 'impactia'
+  const coef = impactia ? (IMP.prefill_coef_ref_s_par_token * ttft(modele)) / IMP.prefill_ttft_ref_s : 0
+  const entree = c.input + c.cacheWrite
+  const reseau = impactia ? IMP.reseau_puissance_w : 0
+  const borne = (total: number, actif: number, pue: number, prefill: number) => {
     const fEnergie = alpha * Math.exp(beta * lot) * actif + gamma
-    const duree = sortie * (la * actif + lb * lot + lg)
+    const duree = sortie * (la * actif + lb * lot + lg) + prefill
     const gpus = 2 ** Math.ceil(Math.log2(Math.max(1, Math.ceil((1.2 * total * 16) / 8 / ECO.gpu_memoire_go))))
     const part = gpus / ECO.serveur_gpus
-    const eTiWh = (duree / 3600) * ECO.serveur_puissance_w * part / lot + gpus * sortie * fEnergie
+    const eTiWh = (duree / 3600) * (ECO.serveur_puissance_w + reseau) * part / lot + gpus * sortie * fEnergie
     const eWh = pue * eTiWh
-    const fab =
+    let fab =
       (duree / (lot * ECO.duree_vie_s)) * (part * ECO.fabrication_serveur.kgco2e + gpus * ECO.fabrication_gpu.kgco2e)
+    if (impactia) {
+      fab +=
+        (duree / (lot * IMP.reseau_duree_vie_s)) * part * IMP.reseau_fabrication_kgco2e +
+        (eTiWh / 1000) * IMP.batiment_kgco2e_par_kwh
+    }
     return { eWh, g: ((eWh / 1000) * mix.kgco2e + fab) * 1000 }
   }
-  const bas = borne(tMin, aMin, ECO.pue[0])
-  const haut = borne(tMax, aMax, ECO.pue[1])
+  const bas = borne(tMin, aMin, ECO.pue[0], coef * entree)
+  const haut = borne(tMax, aMax, ECO.pue[1], coef * (entree + c.cacheRead))
   return { energieWh: { min: bas.eWh, max: haut.eWh }, gco2e: { min: bas.g, max: haut.g } }
 }
 
@@ -112,7 +141,7 @@ export function bilan(modeles: Record<string, Compteurs>) {
     tokens += totalTokens(c)
     lus += c.input + c.cacheRead + c.cacheWrite
     ecrits += c.output
-    const i = impact(modele, c.output)
+    const i = impact(modele, c)
     g.min += i.gco2e.min
     g.max += i.gco2e.max
   }

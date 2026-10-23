@@ -13,7 +13,7 @@
     {
       "name": "couts-session",
       "source": "./plugins/couts-session",
-      "description": "Mod : bande au-dessus du prompt avec le coût API estimé, les tokens et l'impact carbone estimé (EcoLogits) de la session, par modèle et par sous-agent, et le remplissage du contexte."
+      "description": "Mod : bande au-dessus du prompt avec le coût API estimé, les tokens et l'impact carbone estimé (ImpactIA expérimental, entrée comptée) de la session, par modèle et par sous-agent, et le remplissage du contexte."
     }
   ]
 }

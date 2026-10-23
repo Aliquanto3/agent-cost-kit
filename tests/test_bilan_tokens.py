@@ -109,7 +109,7 @@ def test_par_modele_agrege_et_cout_sans_cache(racine):
 def test_commande_collecte_ecrit_json_et_html(racine, tmp_path):
     racine_, depot_a, _ = racine
     out = tmp_path / "out"
-    options = Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc-test", out=out, mix=mc.MIX_DEFAUT)
+    options = Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc-test", out=out, mix=mc.MIX_DEFAUT, methode=mc.METHODE_DEFAUT)
     assert bt.commande_collecte(options) == 0
     chemin_json = out / "2026-10-pc-test.json"
     chemin_html = out / "2026-10-pc-test.html"
@@ -122,6 +122,7 @@ def test_commande_collecte_ecrit_json_et_html(racine, tmp_path):
     assert bilan["dernier_appel"] == "2026-10-03T09:00:00Z"
     assert {m["modele"] for m in bilan["modeles"]} == {"claude-opus-5-5", "claude-sonnet-5-5"}
     assert "claude-opus-5-5" in bilan["prix"]
+    assert bilan["methode"] == "impactia"
 
     html = chemin_html.read_text(encoding="utf-8")
     assert "__BILAN__" not in html
@@ -132,8 +133,8 @@ def test_commande_collecte_ecrit_json_et_html(racine, tmp_path):
 def test_fusion_somme_deux_machines(racine, tmp_path):
     racine_, depot_a, _ = racine
     out1, out2, out_fusion = tmp_path / "pc1", tmp_path / "pc2", tmp_path / "fusion"
-    bt.commande_collecte(Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc1", out=out1, mix=mc.MIX_DEFAUT))
-    bt.commande_collecte(Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc2", out=out2, mix=mc.MIX_DEFAUT))
+    bt.commande_collecte(Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc1", out=out1, mix=mc.MIX_DEFAUT, methode=mc.METHODE_DEFAUT))
+    bt.commande_collecte(Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc2", out=out2, mix=mc.MIX_DEFAUT, methode=mc.METHODE_DEFAUT))
     j1, j2 = out1 / "2026-10-pc1.json", out2 / "2026-10-pc2.json"
 
     options = Namespace(fusionner=[str(j1), str(j2)], out=out_fusion)
@@ -237,3 +238,17 @@ def test_fusion_porte_la_portee_et_refuse_portee_ou_mix_differents(tmp_path):
     autre_mix = _bilan_min(tmp_path, "pc4", dossier="C:/depot", mix=next(m for m in mc.MIX if m != mc.MIX_DEFAUT))
     with pytest.raises(SystemExit):
         bt.commande_fusion(Namespace(fusionner=[a, autre_mix], out=tmp_path / "ko2"))
+
+
+def test_fusion_refuse_des_methodes_differentes(tmp_path):
+    a = _bilan_min(tmp_path, "pc1", methode="impactia")
+    b = _bilan_min(tmp_path, "pc2", methode="ecologits")
+    with pytest.raises(SystemExit, match="Méthodes"):
+        bt.commande_fusion(Namespace(fusionner=[a, b], out=tmp_path / "ko"))
+    # Un bilan d'avant 0.9.0 (sans champ methode) a été calculé en ecologits.
+    ancien = _bilan_min(tmp_path, "pc3")
+    assert bt.commande_fusion(Namespace(fusionner=[b, ancien], out=tmp_path / "ok")) == 0
+    consolide = json.loads((tmp_path / "ok" / "2026-10-consolide.json").read_text(encoding="utf-8"))
+    assert consolide["methode"] == "ecologits"
+    with pytest.raises(SystemExit):
+        bt.commande_fusion(Namespace(fusionner=[a, ancien], out=tmp_path / "ko2"))
