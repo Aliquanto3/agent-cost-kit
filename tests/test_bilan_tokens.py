@@ -173,3 +173,67 @@ def test_fusion_refuse_mois_differents_et_machine_en_double(tmp_path):
         bt.commande_fusion(Namespace(fusionner=[str(a), str(b_autre_mois)], out=tmp_path / "out1"))
     with pytest.raises(SystemExit):
         bt.commande_fusion(Namespace(fusionner=[str(a), str(b_meme_machine)], out=tmp_path / "out2"))
+
+
+def test_projets_retenus_exclut_un_dossier_frere(tmp_path):
+    racine_ = tmp_path / "projects"
+    depot = Path("C:/depot/projetA") if sys.platform == "win32" else Path("/depot/projetA")
+    soi = mc.dossier_transcriptions(depot, racine_)
+    sous = mc.dossier_transcriptions(depot / "sous", racine_)
+    frere = mc.dossier_transcriptions(depot.parent / "projetA2", racine_)
+    for d in (soi, sous, frere):
+        d.mkdir(parents=True)
+    noms = {d.name for d in bt.projets_retenus(racine_, depot)}
+    assert noms == {soi.name, sous.name}
+
+
+def test_cout_sans_cache_applique_long_contexte_et_geo_us():
+    base = {"ts": "2026-10-01T10:00:00Z", "ecrit_5m": 0, "ecrit_1h": 0, "sortie": 0, "sortie_declaree": 0, "caracteres": 0}
+    appels = [
+        # Haiku 5.5 : 0,10 $/Mtok, x5 au-delà de 100 k de prompt.
+        {**base, "id": "h1", "modele": "claude-haiku-5-5", "entree": 50_000, "lu": 100_000, "geo": "global"},
+        {**base, "id": "h2", "modele": "claude-haiku-5-5", "entree": 50_000, "lu": 0, "geo": "global"},
+        # Opus 5.5 en inférence US.
+        {**base, "id": "o1", "modele": "claude-opus-5-5", "entree": 1_000_000, "lu": 0, "geo": "us"},
+    ]
+    blocs = {m["modele"]: m for m in bt.par_modele(appels, mc.MIX_DEFAUT)}
+    assert blocs["claude-haiku-5-5"]["cout_sans_cache"] == pytest.approx(150_000 * 0.1 * 5 / 1e6 + 50_000 * 0.1 / 1e6)
+    opus = mc.prix("claude-opus-5-5")["entree"]
+    assert blocs["claude-opus-5-5"]["cout_sans_cache"] == pytest.approx(opus * mc.GEO_US_FACTEUR)
+    assert mc.GEO_US_FACTEUR > 1
+
+
+def test_html_echappe_la_fermeture_de_script(tmp_path):
+    bilan = {"schema": 1, "machine": "pc</script><b>x", "mois": "2026-10", "dossier": None, "modeles": []}
+    chemin = tmp_path / "b.html"
+    bt.ecrire_html(bilan, chemin)
+    html = chemin.read_text(encoding="utf-8")
+    assert html.count("</script>") == bt.GABARIT.read_text(encoding="utf-8").count("</script>")
+    assert r"pc<\/script>" in html
+    assert html.startswith('<meta charset="utf-8">')
+
+
+def _bilan_min(tmp_path, nom, **champs):
+    base = {
+        "schema": 1, "machine": nom, "mois": "2026-10", "dossier": None,
+        "genere_le": "2026-10-23T00:00:00+00:00", "premier_appel": "2026-10-01T00:00:00Z",
+        "dernier_appel": "2026-10-01T00:00:00Z", "mix": mc.MIX_DEFAUT, "modeles": [], "prix": {},
+    }
+    chemin = tmp_path / f"{nom}.json"
+    chemin.write_text(json.dumps({**base, **champs}), encoding="utf-8")
+    return str(chemin)
+
+
+def test_fusion_porte_la_portee_et_refuse_portee_ou_mix_differents(tmp_path):
+    a = _bilan_min(tmp_path, "pc1", dossier="C:/depot")
+    b = _bilan_min(tmp_path, "pc2", dossier="C:/depot")
+    assert bt.commande_fusion(Namespace(fusionner=[a, b], out=tmp_path / "ok")) == 0
+    consolide = json.loads((tmp_path / "ok" / "2026-10-consolide.json").read_text(encoding="utf-8"))
+    assert consolide["dossier"] == "C:/depot"
+
+    tous = _bilan_min(tmp_path, "pc3")
+    with pytest.raises(SystemExit):
+        bt.commande_fusion(Namespace(fusionner=[a, tous], out=tmp_path / "ko1"))
+    autre_mix = _bilan_min(tmp_path, "pc4", dossier="C:/depot", mix=next(m for m in mc.MIX if m != mc.MIX_DEFAUT))
+    with pytest.raises(SystemExit):
+        bt.commande_fusion(Namespace(fusionner=[a, autre_mix], out=tmp_path / "ko2"))

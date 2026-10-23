@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Bilan tokens</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap">
@@ -223,12 +224,14 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
 <script>
 const BILAN=/*__BILAN__*/null;
 
+// Échappement des textes venus du JSON (chemin, nom de machine, identifiant de modèle) avant innerHTML.
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);}
 // --- Dérivation du nom et de la couleur d'affichage depuis l'identifiant du modèle ---
 const HUES={opus:262,sonnet:142,haiku:42,fable:265,mythos:320};
 function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
 function nomAffiche(id){
   const m=/claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?/.exec(id);
-  if(!m)return{nom:id,fam:null,col:"hsl(220 10% 55%)"};
+  if(!m)return{nom:esc(id),fam:null,col:"hsl(220 10% 55%)"};
   const fam=m[1],maj=fam[0].toUpperCase()+fam.slice(1),ver=m[3]!=null?`${m[2]}.${m[3]}`:m[2];
   const hue=HUES[fam]!=null?HUES[fam]:220,light=38+(hashStr(id)%28);
   return{nom:`${maj} ${ver}`,fam,col:`hsl(${hue} 62% ${light}%)`};
@@ -250,7 +253,7 @@ const ROWS=BILAN.modeles.map(flat);
 const TOTAL=sommer(ROWS);
 const MACHINES=Array.isArray(BILAN.machines)?BILAN.machines:[BILAN.machine];
 const MULTI=MACHINES.length>1;
-const MACHINE_ROWS=MULTI&&Array.isArray(BILAN.par_machine)?BILAN.par_machine.map(m=>({nom:"💻 "+m.machine,col:"hsl(220 10% 55%)",appels:m.appels,entree:m.entree,e5:m.ecrit_5m,e1:m.ecrit_1h,lu:m.lu,
+const MACHINE_ROWS=MULTI&&Array.isArray(BILAN.par_machine)?BILAN.par_machine.map(m=>({nom:"💻 "+esc(m.machine),col:"hsl(220 10% 55%)",appels:m.appels,entree:m.entree,e5:m.ecrit_5m,e1:m.ecrit_1h,lu:m.lu,
   inTot:m.entree+m.ecrit_5m+m.ecrit_1h+m.lu,outDecl:m.sortie_declaree,out:m.sortie,
   cIn:m.cout.entree,cEc:m.cout.ecriture,cLu:m.cout.lecture,cOut:m.cout.sortie,
   cTot:m.cout.entree+m.cout.ecriture+m.cout.lecture+m.cout.sortie,cSansCache:m.cout_sans_cache,
@@ -330,8 +333,8 @@ document.addEventListener("click",e=>{
 document.title=`Bilan tokens ${moisTexte(BILAN.mois)}`;
 const debut=jourMoisAnnee(BILAN.premier_appel),fin=jourMoisAnnee(BILAN.dernier_appel);
 const periode=(debut.jour===1?"1ᵉʳ":debut.jour)+" au "+fin.jour+" "+moisTexte(BILAN.mois);
-const lieu=BILAN.dossier?`<b>${BILAN.dossier}</b>`:"tous les projets";
-const machineTxt=MULTI?`${MACHINES.length} PC (${MACHINES.join(", ")})`:`le PC <b>${BILAN.machine}</b>`;
+const lieu=BILAN.dossier?`<b>${esc(BILAN.dossier)}</b>`:"tous les projets";
+const machineTxt=MULTI?`${MACHINES.length} PC (${esc(MACHINES.join(", "))})`:`le PC <b>${esc(BILAN.machine)}</b>`;
 document.getElementById("eyebrow").textContent=`01 — Bilan Claude Code · ${moisTexte(BILAN.mois)}`;
 document.getElementById("h-in").textContent=tok(TOTAL.inTot);
 document.getElementById("h-out").textContent=tok(TOTAL.out);
@@ -359,7 +362,7 @@ const coutReel=TOTAL.cIn+TOTAL.cEc+TOTAL.cLu;
 document.getElementById("p-cache-rapporte").innerHTML=TOTAL.cSansCache>coutReel
   ?`<b>Ce que le cache rapporte.</b> Sans lui, cet input aurait coûté environ <b>${usd(TOTAL.cSansCache)}</b> au lieu d'environ ${usd(coutReel)}. Mais la relecture reste souvent le premier poste de dépense : plus une session est longue, plus chaque tour relit d'historique. D'où l'intérêt de <code>/clear</code> entre deux tâches et de sous-agents à contexte court.`
   :`<b>Coût sans cache.</b> Input non caché, écriture et lecture valent ensemble environ ${usd(coutReel)}.`;
-document.getElementById("p-perimetre-dossier").innerHTML=BILAN.dossier?`Limité à <code>${BILAN.dossier}</code> et ses sous-dossiers.`:"Tous les projets du compte.";
+document.getElementById("p-perimetre-dossier").innerHTML=BILAN.dossier?`Limité à <code>${esc(BILAN.dossier)}</code> et ses sous-dossiers.`:"Tous les projets du compte.";
 document.getElementById("p-output-reestime").innerHTML=`<b>📤 Output réestimé.</b> Les transcriptions sous-déclarent parfois l'output (réflexion et appels d'outils). Le calcul garde la plus grande de deux valeurs : l'output déclaré, ou le texte réellement produit divisé par 2,2 caractères par token. Cela fait passer l'output déclaré de ${tok(TOTAL.outDecl)} à ${tok(TOTAL.out)} tokens.`;
 const lignesPrix=Object.entries(BILAN.prix).map(([id,p])=>{const na=nomAffiche(id);
   return`<tr><td>${na.nom}</td><td>${usd(p.entree)}</td><td>${usd(p.ecriture_5m)} / ${usd(p.ecriture_1h)}</td><td>${usd(p.lecture)}</td><td>${usd(p.sortie)}</td></tr>`;});
@@ -370,8 +373,8 @@ document.getElementById("p-long-contexte").innerHTML=avecSeuil.length
   :"";
 document.getElementById("p-mix").textContent=BILAN.mix||"—";
 document.getElementById("p-limite").innerHTML=MULTI
-  ?`Plusieurs PC consolidés : ${MACHINES.join(", ")}.`
-  :`Ce PC uniquement (<b>${BILAN.machine}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`;
+  ?`Plusieurs PC consolidés : ${esc(MACHINES.join(", "))}.`
+  :`Ce PC uniquement (<b>${esc(BILAN.machine)}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`;
 
 // --- Pied de page ---
 const genere=new Date(BILAN.genere_le);

@@ -33,12 +33,13 @@ import argparse
 import json
 import platform
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import mesurer_couts as mc
 
+UTC = timezone.utc  # noqa: UP017 - datetime.UTC n'existe qu'à partir de Python 3.11
 SCHEMA = 1
 GABARIT = Path(__file__).resolve().parent.parent / "skills" / "bilan-tokens" / "gabarit.html"
 PLACEHOLDER = "const BILAN=/*__BILAN__*/null;"
@@ -55,14 +56,15 @@ def projets_retenus(racine: Path, dossier: Path | None) -> list[Path]:
     if dossier is None:
         return [d for d in racine.iterdir() if d.is_dir()]
     prefixe = mc.dossier_transcriptions(dossier, racine).name
-    return [d for d in racine.iterdir() if d.is_dir() and d.name.startswith(prefixe)]
+    # Le dossier lui-même ou un sous-dossier (séparateur encodé en « - ») : pas un frère comme GitHub2.
+    return [d for d in racine.iterdir() if d.is_dir() and (d.name == prefixe or d.name.startswith(prefixe + "-"))]
 
 
 def collecter(projets: list[Path], mois: str) -> list[dict]:
     """Tous les appels des ``*.jsonl`` de ``projets`` (sous-agents compris), dédoublonnés et filtrés sur ``mois``."""
     bruts: list[dict] = []
-    for projet in projets:
-        for chemin in projet.rglob("*.jsonl"):
+    for projet in sorted(projets):
+        for chemin in sorted(projet.rglob("*.jsonl")):
             bruts.extend(mc.appels(chemin))
     bruts = [a for a in bruts if a["id"] != "<synthetic>"]
     bruts.sort(key=lambda a: mc.instant(a["ts"]))
@@ -91,7 +93,11 @@ def par_modele(appels_retenus: list[dict], mix: str) -> list[dict]:
         ecrit_5m = sum(a["ecrit_5m"] for a in liste)
         ecrit_1h = sum(a["ecrit_1h"] for a in liste)
         lu = sum(a["lu"] for a in liste)
-        tarif = mc.prix(modele)
+        # Sans cache : tout l'input au prix de base, avec les mêmes majorations que mc.couts
+        # (long contexte, inférence US), appel par appel.
+        sans_cache = mc.couts(
+            [{**a, "entree": a["entree"] + a["ecrit_5m"] + a["ecrit_1h"] + a["lu"], "ecrit_5m": 0, "ecrit_1h": 0, "lu": 0} for a in liste]
+        )["parts"]["entree"]
         resultat.append(
             {
                 "modele": modele,
@@ -103,7 +109,7 @@ def par_modele(appels_retenus: list[dict], mix: str) -> list[dict]:
                 "sortie_declaree": sum(a["sortie_declaree"] for a in liste),
                 "sortie": sum(a["sortie"] for a in liste),
                 "cout": {k: round(v, 6) for k, v in c["parts"].items()},
-                "cout_sans_cache": round((entree + ecrit_5m + ecrit_1h + lu) * tarif["entree"] / 1e6, 6),
+                "cout_sans_cache": round(sans_cache, 6),
                 "impact": {g: [imp[g]["min"], imp[g]["max"]] for g in mc.GRANDEURS},
             }
         )
@@ -254,6 +260,13 @@ def commande_fusion(options) -> int:
     machines = [b["machine"] for b in bilans]
     if len(set(machines)) != len(machines):
         sys.exit(f"Machine présente plusieurs fois : {machines}.")
+    mixes = {b.get("mix", mc.MIX_DEFAUT) for b in bilans}
+    if len(mixes) > 1:
+        sys.exit(f"Mix électriques différents dans les bilans à fusionner : {sorted(mixes)}.")
+    dossiers = [b.get("dossier") for b in bilans]
+    if None in dossiers and any(dossiers):
+        sys.exit(f"Portées différentes : certains bilans couvrent tous les projets, d'autres un dossier ({dossiers}).")
+    distincts = sorted({d for d in dossiers if d})
     mois_unique = next(iter(mois))
     options.out.mkdir(parents=True, exist_ok=True)
     modeles = sommer_blocs([b["modeles"] for b in bilans])
@@ -266,7 +279,8 @@ def commande_fusion(options) -> int:
         "genere_le": datetime.now(UTC).isoformat(timespec="seconds"),
         "premier_appel": min(b["premier_appel"] for b in bilans),
         "dernier_appel": max(b["dernier_appel"] for b in bilans),
-        "mix": bilans[0].get("mix", mc.MIX_DEFAUT),
+        "dossier": " ; ".join(distincts) if distincts else None,
+        "mix": mixes.pop(),
         "machines": machines,
         "par_machine": [
             {"machine": b["machine"], **totaux_machine(b["modeles"])} for b in bilans
