@@ -1,0 +1,28 @@
+---
+name: bilan-tokens
+description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact EcoLogits) par modèle, publie une page HTML à la charte Wavestone, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
+---
+
+Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans appel d'API.
+
+1. **Collecte.** Demande le mois et le périmètre seulement s'ils ne sont pas donnés dans la demande (défaut : mois UTC courant, tous les projets). Lance :
+
+   ```
+   uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/bilan_tokens.py" --mois AAAA-MM [--dossier <chemin>]
+   ```
+
+   `--dossier` limite aux projets dont le chemin encodé commence par celui donné (lui et ses sous-dossiers). Le script écrit `<mois>-<machine>.json` et `.html` dans `~/.claude/cost-kit/bilans` (`--out` pour changer) et affiche un tableau par modèle.
+
+2. **Commentaire, 10 lignes maximum.** D'après la sortie du script : input traité (dont la part de lecture de cache), output (déclaré → réestimé), coût total et son premier poste, impact en kgCO2e (fourchette), modèle dominant, une piste d'économie (cache perdu, dossier à exclure, modèle à router vers Sonnet/Haiku).
+
+3. **Publication.** Si l'outil Artifact est disponible, publie le HTML en Artifact (titre stable du type « Bilan tokens <mois> <année> », description d'une phrase) ; sinon donne le chemin du fichier écrit.
+
+4. **Consolidation de plusieurs PC.** Rapatrie d'abord les JSON des autres PC (OneDrive, clé USB, ou un commit dans `mesures/bilans/` d'un dépôt — demande confirmation avant tout commit ou push), puis :
+
+   ```
+   uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/bilan_tokens.py" --fusionner a.json b.json ... --out <dossier>
+   ```
+
+   Le script refuse deux fichiers de mois différents ou une machine présente deux fois. Publie ensuite le `<mois>-consolide.html` comme à l'étape 3.
+
+Rappels à donner si le sujet surprend l'utilisateur : les transcriptions sont lues en local uniquement ; le coût est un équivalent au tarif public de l'API, pas la facture d'un abonnement ; l'impact environnemental ne compte que l'output généré (EcoLogits), c'est une borne basse.

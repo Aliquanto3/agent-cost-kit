@@ -32,6 +32,7 @@ Le mod exige les mods de code de Claude Code, en accès anticipé : ajoutez `"CL
 | Mod `couts-session` | Coût, tokens, contexte et carbone estimé de la session, par modèle et par sous-agent ([doc](docs/couts-session.md)). |
 | `/agent-cost-kit:mesurer-couts` | Le coût réel de chaque agent et de chaque story, relu dans vos transcriptions locales, sans appel d'API ([doc](docs/mesurer-couts.md)). |
 | `/agent-cost-kit:avancement-run` | La synthèse d'avancement d'un run autonome BMAD ([doc](docs/avancement-run.md)). |
+| `/bilan-tokens` | Le bilan mensuel des tokens par modèle (coût API équivalent, impact EcoLogits), en page HTML, avec consolidation de plusieurs PC. |
 | `bancs/` | Les protocoles pour refaire les mesures quand de nouveaux modèles sortent ([bancs/README.md](bancs/README.md)). |
 
 ## L'enchaînement par story
@@ -56,6 +57,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 
 - [Les mesures](docs/mesures.md) : corpus, revue, setup mesuré en série, ce qui dépend de votre projet, limites.
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, EcoLogits, la mise à jour quand de nouveaux modèles sortent.
+- [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC.
 - [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
 - [Historique des versions](CHANGELOG.md).
 

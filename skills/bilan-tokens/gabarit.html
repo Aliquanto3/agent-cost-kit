@@ -1,0 +1,383 @@
+<title>Bilan tokens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --ws-purple:#451DC7; --ws-purple-dark:#250F6B; --ws-purple-soft:#EDE7FE;
+  --ws-green:#04F06A; --ws-green-light:#CAFEE0; --ws-green-ink:#047a3a;
+  --ws-ink:#0a0a14; --ws-ink-soft:#4a4a5e; --ws-gray:#8a8a9e; --ws-line:#E6E6EC; --ws-cream:#F6F5FA;
+  --ws-yellow:#FFCA4A; --ws-yellow-soft:#FFF3D1; --ws-yellow-ink:#8a5a00;
+  --ws-red:#FF2A49; --ws-red-soft:#FFE4E8; --ws-red-ink:#b0152d;
+  --radius-sm:12px; --radius-md:16px; --ease:cubic-bezier(0.16,1,0.3,1);
+  --sans:'Aptos','Inter',system-ui,sans-serif; --mono:'Manrope','Inter',sans-serif;
+}
+body{background:#fff;color:var(--ws-ink);font:15px/1.55 var(--sans)}
+.progress{position:fixed;top:0;left:0;height:2px;width:0;background:var(--ws-green);z-index:50}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--ws-line)}
+.nav-in,.container{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,2rem)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
+.logo{display:flex;align-items:center}
+.logo-svg{height:22px;width:auto;display:block}
+.logo-svg path{fill:var(--ws-purple)!important}
+.nav-links{display:flex;gap:6px}
+.nav-links a{font:600 13px var(--mono);color:var(--ws-ink-soft);text-decoration:none;padding:7px 12px;border-radius:999px}
+.nav-links a:hover{background:var(--ws-purple-soft);color:var(--ws-purple)}
+.eyebrow{font:700 .78rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ws-purple)}
+section{padding-block:clamp(2.5rem,6vw,4.5rem)}
+.hero{background:var(--ws-cream);background-image:radial-gradient(var(--ws-line) 1px,transparent 1px);background-size:22px 22px}
+.hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:clamp(24px,4vw,56px);align-items:center}
+h1{font-size:clamp(2rem,4.6vw,3.6rem);line-height:1.05;letter-spacing:-.035em;font-weight:800;margin:.5rem 0 1rem;text-wrap:balance}
+h1 em{font-style:normal;color:var(--ws-purple)}
+.sub{color:var(--ws-ink-soft);font-size:1.05rem;max-width:60ch;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.kpi{background:#fff;border:1px solid var(--ws-line);border-radius:var(--radius-sm);padding:14px 16px;display:grid;gap:2px}
+.kpi .ico{font-size:20px;line-height:1}
+.kpi b{font:800 1.45rem var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--ws-ink-soft)}
+.kpi.in b{color:var(--ws-purple)} .kpi.out b{color:var(--ws-green-ink)} .kpi.cost b{color:var(--ws-yellow-ink)} .kpi.co2 b{color:var(--ws-red-ink)}
+.donut-card{background:#fff;border:1px solid var(--ws-line);border-radius:var(--radius-md);padding:20px;display:grid;gap:14px}
+.donut-card h3{margin:0;font-size:15px;letter-spacing:-.01em}
+.donut-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.donut-wrap svg{width:150px;height:150px;flex:none}
+.legend{display:grid;gap:8px;font-size:13px}
+.legend div{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.legend i{width:12px;height:12px;border-radius:3px;display:block}
+.legend b{font:700 13px var(--mono);font-variant-numeric:tabular-nums}
+.donut-card p{margin:0;font-size:12.5px;color:var(--ws-ink-soft)}
+h2{font-size:clamp(1.5rem,3vw,2.2rem);letter-spacing:-.03em;margin:.4rem 0 .6rem;font-weight:800;text-wrap:balance}
+.intro{color:var(--ws-ink-soft);max-width:72ch;margin:0 0 22px}
+.guide{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.guide div{border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--ws-ink-soft);border:1px solid transparent}
+.guide b{display:block;color:var(--ws-ink);font-size:14px;margin-bottom:2px}
+.g-in{background:var(--ws-purple-soft)} .g-out{background:var(--ws-green-light)} .g-cost{background:var(--ws-yellow-soft)} .g-imp{background:var(--ws-red-soft)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.controls .label{font:700 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ws-gray);margin-right:4px}
+button{font:600 13px var(--sans);color:var(--ws-ink);background:#fff;border:1px solid var(--ws-line);border-radius:999px;padding:7px 13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;transition:all .2s var(--ease)}
+button:hover{border-color:var(--ws-purple);color:var(--ws-purple)}
+button:focus-visible{outline:2px solid var(--ws-purple);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ws-purple);border-color:var(--ws-purple);color:#fff}
+.chev{display:inline-block;font-size:11px;transition:transform .2s var(--ease)}
+[aria-expanded="true"] .chev,[aria-pressed="true"] .chev{transform:rotate(90deg)}
+.table-box{overflow-x:auto;border:1px solid var(--ws-line);border-radius:var(--radius-md);background:#fff}
+table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--ws-line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;z-index:1;background:#fff;border-right:1px solid var(--ws-line)}
+thead th{font-weight:600;font-size:12.5px;color:var(--ws-ink);vertical-align:bottom}
+thead tr.groups th{padding-block:10px 8px;text-align:left}
+thead tr.groups th button{border:none;background:none;padding:0;font:800 13px var(--mono);letter-spacing:.04em;color:inherit;border-radius:4px}
+.unit{font:500 11px var(--sans);color:var(--ws-ink-soft);display:block;margin-top:2px}
+.c-in{background:var(--ws-purple-soft)} .c-in.det{background:#f6f3ff}
+.c-out{background:var(--ws-green-light)} .c-out.det{background:#e9fff2}
+.c-cost{background:var(--ws-yellow-soft)} .c-cost.det{background:#fffaeb}
+.c-imp{background:var(--ws-red-soft)} .c-imp.det{background:#fff4f6}
+tr.groups .c-in{color:var(--ws-purple)} tr.groups .c-out{color:var(--ws-green-ink)} tr.groups .c-cost{color:var(--ws-yellow-ink)} tr.groups .c-imp{color:var(--ws-red-ink)}
+th.g-start,td.g-start{border-left:2px solid #fff}
+td{font:600 13.5px var(--mono)}
+td.det{font-weight:500;color:var(--ws-ink-soft)}
+td.name{font:600 14px var(--sans)}
+tbody tr.total td{font-weight:800;font-size:14.5px;border-bottom:2px solid var(--ws-line)}
+tbody tr.total td.name button{font:800 14.5px var(--sans);border:none;background:none;padding:0}
+tbody tr.model td.name{padding-left:26px}
+tbody tr.machine td.name{padding-left:26px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.share{display:block;font:500 11px var(--sans);color:var(--ws-ink-soft)}
+.hint{font-size:12.5px;color:var(--ws-gray);margin:10px 0 0}
+.explain{background:var(--ws-cream)}
+details{background:#fff;border:1px solid var(--ws-line);border-radius:var(--radius-md);margin-top:12px}
+details[open]{border-color:var(--ws-purple)}
+summary{cursor:pointer;list-style:none;padding:16px 20px;font-weight:700;font-size:15.5px;display:flex;gap:10px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";margin-left:auto;font:700 20px var(--mono);color:var(--ws-purple);transition:transform .25s var(--ease)}
+details[open] summary::after{transform:rotate(45deg)}
+summary:focus-visible{outline:2px solid var(--ws-purple);outline-offset:2px;border-radius:var(--radius-md)}
+.body{padding:0 20px 20px;display:grid;gap:12px;color:var(--ws-ink-soft);max-width:82ch}
+.body p{margin:0}
+.body b{color:var(--ws-ink)}
+.body code{font:12.5px ui-monospace,Consolas,monospace;background:var(--ws-cream);padding:1px 5px;border-radius:4px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.step{border-radius:var(--radius-sm);padding:12px 14px;font-size:13.5px}
+.step b{display:block;margin-bottom:2px}
+.price{border-collapse:collapse;font-size:13px;width:auto}
+.price th,.price td{padding:6px 12px;border-bottom:1px solid var(--ws-line);font:500 13px var(--sans);position:static;border-right:none;background:none}
+.price th{font-weight:700}
+footer{padding-block:24px;border-top:1px solid var(--ws-line);font-size:12.5px;color:var(--ws-gray)}
+footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:900px){
+  .hero-grid{grid-template-columns:1fr}
+  .kpis,.guide{grid-template-columns:repeat(2,1fr)}
+  .steps{grid-template-columns:1fr}
+  .nav-links{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="progress" id="progress"></div>
+<nav>
+  <div class="nav-in">
+    <a href="#top" class="logo" aria-label="Wavestone">
+      <svg class="logo-svg" viewBox="0 0 307 42" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M-3.843-8.349h16.891l-2.409 3.746-12.447-.019-2.035-3.727Z" transform="scale(2 -2) rotate(-61.367 .264 -10.29)"/>
+        <path d="M0 12.081c-3.666 0-5.343-2.682-5.343-6.041C-5.343 2.682-3.666 0 0 0s5.343 2.682 5.343 6.04c0 3.359-1.677 6.041-5.343 6.041M0-1.617c-4.933 0-8.833 2.907-8.833 7.657 0 4.751 3.9 7.658 8.833 7.658 4.932 0 8.833-2.907 8.833-7.658 0-4.75-3.901-7.657-8.833-7.657" transform="matrix(2 0 0 2 221.951 14.024)"/>
+        <path d="M0-10.554h5.34V2.011h3.329v-12.565h5.34v-2.011H0v2.011Z" transform="matrix(2 0 0 2 173.832 36.636)"/>
+        <path d="M0-3.449c-2.126-.554-4.134-1.078-4.134-2.391 0-1.323 1.848-1.915 3.679-1.915 1.82 0 3.546.456 5.278 1.392l.42.227v-1.927l-.165-.082C3.516-8.92 1.457-9.383-.429-9.383c-3.162 0-6.54 1.165-6.54 4.436 0 3.154 3.247 4.013 6.112 4.772C1.3.395 3.336.934 3.336 2.334c0 1.338-1.927 1.980-3.717 1.98-2.118 0-4.221-.665-6.248-1.957l-.227-.145-.942 1.367.255.173c2.018 1.367 4.779 2.182 7.384 2.182 3.945 0 6.493-1.756 6.493-4.439 0-3.292-3.512-4.208-6.334-4.944" transform="matrix(2 0 0 2 156.98 29.542)"/>
+        <path d="M0 2h8.257l.006-2.016H0v-4.251h8.904l.006-2.017H-3.329V8.284H9.035l.006-2.016H0V2Z" transform="matrix(2 0 0 2 117.545 24.063)"/>
+        <path d="M0 10.535V6.267h8.257l.006-2.016H0V0h8.905l.005-2.016H-3.329v14.567H9.035l.006-2.016H0Z" transform="matrix(2 0 0 2 288.814 15.528)"/>
+        <path d="M0 5.542 2.493.901l2.542 4.641H0Zm-4.823 4.64 2.329.003 1.411-2.627H6.14l1.438 2.624h3.783L3.267-4.643l-8.09 14.825Z" transform="matrix(2 0 0 2 54.77 20.265)"/>
+        <path d="m0 3.74-5.085-9.281h-3.784L-.775 9.284l8.09-14.825-2.33-.003L0 3.74Z" transform="matrix(2 0 0 2 90.655 22.593)"/>
+        <path d="m0-14.575.004 9.072-12.051-9.333V-.003h2.014l.014-9.063L2.014.261l.002-14.836H0Z" transform="matrix(2 0 0 2 270.249 40.645)"/>
+        <path d="M0-20.58h-2.653c-2.896 3.035-5.583 6.249-7.672 9.626a51.752 51.752 0 0 0-2.356 4.236l-4.442-8.107h-4.246L-13.275 0l.002-.008C-10.777-7.504-6.209-14.46 0-20.58" transform="matrix(2 0 0 2 60.381 41.16)"/>
+      </svg>
+    </a>
+    <div class="nav-links">
+      <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" id="bilan">
+  <div class="container hero-grid">
+    <div>
+      <div class="eyebrow" id="eyebrow">01 — Bilan Claude Code</div>
+      <h1 id="h1">Ce mois-ci, <em id="h-in">—</em> de tokens lus pour <em id="h-out">—</em> écrits</h1>
+      <p class="sub" id="sub"></p>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="donut-card">
+      <h3>💵 Où part l'argent ?</h3>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 42 42" role="img" aria-label="Répartition du coût API par poste" id="donut"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+      <p>La relecture du cache coûte plusieurs fois moins cher par token que l'input normal, mais elle en traite tellement qu'elle reste souvent le premier poste.</p>
+    </div>
+  </div>
+</section>
+
+<section id="tableau">
+  <div class="container">
+    <div class="eyebrow">02 — Le détail</div>
+    <h2>Tokens, coût et impact, du total au détail</h2>
+    <p class="intro">Le tableau affiche d'abord l'essentiel : une ligne de total et une colonne par famille. Cliquez sur un en-tête de couleur pour voir ce qu'il contient, ou sur <b>Total</b> pour obtenir une ligne par modèle.</p>
+    <div class="guide">
+      <div class="g-in"><b>📥 Input</b>Ce que le modèle lit à chaque appel : votre message, mais surtout tout l'historique de la conversation.</div>
+      <div class="g-out"><b>📤 Output</b>Ce que le modèle écrit : réponses, code, appels d'outils et réflexion.</div>
+      <div class="g-cost"><b>💵 Coût API</b>Ce que ces tokens auraient coûté au tarif public de l'API Anthropic.</div>
+      <div class="g-imp"><b>🌍 Impact</b>Estimation de l'empreinte de la génération : carbone, énergie, eau, ressources.</div>
+    </div>
+    <div class="controls">
+      <span class="label">Déplier</span>
+      <button type="button" id="t-rows" aria-pressed="false"><span class="chev">›</span>🤖 Modèles</button>
+      <button type="button" id="t-machines" aria-pressed="false" hidden><span class="chev">›</span>💻 PC</button>
+      <button type="button" data-group="input" aria-pressed="false"><span class="chev">›</span>📥 Input</button>
+      <button type="button" data-group="output" aria-pressed="false"><span class="chev">›</span>📤 Output</button>
+      <button type="button" data-group="cost" aria-pressed="false"><span class="chev">›</span>💵 Coût</button>
+      <button type="button" data-group="impact" aria-pressed="false"><span class="chev">›</span>🌍 Impact</button>
+      <button type="button" id="t-all">Tout déplier</button>
+    </div>
+    <div class="table-box"><table id="tbl"></table></div>
+    <p class="hint">Les fourchettes d'impact (bas – haut) reflètent l'incertitude d'EcoLogits sur la taille des modèles et l'efficacité des centres de données.</p>
+  </div>
+</section>
+
+<section class="explain" id="comprendre">
+  <div class="container">
+    <div class="eyebrow">03 — Comprendre</div>
+    <h2>Le cache et la méthode de calcul</h2>
+    <p class="intro">Deux explications, repliées par défaut, pour lire les chiffres sans contresens.</p>
+
+    <details>
+      <summary>♻️ À quoi sert le cache, et pourquoi l'input « non caché » est-il si petit ?</summary>
+      <div class="body" id="body-cache">
+        <p>Un modèle de langage n'a pas de mémoire entre deux appels. À chaque tour, Claude Code lui renvoie <b>tout le contexte</b> : prompt système, <code>CLAUDE.md</code>, historique de la conversation, résultats d'outils. Sur une longue session, cela fait des centaines de milliers de tokens à chaque appel.</p>
+        <p>Le <b>cache de prompt</b> évite de recalculer la partie du début qui n'a pas changé depuis l'appel précédent. Chaque token d'input tombe dans l'une de trois cases :</p>
+        <div class="steps">
+          <div class="step g-in"><b>♻️ Lecture cache</b>Le contexte déjà vu, relu depuis le cache. Plusieurs fois moins cher qu'un input normal.</div>
+          <div class="step g-in"><b>✍️ Écriture cache</b>Le contenu nouveau, mis en cache pour le prochain appel. 1,25 fois le prix normal (conservé 5 min), ou 2 fois (conservé 1 h).</div>
+          <div class="step g-in"><b>🆕 Non caché</b>Les quelques tokens après le dernier point de cache. Prix normal, mais volume minuscule.</div>
+        </div>
+        <p id="p-lire-chiffres"></p>
+        <p id="p-cache-rapporte"></p>
+        <p><b>Signal à surveiller.</b> Beaucoup d'écriture par rapport à la lecture veut dire que le cache se perd : une pause plus longue que sa durée de vie (5 min), ou beaucoup de sessions courtes. <code>/agent-cost-kit:mesurer-couts</code> détaille ces expirations par agent.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🧮 Méthode de calcul et limites</summary>
+      <div class="body" id="body-methode">
+        <p><b>📂 Source.</b> Les transcriptions locales de Claude Code (<code>~/.claude/projects</code>), y compris celles des sous-agents. <span id="p-perimetre-dossier"></span> Seuls les appels horodatés dans le mois sont retenus, un appel par identifiant de message (les doublons, y compris d'une session reprise, sont écartés).</p>
+        <p id="p-output-reestime"></p>
+        <p><b>💵 Coût.</b> Fonctions et table de prix de <code>agent-cost-kit</code> (<code>scripts/mesurer_couts.py</code>, <code>tarifs.json</code>). Prix publics par million de tokens :</p>
+        <div style="overflow-x:auto"><table class="price" id="tbl-prix"></table></div>
+        <p id="p-long-contexte"></p>
+        <p>Le résultat est un <b>équivalent API</b> : sous abonnement, la dépense réelle est différente.</p>
+        <p><b>🌍 Impact.</b> Méthode <a href="https://ecologits.ai/latest/methodology/llm_inference/">EcoLogits</a> : énergie des GPU et du serveur selon la taille estimée du modèle, PUE et consommation d'eau des centres de données, mix électrique <span id="p-mix"></span>, fabrication du matériel incluse dans le carbone. Seule la <b>génération de l'output</b> est comptée, pas le traitement de l'input : l'impact réel est plus élevé.</p>
+        <p><b>⚠️ Périmètre.</b> <span id="p-limite"></span></p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<footer><div class="container"><span id="footer-date">Bilan Claude Code</span><span>Calcul : agent-cost-kit · impact : EcoLogits</span></div></footer>
+
+<script>
+const BILAN=/*__BILAN__*/null;
+
+// --- Dérivation du nom et de la couleur d'affichage depuis l'identifiant du modèle ---
+const HUES={opus:262,sonnet:142,haiku:42,fable:265,mythos:320};
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
+function nomAffiche(id){
+  const m=/claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?/.exec(id);
+  if(!m)return{nom:id,fam:null,col:"hsl(220 10% 55%)"};
+  const fam=m[1],maj=fam[0].toUpperCase()+fam.slice(1),ver=m[3]!=null?`${m[2]}.${m[3]}`:m[2];
+  const hue=HUES[fam]!=null?HUES[fam]:220,light=38+(hashStr(id)%28);
+  return{nom:`${maj} ${ver}`,fam,col:`hsl(${hue} 62% ${light}%)`};
+}
+
+const MOIS_FR=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+function moisTexte(aaaa_mm){const[a,m]=aaaa_mm.split("-");return`${MOIS_FR[+m-1]} ${a}`;}
+function jourMoisAnnee(iso){const d=new Date(iso);return{jour:d.getUTCDate(),mois:d.getUTCMonth(),annee:d.getUTCFullYear()};}
+
+const flat=d=>{const na=nomAffiche(d.modele);return{nom:na.nom,col:na.col,appels:d.appels,entree:d.entree,e5:d.ecrit_5m,e1:d.ecrit_1h,lu:d.lu,
+  inTot:d.entree+d.ecrit_5m+d.ecrit_1h+d.lu,outDecl:d.sortie_declaree,out:d.sortie,
+  cIn:d.cout.entree,cEc:d.cout.ecriture,cLu:d.cout.lecture,cOut:d.cout.sortie,
+  cTot:d.cout.entree+d.cout.ecriture+d.cout.lecture+d.cout.sortie,cSansCache:d.cout_sans_cache,
+  gwp:d.impact.gwp_gco2e,nrj:d.impact.energie_wh,eau:d.impact.eau_l,pe:d.impact.pe_mj,adpe:d.impact.adpe_mgsbe};};
+const sommer=lignes=>lignes.reduce((t,r)=>{for(const k in r){if(k==="nom"||k==="col")continue;
+  t[k]=Array.isArray(r[k])?(t[k]||[0,0]).map((v,i)=>v+r[k][i]):(t[k]||0)+r[k];}return t;},{nom:"Total"});
+
+const ROWS=BILAN.modeles.map(flat);
+const TOTAL=sommer(ROWS);
+const MACHINES=Array.isArray(BILAN.machines)?BILAN.machines:[BILAN.machine];
+const MULTI=MACHINES.length>1;
+const MACHINE_ROWS=MULTI&&Array.isArray(BILAN.par_machine)?BILAN.par_machine.map(m=>({nom:"💻 "+m.machine,col:"hsl(220 10% 55%)",appels:m.appels,entree:m.entree,e5:m.ecrit_5m,e1:m.ecrit_1h,lu:m.lu,
+  inTot:m.entree+m.ecrit_5m+m.ecrit_1h+m.lu,outDecl:m.sortie_declaree,out:m.sortie,
+  cIn:m.cout.entree,cEc:m.cout.ecriture,cLu:m.cout.lecture,cOut:m.cout.sortie,
+  cTot:m.cout.entree+m.cout.ecriture+m.cout.lecture+m.cout.sortie,cSansCache:m.cout_sans_cache,
+  gwp:m.impact.gwp_gco2e,nrj:m.impact.energie_wh,eau:m.impact.eau_l,pe:m.impact.pe_mj,adpe:m.impact.adpe_mgsbe})):[];
+
+const nf=(v,d=0)=>v.toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d});
+function tok(v){if(v>=1e9)return nf(v/1e9,2)+" Md";if(v>=1e6)return nf(v/1e6,v>=1e8?0:1)+" M";if(v>=1e4)return nf(v/1e3,0)+" k";return nf(v);}
+function usd(v){if(v===0)return "0 $";if(v<0.01)return "< 0,01 $";return nf(v,v>=100?0:2)+" $";}
+function sig(v){if(v===0)return "0";if(v>=100)return nf(v,0);if(v>=1)return nf(v,1);return v.toLocaleString("fr-FR",{maximumSignificantDigits:2});}
+const rng=(a,k=1)=>sig(a[0]/k)+" – "+sig(a[1]/k);
+const pct=(v,t)=>t?nf(100*v/t,v/t<0.01?1:0)+" %":"";
+
+const GROUPS=[
+  {id:"base",label:null,cls:"",cols:[{h:"📞 Appels",u:"requêtes au modèle",f:r=>nf(r.appels),sum:1}]},
+  {id:"input",label:"📥 INPUT",cls:"c-in",cols:[
+    {h:"📥 Input traité",u:"tokens lus au total",f:r=>tok(r.inTot),sum:1},
+    {h:"🆕 Non caché",u:"tokens, prix plein",f:r=>tok(r.entree)},
+    {h:"✍️ Écriture cache 5 min",u:"tokens, ×1,25",f:r=>tok(r.e5)},
+    {h:"✍️ Écriture cache 1 h",u:"tokens, ×2",f:r=>tok(r.e1)},
+    {h:"♻️ Lecture cache",u:"tokens · part",f:r=>tok(r.lu)+'<span class="share">'+pct(r.lu,r.inTot)+" de l'input</span>"}]},
+  {id:"output",label:"📤 OUTPUT",cls:"c-out",cols:[
+    {h:"📤 Output",u:"tokens écrits (réestimés)",f:r=>tok(r.out),sum:1},
+    {h:"🧾 Déclaré",u:"tokens dans les transcriptions",f:r=>tok(r.outDecl)},
+    {h:"🔍 Sous-déclaration",u:"réestimé vs déclaré",f:r=>r.outDecl?"+"+nf(100*(r.out/r.outDecl-1))+" %":"—"}]},
+  {id:"cost",label:"💵 COÛT API",cls:"c-cost",cols:[
+    {h:"💵 Coût",u:"$ · part du total",f:r=>usd(r.cTot)+(r.nom==="Total"?"":'<span class="share">'+pct(r.cTot,TOTAL.cTot)+"</span>"),sum:1},
+    {h:"🆕 Input",u:"$",f:r=>usd(r.cIn)},
+    {h:"✍️ Écriture cache",u:"$",f:r=>usd(r.cEc)},
+    {h:"♻️ Lecture cache",u:"$",f:r=>usd(r.cLu)},
+    {h:"📤 Output",u:"$",f:r=>usd(r.cOut)}]},
+  {id:"impact",label:"🌍 IMPACT",cls:"c-imp",cols:[
+    {h:"🌍 Carbone",u:"kgCO2e",f:r=>rng(r.gwp,1000),sum:1},
+    {h:"⚡ Énergie",u:"kWh",f:r=>rng(r.nrj,1000)},
+    {h:"💧 Eau",u:"litres",f:r=>rng(r.eau)},
+    {h:"🛢️ Énergie primaire",u:"MJ",f:r=>rng(r.pe)},
+    {h:"⛏️ Ressources minérales",u:"mgSbe (ADPe)",f:r=>rng(r.adpe)}]}
+];
+
+const CLE_STOCKAGE="bilan-tokens-"+BILAN.mois+(MULTI?"-consolide":"");
+const state={rows:false,machines:false,input:false,output:false,cost:false,impact:false};
+try{Object.assign(state,JSON.parse(localStorage.getItem(CLE_STOCKAGE)||"{}"));}catch(e){}
+const visible=g=>g.cols.filter(c=>c.sum||state[g.id]);
+function cells(r){
+  let h="";
+  for(const g of GROUPS)visible(g).forEach((c,i)=>{
+    h+=`<td class="${[g.cls,i===0&&g.label?"g-start":"",c.sum?"":"det"].join(" ").trim()}">${c.f(r)}</td>`;});
+  return h;
+}
+function render(){
+  let h='<thead><tr class="groups"><th rowspan="2" style="vertical-align:bottom">🤖 Modèle</th>';
+  for(const g of GROUPS){const n=visible(g).length;
+    if(!g.label){h+=`<th colspan="${n}"></th>`;continue;}
+    h+=`<th colspan="${n}" class="${g.cls} g-start"><button type="button" data-group="${g.id}" aria-expanded="${state[g.id]}" title="${state[g.id]?"Replier":"Déplier"} le détail"><span class="chev">›</span>${g.label}</button></th>`;}
+  h+="</tr><tr>";
+  for(const g of GROUPS)visible(g).forEach((c,i)=>{
+    h+=`<th class="${[g.cls,i===0&&g.label?"g-start":"",c.sum?"":"det"].join(" ").trim()}">${c.h}<span class="unit">${c.u}</span></th>`;});
+  h+="</tr></thead><tbody>";
+  h+=`<tr class="total"><td class="name"><button type="button" id="row-toggle" aria-expanded="${state.rows}" title="${state.rows?"Masquer":"Afficher"} les modèles"><span class="chev">›</span>Total</button></td>${cells(TOTAL)}</tr>`;
+  if(state.rows)for(const r of ROWS)h+=`<tr class="model"><td class="name"><span class="dot" style="background:${r.col}"></span>${r.nom}</td>${cells(r)}</tr>`;
+  if(state.machines)for(const r of MACHINE_ROWS)h+=`<tr class="machine"><td class="name"><span class="dot" style="background:${r.col}"></span>${r.nom}</td>${cells(r)}</tr>`;
+  document.getElementById("tbl").innerHTML=h+"</tbody>";
+  document.querySelectorAll(".controls [data-group]").forEach(b=>b.setAttribute("aria-pressed",state[b.dataset.group]));
+  document.getElementById("t-rows").setAttribute("aria-pressed",state.rows);
+  if(MULTI){const b=document.getElementById("t-machines");b.hidden=false;b.setAttribute("aria-pressed",state.machines);}
+  document.getElementById("t-all").textContent=Object.values(state).every(Boolean)?"Tout replier":"Tout déplier";
+  try{localStorage.setItem(CLE_STOCKAGE,JSON.stringify(state));}catch(e){}
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.group){state[b.dataset.group]=!state[b.dataset.group];render();}
+  else if(b.id==="t-rows"||b.id==="row-toggle"){state.rows=!state.rows;render();}
+  else if(b.id==="t-machines"){state.machines=!state.machines;render();}
+  else if(b.id==="t-all"){const v=!Object.values(state).every(Boolean);for(const k in state)state[k]=v;render();}
+});
+
+// --- Titre, bandeau, en-tête ---
+document.title=`Bilan tokens ${moisTexte(BILAN.mois)}`;
+const debut=jourMoisAnnee(BILAN.premier_appel),fin=jourMoisAnnee(BILAN.dernier_appel);
+const periode=(debut.jour===1?"1ᵉʳ":debut.jour)+" au "+fin.jour+" "+moisTexte(BILAN.mois);
+const lieu=BILAN.dossier?`<b>${BILAN.dossier}</b>`:"tous les projets";
+const machineTxt=MULTI?`${MACHINES.length} PC (${MACHINES.join(", ")})`:`le PC <b>${BILAN.machine}</b>`;
+document.getElementById("eyebrow").textContent=`01 — Bilan Claude Code · ${moisTexte(BILAN.mois)}`;
+document.getElementById("h-in").textContent=tok(TOTAL.inTot);
+document.getElementById("h-out").textContent=tok(TOTAL.out);
+document.getElementById("sub").innerHTML=`Toutes les sessions Claude Code sur ${machineTxt}, dans ${lieu}, sous-agents compris, du ${periode}. Le modèle relit généralement bien plus qu'il n'écrit.`;
+document.getElementById("kpis").innerHTML=[
+  ["in","📥",tok(TOTAL.inTot),"tokens d'input traités"],
+  ["out","📤",tok(TOTAL.out),"tokens d'output"],
+  ["cost","💵",usd(TOTAL.cTot),"équivalent API"],
+  ["co2","🌍",rng(TOTAL.gwp,1000)+" kg","CO2e estimés"]
+].map(([c,i,v,l])=>`<div class="kpi ${c}"><span class="ico">${i}</span><b>${v}</b><span>${l}</span></div>`).join("");
+
+// Anneau de répartition du coût (r = 15,915 : circonférence de 100).
+const parts=[["♻️ Lecture cache",TOTAL.cLu,"#451DC7"],["✍️ Écriture cache",TOTAL.cEc,"#9d86ec"],["📤 Output",TOTAL.cOut,"#04F06A"],["🆕 Input non caché",TOTAL.cIn,"#FFCA4A"]];
+let off=25,svg='<circle cx="21" cy="21" r="15.915" fill="none" stroke="#E6E6EC" stroke-width="6"/>';
+for(const [,v,c] of parts){const p=TOTAL.cTot?100*v/TOTAL.cTot:0;if(p<0.05)continue;
+  svg+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${p} ${100-p}" stroke-dashoffset="${off}"/>`;off-=p;}
+svg+=`<text x="21" y="20.5" text-anchor="middle" font-family="Manrope,Inter,sans-serif" font-weight="800" font-size="6" fill="#0a0a14">${nf(TOTAL.cTot)} $</text><text x="21" y="26" text-anchor="middle" font-family="Inter,sans-serif" font-size="3" fill="#4a4a5e">équivalent API</text>`;
+document.getElementById("donut").innerHTML=svg;
+document.getElementById("legend").innerHTML=parts.map(([l,v,c])=>`<div><i style="background:${c}"></i><span>${l}</span><b>${usd(v)}</b></div>`).join("");
+
+// --- Section « Comprendre » : tout calculé depuis BILAN, rien en dur ---
+const ctxMoyen=TOTAL.appels?Math.round(TOTAL.inTot/TOTAL.appels):0;
+document.getElementById("p-lire-chiffres").innerHTML=`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`;
+const coutReel=TOTAL.cIn+TOTAL.cEc+TOTAL.cLu;
+document.getElementById("p-cache-rapporte").innerHTML=TOTAL.cSansCache>coutReel
+  ?`<b>Ce que le cache rapporte.</b> Sans lui, cet input aurait coûté environ <b>${usd(TOTAL.cSansCache)}</b> au lieu d'environ ${usd(coutReel)}. Mais la relecture reste souvent le premier poste de dépense : plus une session est longue, plus chaque tour relit d'historique. D'où l'intérêt de <code>/clear</code> entre deux tâches et de sous-agents à contexte court.`
+  :`<b>Coût sans cache.</b> Input non caché, écriture et lecture valent ensemble environ ${usd(coutReel)}.`;
+document.getElementById("p-perimetre-dossier").innerHTML=BILAN.dossier?`Limité à <code>${BILAN.dossier}</code> et ses sous-dossiers.`:"Tous les projets du compte.";
+document.getElementById("p-output-reestime").innerHTML=`<b>📤 Output réestimé.</b> Les transcriptions sous-déclarent parfois l'output (réflexion et appels d'outils). Le calcul garde la plus grande de deux valeurs : l'output déclaré, ou le texte réellement produit divisé par 2,2 caractères par token. Cela fait passer l'output déclaré de ${tok(TOTAL.outDecl)} à ${tok(TOTAL.out)} tokens.`;
+const lignesPrix=Object.entries(BILAN.prix).map(([id,p])=>{const na=nomAffiche(id);
+  return`<tr><td>${na.nom}</td><td>${usd(p.entree)}</td><td>${usd(p.ecriture_5m)} / ${usd(p.ecriture_1h)}</td><td>${usd(p.lecture)}</td><td>${usd(p.sortie)}</td></tr>`;});
+document.getElementById("tbl-prix").innerHTML=`<tr><th>Modèle</th><th>Input</th><th>Écriture 5 min / 1 h</th><th>Lecture</th><th>Output</th></tr>${lignesPrix.join("")}`;
+const avecSeuil=Object.entries(BILAN.prix).filter(([,p])=>p.long_contexte);
+document.getElementById("p-long-contexte").innerHTML=avecSeuil.length
+  ?avecSeuil.map(([id,p])=>`Au-delà de ${tok(p.long_contexte.seuil_tokens)} tokens de contexte, <b>${nomAffiche(id).nom}</b> est facturé ×${p.long_contexte.facteur}.`).join(" ")
+  :"";
+document.getElementById("p-mix").textContent=BILAN.mix||"—";
+document.getElementById("p-limite").innerHTML=MULTI
+  ?`Plusieurs PC consolidés : ${MACHINES.join(", ")}.`
+  :`Ce PC uniquement (<b>${BILAN.machine}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`;
+
+// --- Pied de page ---
+const genere=new Date(BILAN.genere_le);
+document.getElementById("footer-date").textContent=`Bilan Claude Code · données au ${genere.getUTCDate()} ${MOIS_FR[genere.getUTCMonth()]} ${genere.getUTCFullYear()}, ${String(genere.getUTCHours()).padStart(2,"0")}:${String(genere.getUTCMinutes()).padStart(2,"0")}`;
+
+const bar=document.getElementById("progress");
+addEventListener("scroll",()=>{const m=document.documentElement.scrollHeight-innerHeight;bar.style.width=(m>0?100*scrollY/m:0)+"%";},{passive:true});
+render();
+</script>
