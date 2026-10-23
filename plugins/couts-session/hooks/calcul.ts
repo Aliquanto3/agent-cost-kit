@@ -92,7 +92,7 @@ export type Impact = { energieWh: Fourchette; gco2e: Fourchette }
  * Impact des tokens `c` de `modele`, calcul de mesurer_couts.py (mix USA). impactia : l'entrée et l'écriture
  * du cache allongent la durée (prefill complet), la lecture du cache compte 0 en borne basse et un prefill
  * complet en borne haute ; plus le réseau et le bâtiment. Les cumuls ne disent pas le nombre d'appels :
- * l'ordonnée de 17,88 ms par appel est omise (moins de 0,1 % dès 10 k tokens d'entrée). ecologits : sortie seule.
+ * l'ordonnée de 17,88 ms par appel est omise (0,5 à 0,7 % du prefill d'un appel de 10 k tokens d'entrée, moins de 0,1 % à 100 k). ecologits : sortie seule.
  */
 export function impact(modele: string, c: Compteurs, methode: Methode = METHODE): Impact {
   const sortie = c.output

@@ -58,7 +58,7 @@ La PR passe au traceur Anthropic `usage.input_tokens`, qui exclut lectures et é
 - **TTFT** : la PR lit le TTFT médian OpenRouter dans son `models.json`, qui s'arrête à Opus 4.8. Le kit prend les TTFT de la même source que ses paramètres (EcoLogits 0.11.3, commit d0b76e3, données du 2026-10-14 : Opus 5.5 2,68 s, Sonnet 5.5 2,21 s, Haiku 5.5 1,75 s, Fable 5.1 3,89 s…), par plus long préfixe ; à défaut, le TTFT du modèle le plus récent de la famille (même règle que les prix), sinon Opus. Le repli de la PR par paramètres actifs (`P_actif / 7,3`) donnerait 1,6 à 4,5 fois plus pour Opus 5.5 (70 à 200 Md actifs contre un ratio TTFT de 6,1) : écarté, il contredit l'échelle des TTFT mesurés.
 - **Latence de sortie** : la PR utilise `1/TPS` OpenRouter quand il existe ; le kit garde la régression ML.ENERGY (reproductible hors ligne, déjà retenue en 0.4.0). Le banc compare donc à la librairie avec `tps=None`.
 - **Unités** : aucune erreur relevée (constantes en s et kW, coefficient en s/token).
-- **Mod couts-session** : il ne connaît que des cumuls par modèle, pas le nombre d'appels ; l'ordonnée de 17,88 ms par appel est omise (moins de 0,1 % pour un appel de 10 k tokens d'entrée).
+- **Mod couts-session** : il ne connaît que des cumuls par modèle, pas le nombre d'appels ; l'ordonnée de 17,88 ms par appel est omise (0,5 à 0,7 % du prefill d'un appel de 10 k tokens d'entrée selon le modèle, 0,2 à 0,3 % à 25 k, moins de 0,1 % à 100 k ; davantage rapporté à la borne basse quand l'appel lit surtout le cache).
 
 ## Où
 
@@ -80,3 +80,15 @@ Bilan d'octobre 2026 (`bilan_tokens.py --mois 2026-10 --dossier C:/Users/anael.y
 | impactia | 32,0 – 86,2 kgCO2e | 65,4 – 169,1 kWh | 213 – 678 L |
 
 L'écart reste modéré : avec le coefficient de la PR, un token de sortie d'Opus 5.5 (0,175 s par token, régression ML.ENERGY) pèse autant qu'environ 460 tokens d'entrée (3,8e-4 s par token), et l'énergie GPU ne dépend que de la sortie.
+
+## Revue
+
+Revue du 2026-10-23 (Opus), base `origin/master` 4cf9fd3 à jour, pas de rebase nécessaire.
+
+- medium · second avis · corrigé · parité avec la PR : banc réexécuté contre `ecologits@4c552f64` (écart max 4,5e-16 hors cache et lecture max, 3,7e-16 lecture min ; `ecologits_ecart.py` 3,6e-16). Recoupé dans `llm.py` de la PR : réseau 0,09 kW × 1,7898 = 161,082 W, fabrication 660,092 kgCO2e sur 5 ans, bâtiment sur `request_it_energy` (avant PUE, l. 523), ordonnée 17,88 ms même à 0 token, unités s et kW. Le test qui réimplémentait la formule (32 GPU en dur) est remplacé par des valeurs produites par la librairie de la PR, figées dans `tests/test_impact.py`.
+- low · second avis · corrigé · ordonnée omise par le mod : 0,47 % (Opus) à 0,72 % (Haiku) du prefill à 10 k tokens, pas « moins de 0,1 % » ; commentaire de `calcul.ts` et section « Trous de la PR » corrigés.
+- low · second avis · corrigé · `register.tsx` `compteurs()` sans garde : un champ absent donnait NaN, qui contamine désormais aussi ecologits (`0 × NaN`). Garde `nombre()` (exportée d'`historique.ts`) et test dans `bande.test.ts`.
+- low · second avis · corrigé · `impactia` par défaut dans `impact`, `impact_appels`, `par_modele` : aucun appelant du dépôt ne s'appuie sur l'ancien défaut ; changement d'API noté au CHANGELOG.
+- low · second avis · corrigé · « bit à bit » : vérifié sur 252 cas (6 modèles, 7 sorties, tous les mix) contre le script de master, égalité exacte ; le test passe de `approx(1e-12)` à `==`.
+- low · second avis · écarté · tests TS non exécutés : `claude plugin test` 53/53, `claude plugin validate --strict` OK.
+- Complexité : 0 constat (agrégation `impact_appels` en O(n), rendu du mod sur les cumuls par modèle).

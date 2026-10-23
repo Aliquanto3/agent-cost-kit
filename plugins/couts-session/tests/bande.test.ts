@@ -117,6 +117,16 @@ describe('cumuls', () => {
     expect(store['sessions']).toEqual(['S1'])
   })
 
+  test('un champ d’usage absent compte 0, sans NaN dans le cumul', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    monde(on, store)
+    const t = tour('claude-opus-5-5', 500)
+    const { cache_read_input_tokens: _l, input_tokens: _e, ...partiel } = t.usage
+    await $.turn.complete({ ...t, usage: partiel as typeof t.usage })
+    const value = store['session:S1'] as Cumul | undefined
+    expect(value?.modeles['claude-opus-5-5']).toEqual({ input: 0, output: 500, cacheRead: 0, cacheWrite: 100_000 })
+  })
+
   test('un tour sans usage (interrompu) ne compte pas', async ($, on) => {
     const store: Record<string, unknown> = {}
     monde(on, store)

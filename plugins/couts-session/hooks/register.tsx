@@ -2,7 +2,7 @@ import type { EngineInterface, Register, Timer, TurnUsage } from 'claude-code'
 
 import type { Cumul, Niveau } from '../types'
 import { additionner, VIDE } from './calcul'
-import { analyser, fusionner, idSousAgent, nomDossierProjet, retrancher } from './historique'
+import { analyser, fusionner, idSousAgent, nombre, nomDossierProjet, retrancher } from './historique'
 import type { Historique, ParModele } from './historique'
 import { colonnes, corps, tete } from './rendu'
 import type { Contexte } from './rendu'
@@ -218,10 +218,10 @@ async function ecrire($: EngineInterface): Promise<void> {
 
 function compteurs(u: TurnUsage) {
   return {
-    input: u.input_tokens,
-    output: u.output_tokens,
-    cacheRead: u.cache_read_input_tokens,
-    cacheWrite: u.cache_creation_input_tokens,
+    input: nombre(u.input_tokens),
+    output: nombre(u.output_tokens),
+    cacheRead: nombre(u.cache_read_input_tokens),
+    cacheWrite: nombre(u.cache_creation_input_tokens),
   }
 }
 

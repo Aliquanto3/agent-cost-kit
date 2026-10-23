@@ -22,8 +22,8 @@ ANCIENS = [
 @pytest.mark.parametrize(("modele", "sortie", "energie", "gwp"), ANCIENS)
 def test_ecologits_identique_a_la_version_precedente(modele, sortie, energie, gwp):
     i = mc.impact(modele, sortie, methode="ecologits", entree=50_000, lu=900_000, appels=7)
-    assert (i["energie_wh"]["min"], i["energie_wh"]["max"]) == pytest.approx(energie, rel=1e-12)
-    assert (i["gwp_gco2e"]["min"], i["gwp_gco2e"]["max"]) == pytest.approx(gwp, rel=1e-12)
+    assert (i["energie_wh"]["min"], i["energie_wh"]["max"]) == energie  # bit à bit
+    assert (i["gwp_gco2e"]["min"], i["gwp_gco2e"]["max"]) == gwp
 
 
 def test_methode_par_defaut_impactia():
@@ -58,15 +58,22 @@ def test_lecture_du_cache_zero_en_borne_basse_complete_en_borne_haute():
         assert lu[g]["max"] > sans[g]["max"]
 
 
-def test_prefill_reprend_la_formule_de_la_pr():
-    # Sans sortie, la durée est le prefill seul : coef x (TTFT / 0,44) x N + 17,88 ms par appel.
-    ttft = mc.ttft("claude-opus-5-5")
-    assert ttft == 2.68
-    duree = 0.062e-3 * ttft / 0.44 * 100_000 + 17.88e-3
-    i = mc.impact("claude-opus-5-5", 0, entree=100_000, appels=1)
-    gpus = 32  # 670 Md x 2 octets x 1,2 / 80 Go -> 21 -> puissance de 2
-    attendu = mc.PUE[0] * duree / 3600 * (1200 + 161.082) * gpus / 8 / 64
-    assert i["energie_wh"]["min"] == pytest.approx(attendu, rel=1e-12)
+# Valeurs produites par la librairie de la PR (ecologits@4c552f64, compute_llm_impacts, tps=None, mix USA,
+# TTFT du script, voir bancs/impactia_ecart.py) : (modèle, sortie, entrée, énergie Wh, GWP gCO2e, eau L), min-max.
+REFERENCES_PR = [
+    ("claude-opus-5-5", 2000, 100_000, (11.05919801346913, 21.719486124478102), (5.510322126148022, 10.662169076093926), (0.03595750101702426, 0.08706073112061262)),
+    ("claude-sonnet-5-5", 300, 25_000, (0.6273223903673764, 1.0016906515412078), (0.3167422504205973, 0.49652704451833884), (0.0020396547256107222, 0.00401519262380596)),
+    ("claude-haiku-5-5", 100, 500_000, (0.108012842361156, 0.23203667355723095), (0.0643799696893649, 0.13554799629941713), (0.00035118928916208334, 0.0009300994660237554)),
+    ("claude-opus-5-5", 0, 10_000, (0.09772676426398107, 0.10220964335865908), (0.0592171641107755, 0.06094038283476973), (0.00031774548399737796, 0.00040969874827532317)),
+]
+
+
+@pytest.mark.parametrize(("modele", "sortie", "entree", "energie", "gwp", "eau"), REFERENCES_PR)
+def test_impactia_reproduit_la_librairie_de_la_pr(modele, sortie, entree, energie, gwp, eau):
+    i = mc.impact(modele, sortie, entree=entree, appels=1)
+    for g, attendu in (("energie_wh", energie), ("gwp_gco2e", gwp), ("eau_l", eau)):
+        assert (i[g]["min"], i[g]["max"]) == pytest.approx(attendu, rel=1e-9)
+    assert mc.ttft("claude-opus-5-5") == 2.68
 
 
 def test_ttft_repli_par_famille():
