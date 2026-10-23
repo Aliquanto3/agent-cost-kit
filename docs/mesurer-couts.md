@@ -24,14 +24,19 @@ Trois pièges du calcul, que le script corrige :
 
 ## Empreinte environnementale (GreenOps)
 
-Le script estime aussi l'énergie, le GWP (gCO2e, usage et fabrication du matériel), l'eau, l'énergie primaire et l'ADPe des mêmes appels, en fourchette min-max, selon la méthodologie [EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/). Les coefficients sont intégrés au script (données du 2026-10-14) : pas de dépendance. Mix électrique des États-Unis par défaut, `--mix {USA,FRA,SWE,WOR}` pour en changer.
+Le script estime aussi l'énergie, le GWP (gCO2e, usage et fabrication du matériel), l'eau, l'énergie primaire et l'ADPe des mêmes appels, en fourchette min-max, selon `--methode` :
+
+- `impactia` (défaut, **expérimental**) : la méthode Impact'IA de la PR EcoLogits [#259](https://github.com/mlco2/ecologits/pull/259), non fusionnée. Les tokens d'entrée allongent la durée de traitement (prefill), donc l'énergie du serveur et du réseau et la fabrication ; réseau et bâtiment du centre de données s'ajoutent. Lecture du cache : 0 en borne basse, prefill complet en borne haute. Détail, formules et banc : [impact-input-impactia.md](impact-input-impactia.md) ;
+- `ecologits` : la méthodologie [EcoLogits](https://ecologits.ai/latest/methodology/llm_inference/) publiée, sortie seule, identique à la version 0.8.0.
+
+Les coefficients sont dans `tarifs.json` (données EcoLogits du 2026-10-14) : pas de dépendance. Mix électrique des États-Unis par défaut, `--mix {USA,FRA,SWE,WOR}` pour en changer. La méthode figure dans `agents.csv` (`methode_impact`) et dans `resume.md`.
 
 Trois limites, dites dans `resume.md` :
-- seuls les tokens de **sortie** comptent, comme dans EcoLogits ; le cache, qui fait environ 85 % du coût en dollars, n'a aucun impact dans ce modèle, donc empreinte et coût ne sont pas proportionnels ;
+- en `ecologits`, seuls les tokens de **sortie** comptent ; le cache, qui fait environ 85 % du coût en dollars, n'a aucun impact, donc empreinte et coût ne sont pas proportionnels. En `impactia`, la fourchette porte surtout l'incertitude sur la lecture du cache, et l'énergie GPU du prefill n'est pas modélisée ;
 - la réflexion masquée n'est pas comptée : c'est une borne basse ;
 - les tailles des modèles Anthropic sont estimées par EcoLogits, d'où la fourchette.
 
-`bancs/ecologits_ecart.py` vérifie que le calcul du script reproduit la librairie officielle (écart de l'ordre de 1e-16).
+`bancs/ecologits_ecart.py` vérifie que la méthode `ecologits` reproduit la librairie officielle, `bancs/impactia_ecart.py` que la méthode `impactia` reproduit la branche de la PR #259 (écarts de l'ordre de 1e-16).
 
 ## Quand de nouveaux modèles sortent
 

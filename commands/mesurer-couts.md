@@ -1,5 +1,5 @@
 ---
-description: Calcule le coût réel des agents Claude Code du projet courant depuis les transcriptions locales (par agent, par story, avec pic de contexte, appels, expirations du cache, contrefactuel du TTL et empreinte environnementale estimée selon EcoLogits).
+description: Calcule le coût réel des agents Claude Code du projet courant depuis les transcriptions locales (par agent, par story, avec pic de contexte, appels, expirations du cache, contrefactuel du TTL et empreinte environnementale estimée, méthode ImpactIA expérimentale ou EcoLogits).
 argument-hint: "[--session <préfixe>] [--filtre <motif>] [--out <dossier>]"
 allowed-tools: Bash(python:*), Bash(uv run:*), Read
 ---
@@ -18,6 +18,6 @@ Lis ensuite `mesures-couts/resume.md` et donne en 12 lignes au plus :
 3. les expirations médianes par agent, et si le TTL d'une heure serait rentable (il l'est seulement à partir d'environ 1 expiration par agent) ;
 4. le contexte médian du premier appel des sous-agents (au-dessus de 40 k, chercher les skills et serveurs MCP superflus) ;
 5. les trois agents les plus chers, avec ce qui les distingue (appels, pic, modèle) ;
-6. l'empreinte totale en fourchette (gCO2e, Wh, litres d'eau), la part du modèle le plus émetteur, et un rappel : seule la sortie compte dans EcoLogits (le cache n'a pas d'impact), la réflexion masquée n'est pas comptée, c'est une borne basse.
+6. l'empreinte totale en fourchette (gCO2e, Wh, litres d'eau), la part du modèle le plus émetteur, et un rappel selon la méthode (`--methode`, défaut `impactia`) : en ImpactIA, expérimental (PR EcoLogits #259 non fusionnée), l'entrée compte et la fourchette porte surtout la lecture du cache (0 en bas, prefill complet en haut) ; en EcoLogits, seule la sortie compte. Dans les deux cas, la réflexion masquée n'est pas comptée.
 
 Ne recopie aucun contenu de transcription.

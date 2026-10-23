@@ -1,6 +1,6 @@
 ---
 name: bilan-tokens
-description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact EcoLogits) par modèle, publie une page HTML à la charte Wavestone, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
+description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact ImpactIA ou EcoLogits) par modèle, publie une page HTML à la charte Wavestone, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
 ---
 
 Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans appel d'API.
@@ -8,8 +8,10 @@ Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans a
 1. **Collecte.** Demande le mois et le périmètre seulement s'ils ne sont pas donnés dans la demande (défaut : mois UTC courant, tous les projets). Lance :
 
    ```
-   uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/bilan_tokens.py" --mois AAAA-MM [--dossier <chemin>]
+   uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/bilan_tokens.py" --mois AAAA-MM [--dossier <chemin>] [--methode impactia|ecologits]
    ```
+
+   `--methode` : `impactia` par défaut (expérimental, d'après la PR EcoLogits #259 non fusionnée : l'input compte, la lecture du cache de 0 en borne basse au prefill complet en borne haute) ; `ecologits` pour l'output seul.
 
    `--dossier` limite aux projets dont le chemin encodé commence par celui donné (lui et ses sous-dossiers). Le script écrit `<mois>-<machine>.json` et `.html` dans `~/.claude/cost-kit/bilans` (`--out` pour changer) et affiche un tableau par modèle.
 
@@ -23,6 +25,6 @@ Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans a
    uv run --no-project python "${CLAUDE_PLUGIN_ROOT}/scripts/bilan_tokens.py" --fusionner a.json b.json ... --out <dossier>
    ```
 
-   Le script refuse deux fichiers de mois différents ou une machine présente deux fois. Publie ensuite le `<mois>-consolide.html` comme à l'étape 3.
+   Le script refuse deux fichiers de mois, de mix ou de méthode d'impact différents, ou une machine présente deux fois. Publie ensuite le `<mois>-consolide.html` comme à l'étape 3.
 
-Rappels à donner si le sujet surprend l'utilisateur : les transcriptions sont lues en local uniquement ; le coût est un équivalent au tarif public de l'API, pas la facture d'un abonnement ; l'impact environnemental ne compte que l'output généré (EcoLogits), c'est une borne basse.
+Rappels à donner si le sujet surprend l'utilisateur : les transcriptions sont lues en local uniquement ; le coût est un équivalent au tarif public de l'API, pas la facture d'un abonnement ; l'impact environnemental suit la méthode indiquée dans la page : ImpactIA (défaut, expérimental) compte l'input, sa fourchette reflète surtout la lecture du cache ; EcoLogits ne compte que l'output, c'est une borne basse.

@@ -30,7 +30,7 @@ Refuse des bilans de mois différents, la même machine en double, des mix élec
 
 - Transcriptions locales uniquement : un PC sans Claude Code dessus n'y figure pas.
 - Le coût est un équivalent au tarif public de l'API, pas la facture d'un abonnement.
-- L'impact environnemental (EcoLogits) ne compte que les tokens de **sortie**, comme dans `mesurer_couts.py` : c'est une borne basse.
+- Impact environnemental : `--methode impactia` (défaut, expérimental, PR EcoLogits #259 non fusionnée) compte l'input, la lecture du cache de 0 (borne basse) au prefill complet (borne haute) ; `--methode ecologits` ne compte que les tokens de **sortie** (borne basse). La méthode est écrite dans le JSON (`methode`) et dans la page ; `--fusionner` refuse des bilans de méthodes différentes (un bilan sans `methode`, d'avant 0.9.0, compte comme `ecologits`). Voir [impact-input-impactia.md](impact-input-impactia.md).
 
 ## Skill
 

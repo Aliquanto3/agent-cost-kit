@@ -20,7 +20,7 @@ Les réglages du kit (Sonnet pour coder, Opus pour relire, Haiku pour le second 
 | 5 | Combien de caractères par token ? | `caracteres_par_token.py` | gratuit (count_tokens) | `--car-par-token` du script |
 | 6 | Le cache à 1 h vaut-il le coup ? | `cache_ttl.py` et `/agent-cost-kit:mesurer-couts` | gratuit | `subagentPromptCacheTtl` |
 | 7 | Combien pèse le contexte fixe ? | 2 sessions `claude -p` avec et sans `syncClaudeAiSkills`, puis le script | quelques centimes | conseils d'installation |
-| 8 | Le calcul d'impact reproduit-il la librairie EcoLogits ? | `ecologits_ecart.py` | gratuit | confiance dans les chiffres GreenOps |
+| 8 | Le calcul d'impact reproduit-il la librairie EcoLogits (et la PR #259 pour ImpactIA) ? | `ecologits_ecart.py`, `impactia_ecart.py` | gratuit | confiance dans les chiffres GreenOps |
 | 9 | Le dédoublonnage des sessions reprises tient-il ? | `doublons.py` (transcriptions synthétiques) | gratuit | confiance dans les totaux de `mesurer_couts.py` |
 
 ### 1. Contre-revue : quel modèle pour relire ?
