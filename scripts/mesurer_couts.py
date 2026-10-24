@@ -402,6 +402,43 @@ def mediane(valeurs):
     return statistics.median(valeurs) if valeurs else 0
 
 
+TYPES_ALERTE = ("dev-story", "reviewer")
+FACTEUR_ALERTE = 2
+
+
+def derapages(lignes: list[dict], types=TYPES_ALERTE, facteur: float = FACTEUR_ALERTE) -> list[dict]:
+    """Agents dont le nombre d'appels dépasse `facteur` x la médiane des agents du même type (alerte, jamais une coupure)."""
+    sortie = []
+    for t in types:
+        groupe = [l for l in lignes if str(l["type"]).split(":")[-1] == t]
+        if not groupe:
+            continue
+        med = mediane([l["appels"] for l in groupe])
+        sortie += [
+            {**l, "type": t, "mediane": med, "seuil": facteur * med}
+            for l in groupe
+            if l["appels"] > facteur * med
+        ]
+    return sorted(sortie, key=lambda l: (l["type"], -l["cout_usd"]))
+
+
+def section_derapage(sous: list[dict]) -> list[str]:
+    """Lignes de la section « Alerte de dérapage » de resume.md ; vide sans dépassement."""
+    derives = derapages(sous)
+    if not derives:
+        return []
+    sortie = ["", f"## Alerte de dérapage (plus de {FACTEUR_ALERTE} x la médiane d'appels du même type)", ""]
+    sortie.append("Information seulement : aucune coupure (une story coupée doit être reprise, et les plus longues sont souvent les plus difficiles).")
+    sortie += ["", "| Type | Session | Agent | Appels | Médiane du type | Coût | Description |", "|---|---|---|---|---|---|---|"]
+    for l in derives:
+        desc = " ".join(str(l["description"]).split()).replace("|", "\\|")
+        sortie.append(
+            f"| {l['type']} | {l['session']} | {l['agent']} | {l['appels']} | {l['mediane']:.0f} "
+            f"| {l['cout_usd']:.2f} $ | {desc} |"
+        )
+    return sortie
+
+
 def main() -> int:
     for flux in (sys.stdout, sys.stderr):
         flux.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
@@ -620,6 +657,7 @@ def resume(
         for jour in sorted({l["jour"] for l in sous}):
             s = [l for l in sous if l["jour"] == jour]
             sortie.append(f"| {jour} | {len(s)} | {mediane([l['premier_ctx'] for l in s]) / 1000:.1f} k | {mediane([l['pic_ctx'] for l in s]) / 1000:.0f} k |")
+    sortie += section_derapage(sous)
     sortie += ["", f"## Impact environnemental ({NOM_METHODE[methode]})", ""]
     if methode == "impactia":
         sortie.append(
