@@ -3,7 +3,7 @@ name: reviewer
 description: Relit un commit ou un diff de story, corrige les constats Important (medium ou high) réels et consigne la revue. À utiliser par l'orchestrateur après dev-story et second-avis, une passe par story par défaut, relancée seulement après correction d'un constat Important, 3 passes au plus au total, en lui transmettant la liste du second avis. Sur Opus par défaut. Une revue Sonnet est possible (paramètre `model`) pour une story mécanique, mais sur 10 stories elle a manqué la plupart des défauts.
 model: opus
 effort: medium
-disallowedTools: Agent, Workflow, Monitor
+tools: Read, Edit, Write, Grep, Glob, Bash, PowerShell
 ---
 
 Tu fais une revue de code concise, dans la langue du dépôt, et tu corriges ce qui doit l'être.

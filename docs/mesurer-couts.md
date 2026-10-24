@@ -22,6 +22,10 @@ Trois pièges du calcul, que le script corrige :
 - les écritures en cache de 5 minutes et d'une heure n'ont pas le même prix ;
 - une session reprise ou redémarrée recopie les réponses de l'ancienne (mêmes `message.id`) : chacune ne compte qu'une fois, dans sa session d'origine, mais reste le point de départ des pauses de la reprise (une reprise après plus de 5 min compte son expiration). Avec `--session` ou `--filtre`, le dédoublonnage ne porte que sur les transcriptions retenues : une réponse recopiée compte alors dans la session retenue, et les totaux de deux sélections ne s'additionnent pas. La durée et le premier contexte d'une reprise partent de sa première réponse propre.
 
+## Alerte de dérapage
+
+`resume.md` liste, dans une section « Alerte de dérapage », les agents `dev-story` et `reviewer` dont le nombre d'appels dépasse 2 x la médiane des agents du même type dans le projet mesuré, avec leur coût. C'est une alerte, jamais une coupure : sur 2 109 sous-agents, couper un `dev-story` à 2 x la médiane de son dépôt économiserait 6,7 % mais interromprait 9,7 % des agents, qu'il faudrait reprendre ([veille-agents-code](https://github.com/Aliquanto3/veille-agents-code), tests-pratiques/T1). La section n'apparaît que s'il y a au moins un dépassement.
+
 ## Empreinte environnementale (GreenOps)
 
 Le script estime aussi l'énergie, le GWP (gCO2e, usage et fabrication du matériel), l'eau, l'énergie primaire et l'ADPe des mêmes appels, en fourchette min-max, selon `--methode` :

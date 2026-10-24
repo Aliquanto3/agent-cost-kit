@@ -6,7 +6,7 @@ Les réglages du kit (Sonnet pour coder, Opus pour relire, Haiku pour le second 
 
 1. **Prix.** Relevez la page officielle (`platform.claude.com/docs/en/about-claude/pricing`) : entrée, écriture du cache à 5 min et à 1 h, lecture du cache, sortie, et seuils de contexte long. Mettez à jour `prix` dans `plugins/couts-session/donnees/tarifs.json` (une entrée par identifiant de modèle, avec repli par famille), puis `py plugins/couts-session/donnees/generer_tarifs.py` pour le mod. Un écart sur la lecture du cache fausse tout : c'est 40 % du coût, et Sonnet a déjà été compté au double par erreur.
 2. **Noms des modèles.** `famille()` reconnaît les modèles par le nom de leur famille (`opus`, `sonnet`, `haiku`, `fable`). Ajoutez toute nouvelle famille dans `prix.familles` de `tarifs.json`, et chaque nouvelle génération dans `prix.modeles` (une génération n'a pas le tarif de la précédente).
-3. **Réglages de Claude Code.** Vérifiez dans la doc que `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, `subagentPromptCacheTtl`, `syncClaudeAiSkills` et les champs `model`, `effort` et `disallowedTools` du frontmatter existent toujours, avec le même sens.
+3. **Réglages de Claude Code.** Vérifiez dans la doc que `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, `subagentPromptCacheTtl`, `syncClaudeAiSkills` et les champs `model`, `effort`, `tools` et `disallowedTools` du frontmatter existent toujours, avec le même sens.
 4. **Corpus.** Gardez 5 à 10 stories déjà livrées, sur au moins deux dépôts, avec leur base Git. On rejoue les bancs dessus, chaque story dans son propre worktree.
 
 ## Les bancs, par ordre d'utilité

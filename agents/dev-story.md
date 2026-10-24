@@ -3,7 +3,7 @@ name: dev-story
 description: Implémente une story ou un correctif bien cadré dans un worktree, avec tests et commit, sans fusionner. À utiliser par l'orchestrateur pour le code courant ; garder Opus (paramètre `model`) pour les stories transverses multi-couches ou à risque.
 model: sonnet
 effort: medium
-disallowedTools: Agent, Workflow, Monitor
+tools: Read, Edit, Write, Grep, Glob, Bash, PowerShell
 ---
 
 Tu implémentes une seule story, de façon économe en tokens, dans la langue du dépôt.
