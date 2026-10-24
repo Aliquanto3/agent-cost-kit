@@ -415,11 +415,28 @@ def derapages(lignes: list[dict], types=TYPES_ALERTE, facteur: float = FACTEUR_A
             continue
         med = mediane([l["appels"] for l in groupe])
         sortie += [
-            {"type": t, "mediane": med, "seuil": facteur * med, **l}
+            {**l, "type": t, "mediane": med, "seuil": facteur * med}
             for l in groupe
             if l["appels"] > facteur * med
         ]
     return sorted(sortie, key=lambda l: (l["type"], -l["cout_usd"]))
+
+
+def section_derapage(sous: list[dict]) -> list[str]:
+    """Lignes de la section « Alerte de dérapage » de resume.md ; vide sans dépassement."""
+    derives = derapages(sous)
+    if not derives:
+        return []
+    sortie = ["", f"## Alerte de dérapage (plus de {FACTEUR_ALERTE} x la médiane d'appels du même type)", ""]
+    sortie.append("Information seulement : aucune coupure (une story coupée doit être reprise, et les plus longues sont souvent les plus difficiles).")
+    sortie += ["", "| Type | Session | Agent | Appels | Médiane du type | Coût | Description |", "|---|---|---|---|---|---|---|"]
+    for l in derives:
+        desc = " ".join(str(l["description"]).split()).replace("|", "\\|")
+        sortie.append(
+            f"| {l['type']} | {l['session']} | {l['agent']} | {l['appels']} | {l['mediane']:.0f} "
+            f"| {l['cout_usd']:.2f} $ | {desc} |"
+        )
+    return sortie
 
 
 def main() -> int:
@@ -640,16 +657,7 @@ def resume(
         for jour in sorted({l["jour"] for l in sous}):
             s = [l for l in sous if l["jour"] == jour]
             sortie.append(f"| {jour} | {len(s)} | {mediane([l['premier_ctx'] for l in s]) / 1000:.1f} k | {mediane([l['pic_ctx'] for l in s]) / 1000:.0f} k |")
-    derives = derapages(sous)
-    if derives:
-        sortie += ["", f"## Alerte de dérapage (plus de {FACTEUR_ALERTE} x la médiane d'appels du même type)", ""]
-        sortie.append("Information seulement : aucune coupure (une story coupée doit être reprise, et les plus longues sont souvent les plus difficiles).")
-        sortie += ["", "| Type | Session | Agent | Appels | Médiane du type | Coût | Description |", "|---|---|---|---|---|---|---|"]
-        for l in derives:
-            sortie.append(
-                f"| {l['type']} | {l['session']} | {l['agent']} | {l['appels']} | {l['mediane']:.0f} "
-                f"| {l['cout_usd']:.2f} $ | {l['description']} |"
-            )
+    sortie += section_derapage(sous)
     sortie += ["", f"## Impact environnemental ({NOM_METHODE[methode]})", ""]
     if methode == "impactia":
         sortie.append(

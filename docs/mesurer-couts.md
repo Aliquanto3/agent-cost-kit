@@ -24,7 +24,7 @@ Trois pièges du calcul, que le script corrige :
 
 ## Alerte de dérapage
 
-`resume.md` liste, dans une section « Alerte de dérapage », les agents `dev-story` et `reviewer` dont le nombre d'appels dépasse 2 x la médiane des agents du même type dans le projet mesuré, avec leur coût. C'est une alerte, jamais une coupure : sur 2 109 sous-agents, couper un `dev-story` à 2 x la médiane de son dépôt économiserait 6,7 % mais interromprait 9,7 % des agents, qu'il faudrait reprendre ([veille-agents-code](https://github.com/Aliquanto3/veille-agents-code), tests-pratiques/T1). La section n'apparaît que s'il y a au moins un dépassement.
+`resume.md` liste, dans une section « Alerte de dérapage », les agents `dev-story` et `reviewer` dont le nombre d'appels dépasse 2 x la médiane des agents du même type dans le projet mesuré, avec leur coût. C'est une alerte, jamais une coupure : sur 2 109 sous-agents, couper un `dev-story` à 2 x la médiane de son dépôt économiserait 6,7 % mais interromprait 9,7 % des agents, qu'il faudrait reprendre ([veille-agents-code](https://github.com/Aliquanto3/veille-agents-code), tests-pratiques/T1). La section n'apparaît que s'il y a au moins un dépassement. Chaque sous-agent compte pour lui seul : les appels d'un sous-agent imbriqué ne s'ajoutent pas à ceux de son parent (`dev-story` et `reviewer` n'en lancent pas).
 
 ## Empreinte environnementale (GreenOps)
 
