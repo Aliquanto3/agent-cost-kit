@@ -1,5 +1,5 @@
 ---
-description: Synthèse d'avancement d'un run autonome BMAD pour un dirigeant : taux global, heure de fin estimée et météo, points à savoir, tableau par epic. Détails de l'estimation avec --detail, tableau par story avec --stories.
+description: "Synthèse d'avancement d'un run autonome BMAD pour un dirigeant : taux global, heure de fin estimée et météo, points à savoir, tableau par epic. Détails de l'estimation avec --detail, tableau par story avec --stories."
 argument-hint: "[chemin du projet] [--detail] [--stories] [--json]"
 allowed-tools: Bash(python:*), Bash(uv run:*), Read
 ---
