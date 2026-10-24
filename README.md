@@ -41,7 +41,7 @@ Le mod exige les mods de code de Claude Code, en accès anticipé : ajoutez `"CL
 orchestrateur (Opus, medium) → dev-story (Sonnet) → second-avis (Haiku) → reviewer (Opus) → fusion
 ```
 
-Chaque appel est bloquant, la revue tient en une seule passe, et un sous-agent ne lance jamais d'autre sous-agent.
+Chaque appel est bloquant, la revue tient en une passe par défaut (relancée seulement après correction d'un constat Important, medium ou high réel, 3 passes au plus), et un sous-agent ne lance jamais d'autre sous-agent.
 
 ## Les cinq règles qui comptent
 

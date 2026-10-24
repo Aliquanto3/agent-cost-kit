@@ -26,7 +26,7 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 |---|---|
 | `agents/dev-story.md` | Sonnet, `medium`, sans sous-agent (outil retiré) ni arrière-plan (par consigne). Implémente une story dans un worktree, tests ciblés pendant, suite complète une fois à la fin, au plus 3 cycles sur un même échec, rapport de 5 lignes. |
 | `agents/second-avis.md` | Haiku, lecture seule. Relecture adversariale du diff pour quelques centimes ; sa liste est transmise au reviewer. |
-| `agents/reviewer.md` | Opus, `medium`. Une passe : suit les appelants au-delà du diff, exécute le code, questionne les tests, vérifie ce que la CI installe, corrige les constats medium et high, consigne la revue dans la spec. |
+| `agents/reviewer.md` | Opus, `medium`. Une passe par défaut, relancée seulement après correction d'un constat Important, 3 passes au plus : suit les appelants au-delà du diff, exécute le code, questionne les tests, vérifie ce que la CI installe, corrige les constats Important (medium ou high réels), consigne la revue dans la spec. |
 | `agents/lookup.md` | Haiku, `low`, lecture seule. Trouve un symbole, résume un log : 20 bonnes réponses sur 20, comme Sonnet, pour 18 fois moins cher. |
 | `skills/cost-kit-install` | Installation guidée : partie globale, réglages du projet, contrôle rapide, enchaînement, vérification. |
 | `scripts/installer_global.py` | Partie globale, une fois par PC : fusionne les réglages utilisateur, écrit le bloc de consignes entre marqueurs, signale les réglages contraires. Aperçu par défaut, `--appliquer` pour écrire. Python 3.10+, aucune dépendance. |
