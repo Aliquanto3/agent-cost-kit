@@ -18,9 +18,9 @@ Deux stories, sur la même branche `feat/0.12-experimental`, dans cet ordre. Tou
    | Outil | Dépôt | Commit | Licence | Ce qui demande Anaël |
    |---|---|---|---|---|
    | grill-with-docs | `mattpocock/skills`, `skills/engineering/grill-with-docs` | `5beb35b040e3de97e54fa9e386d7e42d15c295c2` | MIT | questions posées à l'auteur avant un PRD flou |
-   | clarity (rewrite, review, interview) | `addyosmani/clarity` | `e27ceeff60368cf6966b4ea00a5b9b36418ee9a0` | MIT | jugement sur des textes publics ; test T11 en cours |
-   | humanizer | `blader/humanizer` | `8c307f367c91bd974002f10f2be2965d642c13df` | MIT | idem, seul ou après clarity selon T11 |
-   | AOS Dashboard | `tomtomsatnav/agent-orchestration-standard` | `40d270774a275870e1b676b11e8074ec4a746b5f` | MIT | observation d'un run parallèle (conflits de fichiers) ; 17 hooks asynchrones, port 4318, Git Bash et make sous Windows |
+   | clarity (rewrite, review, interview) | `addyosmani/clarity` | `e27ceeff60368cf6966b4ea00a5b9b36418ee9a0` | MIT | jugement sur des textes publics ; T11 fait (provisoire : aucun fait inventé, 0,11 $ par réécriture, ne départage pas), note à l'aveugle d'Anaël en attente |
+   | humanizer | `blader/humanizer` | `8c307f367c91bd974002f10f2be2965d642c13df` | MIT | idem ; T11 provisoire : aucun fait inventé, 0,13 $, enchaîné après clarity 0,31 $ sans gain mesuré |
+   | AOS Dashboard | `tomtomsatnav/agent-orchestration-standard` | `40d270774a275870e1b676b11e8074ec4a746b5f` | MIT | observation d'un run parallèle (conflits de fichiers) ; 19 déclarations de hook asynchrones (3 scripts Node) au commit épinglé, port 4318, Git Bash et make sous Windows |
    | impeccable `detect` | `pbakaus/impeccable` | `936867543ac2576920d663cc9803597f6044f3ac` | Apache-2.0 | selon la note à l'aveugle de T7 ; sans ses hooks ni télémétrie |
    | hallmark | `Nutlope/hallmark` | `7ec868225c6caa040558c321ee0fefa0e73f83a8` | MIT | idem ; flux interactif, lance un sous-agent : jamais en run autonome |
    | diagram-design | `cathrynlavery/diagram-design` | `0b9b10cab3dbf695642fa1a6c4b4f60df9083689` | MIT | livrable client à la demande |
@@ -51,7 +51,22 @@ Deux stories, sur la même branche `feat/0.12-experimental`, dans cet ordre. Tou
 
 - Fichiers : `docs/experimental.md` (règle d'essai, 10 fiches), `skills/essai-outil/SKILL.md` (`disable-model-invocation: true`, 8 étapes de la spec), `mesures/essais/README.md`, une ligne dans `README.md` et dans le tableau de `docs/installation.md`.
 - Choix : fiches rédigées d'après le champ `note` de `bilan.json` (veille) ; liens vers T7 et T11 par dossier du dépôt veille ; critères de sortie propres à chaque fiche, formulés comme seuil simple. Commits et licences repris tels quels, aucun code tiers copié.
-- Reports : les critères de sortie chiffrés (par exemple « plus de la moitié des constats utiles » pour impeccable) sont des propositions à ajuster après le premier essai ; résultat de T11 à reporter dans les fiches clarity et humanizer quand il sera publié.
+- Reports : les critères de sortie chiffrés (par exemple « plus de la moitié des constats utiles » pour impeccable) sont des propositions à ajuster après le premier essai ; résultat de T11 à reporter dans les fiches clarity et humanizer quand il sera publié (fait en revue : résultat provisoire reporté, note d'Anaël en attente).
+
+### Revue
+
+Passe 1 (Opus, base `master` à jour en `5c8b575`, commit relu `1785972`).
+
+| Sévérité | Source | Constat | Suite | Motif |
+|---|---|---|---|---|
+| medium | second avis (high) | Étapes 5 et 8 du skill sans `--scope project` ; `claude plugin install`, `uninstall` et `marketplace add` visent `user` par défaut | corrigé | Confirmé par `--help`. Ramené à medium : la consigne « jamais au niveau utilisateur » était écrite, mais sans la commande. Ajout des commandes avec `--scope project` (marketplace locale depuis la copie épinglée), du cas skill seul (copie dans `.claude/skills/`), et d'une vérification par `claude plugin list` |
+| low | second avis | « T11 en cours » périmé dans clarity, humanizer et le tableau de la spec | corrigé | T11 fait le 2026-10-25 (`resultats.md`, `bilan.json`) ; résultat provisoire reporté, note d'Anaël en attente |
+| low | second avis | Citation humanizer inexacte | corrigé | Formule réelle de `donnees.json` : « il renforce certains tics de rythme » |
+| low | second avis | Citation AOS tronquée | corrigé | « sur un run parallèle » rétabli |
+| low | second avis + revue | « 17 hooks asynchrones » | corrigé | Au commit épinglé, `plugin/hooks/hooks.json` déclare 19 hooks, tous `"async": true`, sur 3 scripts (`aos-hook`, `ensure-monitor`, `aos-guard`). Fiche, protocole et tableau corrigés ; l'écart avec le chiffre de la veille (17) est signalé |
+| low | second avis | « protocole d'évaluation publié sans résultat » attribué à la veille | corrigé | `evals/JUDGE.md` existe au commit épinglé (protocole, portes dures) sans résultats ; phrase déplacée hors de la ligne « Veille » |
+| low | second avis | `.claude/cost-kit/.blocages` commité | corrigé | Retiré du suivi, ajouté au `.gitignore` |
+| low | second avis | Étape 7 : dossier `mesures/essais/` ambigu | corrigé | Précisé : racine du projet de l'essai, dossier créé s'il manque |
 
 ## Story 2 : mutation guidée (étape optionnelle)
 

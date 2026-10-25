@@ -33,7 +33,8 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Protocole** : 1. lire le skill (7,7 k caractères, sans hook ni réseau) ; 2. prendre deux textes publics de longueur différente ; 3. `rewrite` sur chacun ; 4. `review` sur un troisième ; 5. relire avec le texte d'origine à côté et noter toute invention ; 6. lire le résultat de T11 avant de conclure.
 - **Observer** : faits inventés (zéro toléré), tics ajoutés ou retirés, fidélité à la voix d'Anaël, en français.
 - **Sortie** : stable si aucune invention et textes préférés à l'aveugle ; écarté si l'un des deux échoue.
-- **Veille** : skill d'écriture à invocation manuelle, protocole d'évaluation publié sans résultat ; départagé de humanizer par [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture) (en cours).
+- **Veille** : skill d'écriture à invocation manuelle, sans hook ni réseau. Résultat provisoire de [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture) : aucun fait inventé selon le juge, chiffres et renvois intacts, 0,11 $ par réécriture ; les textes de départ avaient trop peu de défauts pour départager, la note à l'aveugle d'Anaël tranchera.
+- **À noter** : le dépôt publie un protocole d'évaluation (`evals/JUDGE.md`, portes dures sur les faits inventés), sans résultats chiffrés.
 
 ## humanizer
 
@@ -43,17 +44,17 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Protocole** : 1. lire le skill et ses règles ; 2. reprendre les textes de l'essai clarity ; 3. appliquer humanizer seul ; 4. l'appliquer après clarity ; 5. comparer à l'aveugle les quatre versions.
 - **Observer** : tics renforcés plutôt que retirés, faits inventés, perte de précision.
 - **Sortie** : garder à la demande si la version enchaînée bat clarity seul ; écarté sinon.
-- **Veille** : « à relire, il renforce certains tics » ; comparé à clarity par [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture).
+- **Veille** : « il renforce certains tics de rythme ». Résultat provisoire de [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture) : aucun fait inventé, retire le gras décoratif et la moitié des exclamations, mais fond une liste à puces en phrase ; 0,13 $ par réécriture, et 0,31 $ enchaîné après clarity sans gain mesuré. La note à l'aveugle d'Anaël tranchera.
 
 ## AOS Dashboard
 
 - **Dépôt** : [tomtomsatnav/agent-orchestration-standard](https://github.com/tomtomsatnav/agent-orchestration-standard) · **Commit** : `40d270774a275870e1b676b11e8074ec4a746b5f` · **Licence** : MIT
 - **Problème visé** : l'alerte de conflit de fichiers entre agents d'un run parallèle (son seul apport neuf par rapport à `mesurer-couts`).
-- **Quand** : pendant un run parallèle, en bac à sable. Demande Anaël : observer le run. Réserves : 17 hooks asynchrones (un processus Node chacun), port 4318 (celui de l'export OpenTelemetry), Git Bash et make sous Windows.
-- **Protocole** : 1. lire les 17 hooks un par un et le serveur ; 2. SkillSpector, puis noter la liste des hooks et des ports ; 3. installer dans un dépôt jetable, sur un port libre ; 4. lancer un petit run parallèle de deux stories qui touchent un même fichier ; 5. regarder si l'alerte de conflit arrive avant la fusion ; 6. mesurer la charge du poste et le contexte ajouté.
+- **Quand** : pendant un run parallèle, en bac à sable. Demande Anaël : observer le run. Réserves : 19 déclarations de hook, toutes `"async": true`, sur 3 scripts Node (un processus par événement), port 4318 (celui de l'export OpenTelemetry), Git Bash et make sous Windows.
+- **Protocole** : 1. lire `plugin/hooks/hooks.json`, les 3 scripts de hooks et le serveur ; 2. SkillSpector, puis noter la liste des hooks et des ports ; 3. installer dans un dépôt jetable, sur un port libre ; 4. lancer un petit run parallèle de deux stories qui touchent un même fichier ; 5. regarder si l'alerte de conflit arrive avant la fusion ; 6. mesurer la charge du poste et le contexte ajouté.
 - **Observer** : alerte utile et à temps, ralentissement du poste, données qui sortent, collision de port.
 - **Sortie** : garder à la demande si l'alerte précède le conflit sans ralentir le run ; écarté sinon.
-- **Veille** : moniteur en lecture seule, une semaine d'existence, qui recoupe `mesurer-couts` ; « à essayer en bac à sable après lecture des hooks et SkillSpector ».
+- **Veille** : moniteur en lecture seule, une semaine d'existence, qui recoupe `mesurer-couts` ; « à essayer en bac à sable sur un run parallèle, après lecture des hooks et SkillSpector ». La veille compte 17 hooks ; le manifeste au commit épinglé en déclare 19.
 
 ## impeccable `detect`
 

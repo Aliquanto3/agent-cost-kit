@@ -3,3 +3,4 @@ __pycache__/
 mesures-couts/
 bancs-lookup/
 plugins/*/.claude-plugin/types/
+.claude/cost-kit/.blocages
