@@ -43,6 +43,8 @@ orchestrateur (Opus, medium) → dev-story (Sonnet) → second-avis (Haiku) → 
 
 Chaque appel est bloquant, la revue tient en une passe par défaut (relancée seulement après correction d'un constat Important, medium ou high réel, 3 passes au plus), et un sous-agent ne lance jamais d'autre sous-agent.
 
+Étape optionnelle et expérimentale, après dev-story et avant second-avis, pour une story qui crée ou réécrit un fichier source : la [mutation guidée](docs/mutation-guidee.md) (survivants de cosmic-ray montrés à un second appel `dev-story`).
+
 ## Les cinq règles qui comptent
 
 1. **Pas d'agent qui relance des agents.** L'agent intermédiaire pèse 36 à 47 % d'une story.
@@ -60,6 +62,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC.
 - [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
 - [Catalogue d'essais](docs/experimental.md) (expérimental) : outils de la veille à essayer avec le skill `/agent-cost-kit:essai-outil`, commit épinglé et critère de sortie par fiche.
+- [Mutation guidée](docs/mutation-guidee.md) (expérimental) : étape optionnelle après dev-story, script `scripts/mutation_story.py`, chiffres de la veille (T4, T10, T10b).
 - [Historique des versions](CHANGELOG.md).
 
 ## English summary

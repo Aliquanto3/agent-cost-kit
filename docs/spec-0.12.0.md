@@ -75,6 +75,12 @@ Deux stories, sur la même branche `feat/0.12-experimental`, dans cet ordre. Tou
 - Le script ne modifie aucun fichier du dépôt cible à la fin (sources restaurées, `git status` propre), y compris si le budget tombe pendant un mutant.
 - Rien dans la chaîne par défaut ne lance la mutation tout seul.
 
+### Réalisation
+
+- Fichiers : `scripts/mutation_story.py`, `tests/test_mutation_story.py` (4 tests, `skip` si `uv` ou cosmic-ray manque), `docs/mutation-guidee.md`, une puce dans `agents/dev-story.md` et `agents/reviewer.md`, une mention dans `modeles/CLAUDE.global.md` et le README (enchaînement et « Pour aller plus loin »).
+- Choix : repris de T4 (filtre sur les lignes du diff, annotations retirées, budget, arbre tué) et T10 (diff d'une ligne, note `CosmicRayTestingException`) ; cosmic-ray et pytest viennent de `uv run --with` à chaque commande (l'environnement éphémère de uv disparaît entre deux appels, d'où `--python` pour fournir un interpréteur prêt) ; sorties et bases cosmic-ray hors dépôt ; sources sauvegardées en octets et réécrites dans un `finally`.
+- Reports : arrêt du budget au milieu d'un mutant couvert par la restauration, mais non testé par un test dédié (le test de budget nul vérifie la restauration, pas l'arrêt en cours d'exécution) ; surcoût de `uv run` par mutant non mesuré ; pas de `--modules` en dehors de Python.
+
 ## Version et publication (après les deux stories)
 - `.claude-plugin/plugin.json` en `0.12.0`, entrée `0.12.0` en tête de `CHANGELOG.md` (format des entrées voisines : ce qui change, d'où ça vient, chiffres, liens), au même niveau de détail que 0.10.0 et 0.11.0.
 - L'orchestrateur ouvre la PR, vérifie la CI, fusionne, tague `v0.12.0` (annoté) et publie la release avec ses notes.
