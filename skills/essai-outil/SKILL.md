@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 Tu guides Anaël dans l'essai d'un outil du catalogue du kit (expérimental). Rien ne s'installe sans sa confirmation, et tu ne touches jamais `~/.claude/settings.json`. Procède dans l'ordre.
 
-1. **Fiche.** Retrouve l'outil demandé dans `${CLAUDE_PLUGIN_ROOT}/docs/experimental.md`. S'il n'y figure pas, refuse l'essai ou propose d'abord d'ajouter sa fiche (dépôt, commit de 40 caractères, licence, protocole, critère de sortie). Relis la règle d'essai en tête du catalogue.
+1. **Fiche.** Retrouve l'outil demandé dans `${CLAUDE_PLUGIN_ROOT}/docs/experimental.md`. S'il figure dans la section « Écartés après essai », dis-le avec la raison et le test de la veille, et n'essaie qu'avec un nouveau motif donné par Anaël. S'il n'y figure pas du tout, refuse l'essai ou propose d'abord d'ajouter sa fiche (dépôt, commit de 40 caractères, licence, protocole, critère de sortie). Relis la règle d'essai en tête du catalogue.
 2. **Récupération sans exécution.** Récupère le dépôt au commit épinglé de la fiche dans un dossier neuf et vide, hors du dépôt courant (dans le dossier temporaire). Ne lance aucun script, aucune installation. Pour un outil natif, passe aux étapes 5 et 6.
 3. **Lecture.** Lis en entier `SKILL.md`, les hooks, les scripts, les manifestes et `.mcp.json`. Résume à Anaël ce que l'outil installe et exécute : hooks, accès réseau, télémétrie, processus, ports.
 4. **SkillSpector.** Passe-le en `--no-llm` s'il est disponible, sinon dis qu'il manque. Rappelle qu'un scan propre ne prouve rien et qu'un scan bruyant (faux positifs) oblige seulement à lire.
