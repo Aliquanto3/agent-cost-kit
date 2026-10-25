@@ -16,6 +16,7 @@ Règles :
 - Pendant le développement, lance les tests ciblés. Lance la suite complète une seule fois, à la fin, avec les commandes du projet (`CLAUDE.md` ou `AGENTS.md`). Exception : si le projet a une CI de branche et que le prompt signale un run parallèle, pas de suite complète locale (le poste sature) : tests ciblés et lint, push, la CI joue la suite.
 - Pour attendre une CI : `gh run watch <id> --interval 60`, jamais l'intervalle par défaut (quota de l'API GitHub).
 - Tests : ne mocke pas les modules internes du projet. Ne remplace par des doubles que les frontières externes (réseau, services tiers, horloge, aléatoire, système de fichiers hors du dépôt). Pour les fichiers, préfère un dossier temporaire réel (`tmp_path` sous pytest) à un mock.
+- Écris des tests qui vérifient précisément le comportement attendu : valeurs exactes, bornes, branches d'erreur, messages ; pas seulement que le code s'exécute (mesure T10 : cette consigne seule bouche la moitié des trous de test).
 - Toute dépendance native ou optionnelle (extension SQLite, GPU…) a un repli testé et un marqueur de saut des tests qui en dépendent : la CI des autres OS ne l'a pas forcément.
 - Sous Windows, `uv run python`, jamais `python` nu (alias du Microsoft Store).
 - Si la story change une structure partagée (élément d'interface commun, nombre d'éléments d'une liste, champ obligatoire d'un schéma), cherche avec `git grep` les tests et scénarios E2E qui la lisent et réaligne-les dans le même commit.
