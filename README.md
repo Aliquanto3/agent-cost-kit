@@ -58,6 +58,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Les mesures](docs/mesures.md) : corpus, revue, setup mesuré en série, ce qui dépend de votre projet, limites.
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, l'impact (ImpactIA expérimental, EcoLogits), la mise à jour quand de nouveaux modèles sortent.
 - [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC.
+- [CI découpée pour un run autonome](docs/ci-run-autonome.md) : le modèle `modeles/ci-run-autonome.yml` (matrice OS x 4 groupes, pytest-split) et `scripts/fusion_durees.py`, qui fusionne les durées de tests remontées par la CI et estime l'écart entre groupes.
 - [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
 - [Historique des versions](CHANGELOG.md).
 
