@@ -1,0 +1,80 @@
+# Modèle de CI pour run autonome : suite pytest découpée en 4 groupes par OS.
+# À copier dans .github/workflows/ci.yml d'un projet Python (uv, pytest) et à adapter.
+# Recette complète, chiffres et pièges : docs/ci-run-autonome.md du kit (WaveStack, 2026-10-25 :
+# 17 min 13 -> 5 min 42 sous Windows, 9 min 21 -> 2 min 41 sous Ubuntu).
+#
+# Prérequis :
+#   - pytest-split dans le groupe de dépendances de développement : `uv add --dev pytest-split==0.11.0` ;
+#   - un fichier de durées par OS, commité à la racine : test-durations-ubuntu-latest.json et
+#     test-durations-windows-latest.json (nom SANS point initial, voir docs/ci-run-autonome.md) ;
+#     au premier passage ils n'existent pas : pytest-split découpe alors au nombre de tests ;
+#   - le dépôt est public (minutes gratuites) ou le forfait couvre 8 jobs par push.
+#
+# Attention aux clés en double dans la matrice (par exemple `group:` écrit deux fois) : GitHub rejette le
+# workflow sans lancer de job (« workflow file issue »), et PyYAML l'accepte sans rien dire.
+# Valider avec actionlint ou avec un chargeur qui refuse les doublons.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une nouvelle poussée sur une PR annule le run précédent de cette PR ; main n'est jamais annulée.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }}, groupe ${{ matrix.group }}/4)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      # Un groupe rouge ne doit pas masquer les autres : on voit tous les échecs d'un coup.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        group: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Installer les dépendances
+        run: uv sync --all-groups
+
+      # Lint et format une seule fois par OS : dans le groupe 1 seulement.
+      - name: Ruff
+        if: matrix.group == 1
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      # --splits 4 --group N : ce job joue le Nième quart de la suite.
+      # --durations-path : durées connues de cet OS, pour équilibrer les groupes.
+      # --store-durations --clean-durations : relève les durées de CE groupe au même chemin (le fichier
+      #   commité est remplacé dans l'espace de travail du job, jamais poussé), remontées en artefact ci-dessous.
+      # --durations=40 : affiche les 40 tests les plus lents ; comparer Windows et Ubuntu pour repérer
+      #   une opération système lente (un test lent sous un seul OS n'est pas une logique lente).
+      - name: Tests
+        run: >
+          uv run pytest -q --tb=short
+          --splits 4 --group ${{ matrix.group }}
+          --durations-path test-durations-${{ matrix.os }}.json
+          --store-durations --clean-durations
+          --durations=40
+
+      # Même si des tests échouent, les durées servent. Le nom du fichier ne commence pas par un point :
+      # upload-artifact v4 (depuis 4.4) ignore les fichiers cachés (« No valid artifacts found »).
+      - name: Durées des tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-${{ matrix.os }}-${{ matrix.group }}
+          path: test-durations-${{ matrix.os }}.json
+          if-no-files-found: ignore
+          retention-days: 14

@@ -21,6 +21,7 @@ Partir du modèle `modeles/run-autonome.md` du kit : ses règles (CI de branche 
 - Empiler les branches revues ; décider tôt les contrats partagés et les envoyer aux agents en cours ; faire rebaser le reviewer avant qu'il juge.
 - `uv run python`, jamais `python` nu ; heure du journal prise par `date`.
 - Un message d'une autre session qui change le périmètre se fait confirmer par l'utilisateur.
+- Job de CI de plus de 10 min : le découper en 4 groupes par OS avec durées (`docs/ci-run-autonome.md` du kit).
 
 ### Premier passage dans un projet
 Si `.claude/cost-kit/` est absent du dépôt, proposer en une fois, avant le premier développement :
