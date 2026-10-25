@@ -18,6 +18,7 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 - propose les réglages du projet (un plugin ne peut pas les imposer) ;
 - copie le modèle de contrôle rapide ;
 - explique l'enchaînement des agents ;
+- pour un projet à interface web, propose en option (expérimental) le sous-agent `verif-front`, un modèle copié dans `.claude/agents/` : après dev-story, il vérifie les critères dans un vrai navigateur (`docs/verif-front.md`) ;
 - vous rappelle de redémarrer Claude Code.
 
 ## Contenu
@@ -30,6 +31,7 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 | `agents/lookup.md` | Haiku, `low`, lecture seule. Trouve un symbole, résume un log : 20 bonnes réponses sur 20, comme Sonnet, pour 18 fois moins cher. |
 | `skills/cost-kit-install` | Installation guidée : partie globale, réglages du projet, contrôle rapide, enchaînement, vérification. |
 | `scripts/installer_global.py` | Partie globale, une fois par PC : fusionne les réglages utilisateur, écrit le bloc de consignes entre marqueurs, signale les réglages contraires. Aperçu par défaut, `--appliquer` pour écrire. Python 3.10+, aucune dépendance. |
+| `modeles/agents/verif-front.md` | Modèle d'agent expérimental (Sonnet, `medium`, lecture seule, Playwright MCP 0.0.83 en ligne), copié par `cost-kit-install` dans un projet front ; absent de `agents/` car les sous-agents de plugin ignorent `mcpServers`. |
 | `modeles/CLAUDE.global.md` | Les consignes de coût écrites dans `~/.claude/CLAUDE.md`. |
 | `commands/mesurer-couts.md` | `/agent-cost-kit:mesurer-couts` : coût réel par agent et par story, pic de contexte, appels, expirations du cache, contrefactuel du TTL. |
 | `scripts/mesurer_couts.py` | Le script derrière la commande. Python 3.10+, aucune dépendance. Lit `~/.claude/projects/<projet>/` et la table des prix `plugins/couts-session/donnees/tarifs.json` du dépôt. |
