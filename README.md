@@ -59,6 +59,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, l'impact (ImpactIA expérimental, EcoLogits), la mise à jour quand de nouveaux modèles sortent.
 - [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC.
 - [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
+- [Catalogue d'essais](docs/experimental.md) (expérimental) : outils de la veille à essayer avec le skill `/agent-cost-kit:essai-outil`, commit épinglé et critère de sortie par fiche.
 - [Historique des versions](CHANGELOG.md).
 
 ## English summary

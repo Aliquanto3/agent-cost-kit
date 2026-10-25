@@ -47,6 +47,12 @@ Deux stories, sur la même branche `feat/0.12-experimental`, dans cet ordre. Tou
 - Chaque fiche a un commit de 40 caractères (sauf les natifs), une licence et un critère de sortie.
 - Aucun code tiers copié dans le kit.
 
+### Réalisation
+
+- Fichiers : `docs/experimental.md` (règle d'essai, 10 fiches), `skills/essai-outil/SKILL.md` (`disable-model-invocation: true`, 8 étapes de la spec), `mesures/essais/README.md`, une ligne dans `README.md` et dans le tableau de `docs/installation.md`.
+- Choix : fiches rédigées d'après le champ `note` de `bilan.json` (veille) ; liens vers T7 et T11 par dossier du dépôt veille ; critères de sortie propres à chaque fiche, formulés comme seuil simple. Commits et licences repris tels quels, aucun code tiers copié.
+- Reports : les critères de sortie chiffrés (par exemple « plus de la moitié des constats utiles » pour impeccable) sont des propositions à ajuster après le premier essai ; résultat de T11 à reporter dans les fiches clarity et humanizer quand il sera publié.
+
 ## Story 2 : mutation guidée (étape optionnelle)
 
 **Pourquoi.** Tests de la veille sur 5 stories de deux dépôts : cosmic-ray borné aux lignes ajoutées par la story trouve un vrai trou de test dans 5 stories sur 5, mais prend 13 à 42 min (T4) : pas de porte de CI. Montrer ensuite les survivants à un agent Sonnet lui fait tuer **134 survivants non équivalents sur 134** pour 0,22 $ par story, contre 59 % avec une simple consigne de renforcement ; il reconnaît seul les mutants équivalents (35 sur 35) (T10b). Une simple consigne explicite de renforcement des tests bouche déjà la moitié des trous (T10). Résultats : `tests-pratiques/T4/resultats-mutation.md`, `tests-pratiques/T10-hypothesis/resultats.md` et `resultats-T10b.md` du dépôt veille-agents-code (lis-les, ainsi que les scripts `T4/mutation_story.py`, `T10-hypothesis/mutation.py` et la consigne `CONSIGNE_C` de `T10-hypothesis/lancer_agent.py`).
