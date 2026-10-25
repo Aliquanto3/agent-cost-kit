@@ -30,7 +30,8 @@ PID = {pid!r}
 def test_lent():
     src = Path(__file__).with_name("calc.py").read_text(encoding="utf-8")
     if src.replace("\\r\\n", "\\n") != ORIG:
-        Path(PID).write_text(str(os.getpid()), encoding="utf-8")
+        with open(PID, "a", encoding="utf-8") as f:
+            f.write(str(os.getpid()) + " ")
         time.sleep(300)
 """
 PYPROJECT = '[project]\nname = "fixture"\nversion = "0"\nrequires-python = ">=3.10"\n'
@@ -182,10 +183,43 @@ def test_budget_qui_tombe_pendant_un_mutant_tue_l_arbre(outil, depot, tmp_path):
     assert rc == 0
     assert duree < 60 + 45  # le mutant dort 300 s : il a bien été interrompu
     assert pid.exists(), "aucun mutant n'était en cours à l'échéance"
-    assert not vivant(int(pid.read_text(encoding="utf-8")))  # arbre tué, pas d'orphelin
+    assert not any(map(vivant, pids(pid)))  # arbre tué, pas d'orphelin
     res = json.loads((tmp_path / "out" / "survivants.json").read_text(encoding="utf-8"))
     assert res["par_module"][0]["budget_depasse"] is True
     assert res["totaux"]["executes"] == 0 and res["totaux"]["non_executes"] > 0
+    propre(wt)
+
+
+def pids(fichier):
+    return [int(x) for x in fichier.read_text(encoding="utf-8").split()]
+
+
+def test_mutant_au_dela_du_timeout_test_tue_sans_orphelin(outil, depot, tmp_path):
+    """Délai par mutant (pas le budget) : chaque mutant lent est tué avec tout son arbre,
+    compté tué, et le passage ne reste pas bloqué sur le tube d'un pytest orphelin."""
+    wt, _, pid = depot
+    pid.unlink(missing_ok=True)
+    t0 = time.time()
+    rc = ms.main(
+        args(
+            depot,
+            tmp_path,
+            "--tests",
+            "test_lent.py",
+            "--budget-min",
+            "4",
+            "--timeout-test",
+            "8",
+        )
+    )
+    assert rc == 0
+    res = json.loads((tmp_path / "out" / "survivants.json").read_text(encoding="utf-8"))
+    tot = res["totaux"]
+    assert tot["executes"] >= 1 and tot["tues"] == tot["executes"]
+    assert tot["survivants"] == 0
+    assert 1 <= len(pids(pid)) <= tot["executes"]  # sous charge, un mutant peut expirer avant pytest
+    assert not any(map(vivant, pids(pid)))
+    assert time.time() - t0 < 4 * 60 + 45
     propre(wt)
 
 
@@ -243,3 +277,25 @@ def test_annotations_exclues():
     spans = ms.spans_annotations(src)
     assert ms.dans_span(1, 9, spans)  # `int` de l'argument
     assert not ms.dans_span(2, 11, spans)
+
+
+def test_nettoyage_epargne_copie_vivante_et_worktrees_hors_copies(depot, tmp_path):
+    """Run parallèle : la copie d'un passage vivant reste ; un worktree de l'utilisateur placé
+    à côté de COPIES (préfixe commun) n'est jamais retiré ; une copie au PID mort l'est."""
+    wt, _, _ = depot
+    vivante = ms.creer_copie(wt)  # marqueur : PID de ce processus, vivant
+    voisin = ms.COPIES.parent / (ms.COPIES.name + "-utilisateur")
+    git(wt, "worktree", "add", "--detach", str(voisin), "HEAD")
+    try:
+        ms.nettoyer_copies(wt)
+        assert vivante.exists() and voisin.exists()
+        mort = subprocess.Popen([sys.executable, "-c", "pass"])
+        mort.wait()
+        ms.marqueur(vivante).write_text(str(mort.pid), encoding="utf-8")
+        ms.nettoyer_copies(wt)
+        assert not vivante.exists() and not ms.marqueur(vivante).exists()
+        assert voisin.exists()
+    finally:
+        git(wt, "worktree", "remove", "--force", str(voisin))
+        ms.retirer_copie(wt, vivante)
+    propre(wt)

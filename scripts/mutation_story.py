@@ -137,21 +137,63 @@ def racine_git(chemin: Path) -> Path:
     return Path(p.stdout.strip()).resolve()
 
 
+def marqueur(copie: Path) -> Path:
+    """Fichier voisin de la copie qui porte le PID du passage propriétaire."""
+    return copie.with_name(copie.name + ".pid")
+
+
+def processus_vivant(pid: int) -> bool:
+    """En cas de doute, vivant : on ne retire jamais la copie d'un passage peut-être en cours.
+    (Pas de `os.kill(pid, 0)` sous Windows : il terminerait le processus.)"""
+    if os.name == "nt":
+        out = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return out.returncode != 0 or f'"{pid}"' in out.stdout
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def retirer_copie(depot: Path, copie: Path) -> None:
     run(["git", "worktree", "remove", "--force", str(copie)], depot)
     if copie.exists():  # fichier verrouillé (Windows) : retiré au prochain passage
         shutil.rmtree(copie, ignore_errors=True)
+    if not copie.exists():
+        marqueur(copie).unlink(missing_ok=True)
     run(["git", "worktree", "prune"], depot)
 
 
+def est_copie(chemin: Path) -> bool:
+    """Garde-fou : seul un enfant direct de COPIES est une copie du script."""
+    return os.path.normcase(str(chemin.parent)) == os.path.normcase(
+        str(COPIES.resolve())
+    )
+
+
 def nettoyer_copies(depot: Path) -> None:
-    """Retire les copies jetables laissées par un passage tué (et les entrées git orphelines)."""
+    """Retire les copies jetables laissées par un passage tué (et les entrées git orphelines).
+
+    Les worktrees d'un dépôt sont partagés : la copie d'un passage encore vivant (run
+    parallèle sur une autre story du même dépôt) est laissée en place."""
     out = run(["git", "worktree", "list", "--porcelain"], depot).stdout
-    racine = str(COPIES.resolve()).lower()
     for ligne in out.splitlines():
         if ligne.startswith("worktree "):
             chemin = Path(ligne[len("worktree ") :]).resolve()
-            if str(chemin).lower().startswith(racine):
+            if not est_copie(chemin):
+                continue
+            try:
+                pid = int(marqueur(chemin).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pid = None
+            if pid is None or not processus_vivant(pid):
                 retirer_copie(depot, chemin)
     run(["git", "worktree", "prune"], depot)
 
@@ -160,8 +202,10 @@ def creer_copie(depot: Path) -> Path:
     COPIES.mkdir(parents=True, exist_ok=True)
     copie = Path(tempfile.mkdtemp(prefix=f"{depot.name[:20]}-", dir=COPIES)).resolve()
     copie.rmdir()
+    marqueur(copie).write_text(str(os.getpid()), encoding="utf-8")
     p = run(["git", "worktree", "add", "--detach", str(copie), "HEAD"], depot)
     if p.returncode != 0:
+        marqueur(copie).unlink(missing_ok=True)
         sys.exit(f"copie jetable impossible : {p.stderr[-400:]}")
     return copie
 
@@ -260,6 +304,15 @@ def lanceur(python: str | None) -> list[str]:
     return ["uv", "run", "--with", COSMIC_RAY, "--with", "pytest", "python"]
 
 
+def borne_commande(argv: list[str]) -> int:
+    """Mode interne `--borne <s> -- <commande>` : lance la commande et tue tout son arbre à
+    l'échéance. Sous Windows, cosmic-ray ne tue que son enfant direct (`uv`) au délai par
+    mutant : le pytest petit-enfant restait orphelin et gardait le tube de sortie ouvert."""
+    secondes, cmd = float(argv[1]), argv[3:]
+    proc = popen(cmd, os.getcwd())
+    return proc.returncode if attendre(proc, secondes) else 1
+
+
 def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
     nom = Path(module).stem
     cfg, db = tmp / f"cr-{nom}.toml", tmp / f"cr-{nom}.sqlite"
@@ -267,7 +320,7 @@ def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
     cfg.write_text(
         "[cosmic-ray]\n"
         f"module-path = {json.dumps(module)}\n"
-        f"timeout = {args.timeout_test}\n"
+        f"timeout = {args.timeout_test + 60}\n"  # filet : --borne tue avant
         "excluded-modules = []\n"
         f"test-command = {json.dumps(test_cmd)}\n\n"
         '[cosmic-ray.distributor]\nname = "local"\n',
@@ -347,6 +400,9 @@ def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
 
 
 def main(argv=None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["--borne"]:
+        return borne_commande(argv)
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--worktree", required=True, help="dépôt (ou worktree) de la story")
     ap.add_argument("--base", required=True, help="commit avant la story")
@@ -399,9 +455,20 @@ def main(argv=None) -> int:
         )
 
     py = lanceur(args.python)
+    # chaque mutant passe par --borne, qui tue tout l'arbre de pytest au délai par mutant
+    borne = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--borne",
+        str(args.timeout_test),
+        "--",
+    ]
     test_cmd = " ".join(
         [
-            *(shlex.quote(Path(c).as_posix() if os.sep in c else c) for c in py),
+            *(
+                shlex.quote(Path(c).as_posix() if os.sep in c else c)
+                for c in [*borne, *py]
+            ),
             "-m",
             "pytest",
             "-x",
