@@ -12,7 +12,7 @@ Une story, branche `feat/0.14-aiguillage`. Ajout **expérimental** : une règle 
 ## Pourquoi
 
 - **T13** (10 petites stories, 3 dépôts) : une voie de cadrage légère façon OpenSpec coûte 46 % de moins que le cadrage BMAD complet (étapes « clarifier » et « planifier » de `bmad-build`) mais réussit 10 points de moins aux tests cachés (IC [−19 ; −3]) : écartée.
-- **T13 bis** (22 petites stories, 4 dépôts publics, 84 runs, critère fixé avant les runs) : sans aucun cadrage, `dev-story` lancé directement sur l'entrée de `epics.md` réussit autant que le cadrage BMAD complet à 10 points près (−0,6 point, IC [−8,4 ; +7,4]) pour 73 % de moins (0,35 $ contre 1,32 $ par story, cadrage compris, avant revue). Retirer les critères de l'entrée ne change rien de mesurable (−1,4 point, IC [−8,9 ; +5,4]). Sur les entrées brèves (un seul critère, 6 stories), le cadrage garde un avantage de 8 à 12 points, non concluant.
+- **T13 bis** (22 petites stories, 4 dépôts publics, 84 runs, critère fixé avant les runs) : sans aucun cadrage, `dev-story` lancé directement sur l'entrée de `epics.md` réussit autant que le cadrage BMAD complet à 10 points près (−0,6 point, IC [−8,4 ; +7,4]) pour 73 % de moins (0,35 $ contre 1,32 $ par story, cadrage compris, avant revue). Retirer les critères de l'entrée ne change rien de mesurable (−1,4 point, IC [−8,9 ; +5,4]). Sur les 6 entrées brèves (< 1 200 caractères, souvent un seul critère), le cadrage garde l'avantage : −11,5 points sur toutes les données (IC [−23 ; −1]), −8,0 sur les seuls nouveaux runs (IC [−24 ; +8], au-dessus du seuil d'exclusion fixé).
 - **Limites à dire dans la doc** : non-infériorité à 10 points seulement (5 points demanderait ~90 stories) ; tests cachés peu discriminants (~52 % de réussite dans les deux bras) ; quatre dépôts d'un seul auteur ; le reviewer n'a pas été joué ; dans le banc, `dev-story` recevait aussi l'interface publique imposée par les tests cachés (dans la vraie chaîne, il écrit lui-même ses tests).
 
 D'où une règle expérimentale, avec un suivi qui permet de la retirer.
@@ -42,3 +42,17 @@ D'où une règle expérimentale, avec un suivi qui permet de la retirer.
 
 - Tests ciblés : `uv run --no-project --with pytest python -m pytest -q --tb=short tests/test_avancement_run.py`, suite complète une fois à la fin ; `claude plugin validate . --strict`.
 - La CI de la PR (Linux, Windows, validation) est la porte de fusion.
+
+## Revue
+
+Revue Opus du 2026-10-25, branche à jour de `origin/master` (aucun écart), liste du second avis (Haiku) reprise point par point.
+
+- medium · second avis 1 · corrigé · la phrase de `modeles/CLAUDE.global.md`, du README et de `docs/installation.md` n'excluait ni la story à risque ni la transverse ni le doute, contrairement à `docs/aiguillage-stories.md` : ajout de « ni à risque ni transverse » et « cadrage sinon ou dans le doute ».
+- medium · second avis 2 · corrigé · la strate brève est définie par la longueur (< 1 200 caractères), et « au moins deux critères » est une précaution (T13 bis §3, §9) : la doc le dit maintenant.
+- medium · second avis 3 · corrigé · « non concluant » minimisait : la doc et cette spec donnent −11,5 points (IC [−23 ; −1], exclut 0) sur toutes les données et −8,0 (IC [−24 ; +8]) sur les nouveaux runs.
+- low · second avis 4 · corrigé · limites complétées (T13 bis §8) : conformité aux tests d'origine et non qualité, pas d'entrée vraiment courte jouée, jusqu'à 8 points de perte possibles sous la marge de 10.
+- low · second avis 5 · rejeté · le corpus compte bien 4 dépôts (vérifié par l'orchestrateur) ; « trois dépôts » est une coquille de la source.
+- low · second avis 6 · corrigé · « au plus 3 fichiers source » dans les trois consignes.
+- low · reviewer · rejeté · `modeles/run-autonome.md` ne décrit pas la préparation des stories : pas de ligne ajoutée, conforme au livrable 3.
+- info · reviewer · vérifié · `etape_story` lit « lanc » / « fini » par sous-chaîne pour l'étape `dev` : « lancé, sans cadrage » et « fini, sans cadrage, … » comptent comme `lancé` et `fini` ; test ciblé vert.
+- Complexité : 0 constat (aucune structure qui grossit modifiée).

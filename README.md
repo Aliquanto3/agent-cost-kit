@@ -47,7 +47,7 @@ Chaque appel est bloquant, la revue tient en une passe par défaut (relancée se
 
 Autre étape optionnelle et expérimentale, pour une story qui change un écran dans un projet où le modèle `verif-front` est installé : la [vérification dans le navigateur](docs/verif-front.md) après dev-story, correction seulement sur un FAIL de la spec.
 
-Autre règle expérimentale, avant dev-story : une petite story bien décrite dans `epics.md` (au plus 3 fichiers, au moins deux critères Given/When/Then, noms à créer) part directement en développement, sans cadrage BMAD ; cadrage sinon ([aiguillage](docs/aiguillage-stories.md)).
+Autre règle expérimentale, avant dev-story : une petite story bien décrite dans `epics.md` (au plus 3 fichiers source, au moins deux critères Given/When/Then, noms à créer), ni à risque ni transverse, part directement en développement, sans cadrage BMAD ; cadrage sinon ou dans le doute ([aiguillage](docs/aiguillage-stories.md)).
 
 ## Les cinq règles qui comptent
 

@@ -29,13 +29,15 @@ Pas de fichier de spec de story, pas d'étape « clarifier » ni « planifier »
 
 Deux tests de la [veille agents de code](https://github.com/Aliquanto3/veille-agents-code) :
 - **[T13](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13-story-legere)** (10 petites stories, 3 dépôts) : une voie de cadrage légère façon OpenSpec coûte 46 % de moins que le cadrage BMAD complet (étapes « clarifier » et « planifier » de `bmad-build`), mais réussit 10 points de moins aux tests cachés (IC [−19 ; −3]). Elle est écartée.
-- **[T13 bis](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13bis-sans-cadrage)** (22 petites stories, 4 dépôts publics, 84 runs, critère fixé avant les runs) : sans aucun cadrage, `dev-story` lancé sur l'entrée de `epics.md` réussit autant que le cadrage BMAD complet à 10 points près (−0,6 point, IC [−8,4 ; +7,4]), pour 73 % de moins (0,35 $ contre 1,32 $ par story, cadrage compris, avant revue). Retirer les critères de l'entrée ne change rien de mesurable (−1,4 point, IC [−8,9 ; +5,4]). Sur les entrées brèves (un seul critère, 6 stories), le cadrage garde un avantage de 8 à 12 points, non concluant : d'où la condition des deux critères.
+- **[T13 bis](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13bis-sans-cadrage)** (22 petites stories, 4 dépôts publics, 84 runs, critère fixé avant les runs) : sans aucun cadrage, `dev-story` lancé sur l'entrée de `epics.md` réussit autant que le cadrage BMAD complet à 10 points près (−0,6 point, IC [−8,4 ; +7,4]), pour 73 % de moins (0,35 $ contre 1,32 $ par story, cadrage compris, avant revue). Retirer les critères de l'entrée ne change rien de mesurable (−1,4 point, IC [−8,9 ; +5,4]). Seul signal contraire, sur les 6 entrées brèves (moins de 1 200 caractères, souvent un seul critère, presque toutes d'un même dépôt) : le cadrage garde l'avantage, de 11,5 points sur toutes les données (IC [−23 ; −1], qui exclut 0) et de 8,0 points sur les seuls nouveaux runs, la lecture prévue au protocole (IC [−24 ; +8], au-dessus du seuil d'exclusion fixé à −10). La condition « au moins deux critères » est une précaution tirée de ce signal, pas une exigence démontrée : la strate est définie par la longueur de l'entrée, pas par le nombre de critères.
 
 Gain attendu : environ 0,95 $ par petite story aiguillée.
 
 ## Limites
 
-- Non-infériorité à 10 points seulement : la démontrer à 5 points demanderait environ 90 stories.
+- Non-infériorité à 10 points seulement : sans cadrage, la réussite pourrait être jusqu'à 8 points plus basse sans que le banc le voie (borne basse −8,4). La démontrer à 5 points demanderait environ 90 stories.
+- Le banc mesure la conformité aux tests cachés de l'implémentation d'origine, pas la qualité du code.
+- Aucune entrée vraiment courte n'a été jouée : toutes les entrées avaient des critères, et le cadrage d'une story mal décrite n'a pas été mesuré.
 - Les tests cachés discriminent peu (environ 52 % de réussite dans les deux bras).
 - Quatre dépôts, d'un seul auteur.
 - Le `reviewer` n'a pas été joué dans le banc.
