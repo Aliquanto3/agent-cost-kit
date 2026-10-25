@@ -19,6 +19,7 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 - copie le modèle de contrôle rapide ;
 - explique l'enchaînement des agents ;
 - pour un projet à interface web, propose en option (expérimental) le sous-agent `verif-front`, un modèle copié dans `.claude/agents/` : après dev-story, il vérifie les critères dans un vrai navigateur (`docs/verif-front.md`) ;
+- explique la règle expérimentale d'aiguillage : une petite story bien décrite dans `epics.md` (au plus 3 fichiers source, au moins deux critères Given/When/Then, noms à créer), ni à risque ni transverse, part directement en dev-story, sans cadrage BMAD ; cadrage sinon ou dans le doute (`docs/aiguillage-stories.md`) ;
 - vous rappelle de redémarrer Claude Code.
 
 ## Contenu

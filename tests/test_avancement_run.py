@@ -123,6 +123,19 @@ def test_etape_story_et_bareme():
     assert ar.etape_story([]) is None
 
 
+def test_sans_cadrage_compte_comme_lance_et_fini():
+    """Aiguillage 0.14 : « lancé, sans cadrage » vaut « lancé », « fini, sans cadrage » vaut « fini »."""
+    avec = [evt(resultat="lancé, sans cadrage")]
+    assert ar.etape_story(avec) == ar.etape_story([evt(resultat="lancé")])
+    assert ar.etape_story(avec)[1:] == ("dev en cours", 30)
+    avec.append(evt(resultat="fini, sans cadrage, 14 tests verts"))
+    assert ar.etape_story(avec) == ar.etape_story([evt(resultat="lancé"), evt(resultat="fini, 14 tests verts")])
+    assert ar.etape_story(avec)[2] == 60
+    journal = "## Journal\n- 2026-10-25 10:00 · 3.2 · dev · lancé, sans cadrage · —\n"
+    e = ar.lire_journal(journal)[0]
+    assert e["etape"] == "dev" and e["resultat"] == "lancé, sans cadrage" and e["stories"] == ["3.2"]
+
+
 def test_analyse_de_l_exemple(projet):
     a = ar.analyser(projet, MAINTENANT)
     S = a["stories"]

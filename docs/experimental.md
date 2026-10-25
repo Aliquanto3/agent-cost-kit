@@ -125,3 +125,13 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Observer** : FAIL `spec` confirmés, faux positifs, FAIL `hors-spec` utiles, coût et durée par vérification.
 - **Sortie** : sur les 10 premières stories front, stable si au moins un vrai défaut trouvé et au plus un faux positif ; retiré sinon.
 - **Veille** : [T12](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T12-front) : 22 défauts semés sur 25 trouvés, 0 faux positif sur 8 versions sans défaut, 0,141 $ et 60 s ; aucun gain mesuré dans la boucle de développement.
+
+## aiguillage sans cadrage
+
+- **Dépôt** : règle du kit (`docs/aiguillage-stories.md`), pas d'outil tiers · **Commit** : n/a · **Licence** : MIT (celle du kit)
+- **Problème visé** : le cadrage BMAD complet d'une petite story coûte environ 1 $ de plus que le développement, sans gain de réussite mesuré.
+- **Quand** : un projet BMAD, une petite story dont l'entrée de `epics.md` a au moins deux critères Given/When/Then, au plus 3 fichiers source, et nomme ce qui est à créer. Pas pour une story à risque ni transverse.
+- **Protocole** : 1. l'orchestrateur applique la règle avant `dev-story` ; 2. si elle est remplie, `dev-story` reçoit l'entrée de `epics.md` telle quelle, sans fichier de spec ; 3. journaliser l'étape `dev` avec la mention `lancé, sans cadrage` ; 4. `second-avis` et `reviewer` comme d'habitude.
+- **Observer** : constats Important du reviewer, passes de revue, reprises de `dev-story`, coût par story (`mesurer-couts`), à comparer aux stories cadrées.
+- **Sortie** : après au moins 10 stories aiguillées, stable si elles n'ont pas plus de constats Important ni de reprises que les stories cadrées comparables ; sinon règle retirée ou restreinte.
+- **Veille** : [T13](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13-story-legere) : voie légère à −46 % de coût mais 10 points de moins, écartée ; [T13 bis](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13bis-sans-cadrage) : sans cadrage, −0,6 point (IC [−8,4 ; +7,4]) pour 73 % de moins, non-infériorité à 10 points seulement.

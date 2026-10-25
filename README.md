@@ -47,6 +47,8 @@ Chaque appel est bloquant, la revue tient en une passe par défaut (relancée se
 
 Autre étape optionnelle et expérimentale, pour une story qui change un écran dans un projet où le modèle `verif-front` est installé : la [vérification dans le navigateur](docs/verif-front.md) après dev-story, correction seulement sur un FAIL de la spec.
 
+Autre règle expérimentale, avant dev-story : une petite story bien décrite dans `epics.md` (au plus 3 fichiers source, au moins deux critères Given/When/Then, noms à créer), ni à risque ni transverse, part directement en développement, sans cadrage BMAD ; cadrage sinon ou dans le doute ([aiguillage](docs/aiguillage-stories.md)).
+
 ## Les cinq règles qui comptent
 
 1. **Pas d'agent qui relance des agents.** L'agent intermédiaire pèse 36 à 47 % d'une story.
@@ -66,6 +68,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Catalogue d'essais](docs/experimental.md) (expérimental) : outils de la veille à essayer avec le skill `/agent-cost-kit:essai-outil`, commit épinglé et critère de sortie par fiche.
 - [Mutation guidée](docs/mutation-guidee.md) (expérimental) : étape optionnelle après dev-story, script `scripts/mutation_story.py`, chiffres de la veille (T4, T10, T10b).
 - [Vérification front](docs/verif-front.md) (expérimental) : sous-agent `verif-front` (Playwright MCP) copié par l'installation, chiffres de la veille (T12).
+- [Aiguillage sans cadrage](docs/aiguillage-stories.md) (expérimental) : règle de l'orchestrateur pour les petites stories, chiffres de la veille (T13, T13 bis).
 - [Historique des versions](CHANGELOG.md).
 
 **Contribuer** : la CI lance les tests sur Linux et Windows et valide le plugin (`claude plugin validate . --strict`) à chaque PR ; `master` est protégé, une PR ne fusionne que si la CI est verte.
