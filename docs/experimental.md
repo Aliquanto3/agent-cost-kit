@@ -25,27 +25,6 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Sortie** : stable si les questions font apparaître au moins une décision que BMAD seul laissait implicite ; écarté s'il double `bmad-forge-idea`.
 - **Veille** : jugé « à intégrer », non testé, car presque gratuit à essayer.
 
-## clarity (rewrite, review, interview)
-
-- **Dépôt** : [addyosmani/clarity](https://github.com/addyosmani/clarity) · **Commit** : `e27ceeff60368cf6966b4ea00a5b9b36418ee9a0` · **Licence** : MIT
-- **Problème visé** : des textes utiles et précis, sans fait inventé.
-- **Quand** : sur un texte public réel (LinkedIn, README). Demande Anaël : juger les textes.
-- **Protocole** : 1. lire le skill (7,7 k caractères, sans hook ni réseau) ; 2. prendre deux textes publics de longueur différente ; 3. `rewrite` sur chacun ; 4. `review` sur un troisième ; 5. relire avec le texte d'origine à côté et noter toute invention ; 6. lire le résultat de T11 avant de conclure.
-- **Observer** : faits inventés (zéro toléré), tics ajoutés ou retirés, fidélité à la voix d'Anaël, en français.
-- **Sortie** : stable si aucune invention et textes préférés à l'aveugle ; écarté si l'un des deux échoue.
-- **Veille** : skill d'écriture à invocation manuelle, sans hook ni réseau. Résultat provisoire de [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture) : aucun fait inventé selon le juge, chiffres et renvois intacts, 0,11 $ par réécriture ; les textes de départ avaient trop peu de défauts pour départager, la note à l'aveugle d'Anaël tranchera.
-- **À noter** : le dépôt publie un protocole d'évaluation (`evals/JUDGE.md`, portes dures sur les faits inventés), sans résultats chiffrés.
-
-## humanizer
-
-- **Dépôt** : [blader/humanizer](https://github.com/blader/humanizer) · **Commit** : `8c307f367c91bd974002f10f2be2965d642c13df` · **Licence** : MIT
-- **Problème visé** : retirer les tics d'un texte écrit par une IA.
-- **Quand** : à la demande, sur des textes LinkedIn. Seul ou après clarity selon T11. Demande Anaël : juger les textes.
-- **Protocole** : 1. lire le skill et ses règles ; 2. reprendre les textes de l'essai clarity ; 3. appliquer humanizer seul ; 4. l'appliquer après clarity ; 5. comparer à l'aveugle les quatre versions.
-- **Observer** : tics renforcés plutôt que retirés, faits inventés, perte de précision.
-- **Sortie** : garder à la demande si la version enchaînée bat clarity seul ; écarté sinon.
-- **Veille** : « il renforce certains tics de rythme ». Résultat provisoire de [T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture) : aucun fait inventé, retire le gras décoratif et la moitié des exclamations, mais fond une liste à puces en phrase ; 0,13 $ par réécriture, et 0,31 $ enchaîné après clarity sans gain mesuré. La note à l'aveugle d'Anaël tranchera.
-
 ## AOS Dashboard
 
 - **Dépôt** : [tomtomsatnav/agent-orchestration-standard](https://github.com/tomtomsatnav/agent-orchestration-standard) · **Commit** : `40d270774a275870e1b676b11e8074ec4a746b5f` · **Licence** : MIT
@@ -60,21 +39,11 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 
 - **Dépôt** : [pbakaus/impeccable](https://github.com/pbakaus/impeccable) · **Commit** : `936867543ac2576920d663cc9803597f6044f3ac` · **Licence** : Apache-2.0
 - **Problème visé** : repérer les défauts de design d'une page (`impeccable detect <url>`), utilisable en CI.
-- **Quand** : selon la note à l'aveugle de T7. Demande Anaël : la note. Sans ses hooks ni sa télémétrie.
+- **Quand** : en CI d'un projet front, sur les pages servies par les tests, sans les hooks ni la télémétrie d'impeccable. La skill elle-même est écartée (voir plus bas) ; seul le détecteur reste à essayer.
 - **Protocole** : 1. lire le détecteur, désactiver hooks et télémétrie ; 2. l'exécuter sur deux pages de projets réels ; 3. noter les constats à l'aveugle ; 4. mesurer le temps d'exécution.
 - **Observer** : constats utiles contre règle de la « palette crème » répétée, faux positifs.
 - **Sortie** : garder à la demande si plus de la moitié des constats sont utiles ; écarté sinon.
-- **Veille** : la skill coûte +15 % sans réduire les violations ; seul `detect` pourrait servir ([T7](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7), clos par la note d'Anaël).
-
-## hallmark
-
-- **Dépôt** : [Nutlope/hallmark](https://github.com/Nutlope/hallmark) · **Commit** : `7ec868225c6caa040558c321ee0fefa0e73f83a8` · **Licence** : MIT
-- **Problème visé** : la qualité visuelle d'une interface.
-- **Quand** : selon la note à l'aveugle de T7. Flux interactif qui lance un sous-agent : **jamais en run autonome**.
-- **Protocole** : 1. lire le skill et le sous-agent qu'il lance ; 2. SkillSpector (alertes CRITICAL attendues, à vérifier à la main) ; 3. essai dans un projet jetable sur une page ; 4. répondre aux questions du flux ; 5. noter le résultat à l'aveugle contre une version sans skill.
-- **Observer** : surcoût, sous-agent lancé, qualité perçue.
-- **Sortie** : garder à la demande si la note à l'aveugle est meilleure malgré le surcoût ; écarté sinon.
-- **Veille** : « écarter » : +21 % de coût, aucune violation en moins ; seule la note d'Anaël pourrait le repêcher ([T7](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7)).
+- **Veille** : la skill coûte +15 % sans réduire les violations, et la note à l'aveugle d'Anaël la place sous l'absence de skill (3,67 sur 5 contre 4,00, [T7](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7)). Le détecteur a repéré un des deux contours colorés de bloc d'erreurs reprochés par Anaël, mais surtout la règle « palette crème » ; en [T7 ter](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7ter-design-md), il a signalé plus de motifs sur les rendus que la note préférait.
 
 ## diagram-design
 
@@ -135,3 +104,11 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Observer** : constats Important du reviewer, passes de revue, reprises de `dev-story`, coût par story (`mesurer-couts`), à comparer aux stories cadrées.
 - **Sortie** : après au moins 10 stories aiguillées, stable si elles n'ont pas plus de constats Important ni de reprises que les stories cadrées comparables ; sinon règle retirée ou restreinte.
 - **Veille** : [T13](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13-story-legere) : voie légère à −46 % de coût mais 10 points de moins, écartée ; [T13 bis](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13bis-sans-cadrage) : sans cadrage, −0,6 point (IC [−8,4 ; +7,4]) pour 73 % de moins, non-infériorité à 10 points seulement.
+
+## Écartés après essai
+
+Retirés du catalogue quand la veille a tranché contre eux. Ils ne s'essaient plus sans nouveau motif.
+
+- **clarity** et **humanizer** ([T11](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T11-ecriture), 2026-10-25) : note à l'aveugle d'Anaël sur 24 réécritures. Sans skill 4,25 sur 5, clarity 4,17, clarity puis humanizer 4,17, humanizer 3,92. Une simple consigne « réécris plus clair » fait au moins aussi bien pour deux à cinq fois moins cher. Seul le mode réécriture de clarity a été testé, pas ses modes revue et interview. Versions essayées : [addyosmani/clarity](https://github.com/addyosmani/clarity) `e27ceeff60368cf6966b4ea00a5b9b36418ee9a0` (MIT), [blader/humanizer](https://github.com/blader/humanizer) `8c307f367c91bd974002f10f2be2965d642c13df` (MIT).
+- **hallmark** ([T7](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7), 2026-10-25) : note à l'aveugle 3,50 sur 5, contre 4,00 sans skill et 4,17 pour frontend-design, pour +21 % de coût. Son flux interactif ne convient pas aux runs autonomes. Version de la fiche retirée : [Nutlope/hallmark](https://github.com/Nutlope/hallmark) `7ec868225c6caa040558c321ee0fefa0e73f83a8` (MIT).
+- **impeccable** (la skill, [T7](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T7)) : 3,67 sur 5, +15 % de coût. Son détecteur garde sa fiche ci-dessus.
