@@ -70,8 +70,51 @@ def popen(cmd, cwd, **kw) -> subprocess.Popen:
     return subprocess.Popen(cmd, cwd=cwd, env=ENV, **kw)
 
 
+def descendants(pid: int) -> list[int]:
+    """Descendants de `pid` (instantané `ps`, Linux et macOS) ; liste vide si `ps` manque."""
+    try:
+        out = subprocess.run(
+            ["ps", "-A", "-o", "pid=,ppid="],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+    except OSError:
+        return []
+    enfants: dict[int, list[int]] = {}
+    for ligne in out.splitlines():
+        p = ligne.split()
+        if len(p) == 2 and p[0].isdigit() and p[1].isdigit():
+            enfants.setdefault(int(p[1]), []).append(int(p[0]))
+    vus, pile = [], [pid]
+    while pile:
+        for c in enfants.get(pile.pop(), []):
+            if c not in vus:
+                vus.append(c)
+                pile.append(c)
+    return vus
+
+
+def _signal(pid: int, sig: int, groupe: bool = False) -> None:
+    try:
+        if groupe:
+            if os.getpgid(pid) != pid or pid == os.getpgrp():
+                return  # pas meneur de groupe, ou notre propre groupe
+            os.killpg(pid, sig)
+        else:
+            os.kill(pid, sig)
+    except OSError:
+        pass
+
+
 def kill_tree(proc: subprocess.Popen) -> None:
-    """Tue le processus et ses descendants (Windows et Linux)."""
+    """Tue le processus et tous ses descendants (Windows, Linux, macOS).
+
+    Sous POSIX, un `killpg` ne suffit pas : le pytest d'un mutant tourne dans une autre
+    session (`popen` de `--borne`), qui survivait à la mort de cosmic-ray. On gèle donc l'arbre
+    (SIGSTOP, plus de fork possible) jusqu'à un instantané stable, avant SIGKILL à chacun et
+    à chaque groupe qu'il mène.
+    """
     if os.name == "nt":
         subprocess.run(
             ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
@@ -79,10 +122,19 @@ def kill_tree(proc: subprocess.Popen) -> None:
             check=False,
         )
     else:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        arbre: list[int] = []
+        _signal(proc.pid, signal.SIGSTOP, groupe=True)
+        _signal(proc.pid, signal.SIGSTOP)
+        for _ in range(20):
+            nouveaux = [d for d in descendants(proc.pid) if d not in arbre]
+            if not nouveaux:
+                break
+            for d in nouveaux:
+                _signal(d, signal.SIGSTOP)
+            arbre += nouveaux
+        for d in [proc.pid, *arbre]:
+            _signal(d, signal.SIGKILL, groupe=True)
+            _signal(d, signal.SIGKILL)
     try:
         proc.wait(timeout=10)
     except subprocess.TimeoutExpired:

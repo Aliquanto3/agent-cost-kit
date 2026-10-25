@@ -39,8 +39,8 @@ PYPROJECT = '[project]\nname = "fixture"\nversion = "0"\nrequires-python = ">=3.
 
 @pytest.fixture(scope="module")
 def outil():
-    """Saut seulement si uv ou cosmic-ray est réellement indisponible ; tout autre échec fait
-    échouer le test."""
+    """Saut seulement si uv ou cosmic-ray est réellement indisponible (hors CI : en CI, échec
+    plutôt qu'un saut silencieux)."""
     if shutil.which("uv") is None:
         pytest.skip("uv absent")
     p = subprocess.run(
@@ -57,7 +57,10 @@ def outil():
         check=False,
     )
     if p.returncode != 0:
-        pytest.skip(f"cosmic-ray indisponible : {p.stderr[-300:]}")
+        message = f"cosmic-ray indisponible : {p.stderr[-300:]}"
+        if os.environ.get("CI"):
+            pytest.fail(message)
+        pytest.skip(message)
 
 
 def git(wt, *a):
@@ -112,9 +115,29 @@ def vivant(pid: int) -> bool:
         return f" {pid} " in out
     try:
         os.kill(pid, 0)
-        return True
     except OSError:
         return False
+    try:  # un zombie (Linux) répond encore à kill(pid, 0) : il est mort
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        return stat.rsplit(")", 1)[1].split()[0] != "Z"
+    except (OSError, IndexError):
+        out = subprocess.run(
+            ["ps", "-o", "stat=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout.strip()
+        return bool(out) and not out.startswith("Z")
+
+
+def aucun_vivant(liste: list[int], delai: float = 10) -> bool:
+    """SIGKILL est asynchrone : quelques secondes de grâce avant de conclure."""
+    fin = time.time() + delai
+    while any(map(vivant, liste)):
+        if time.time() > fin:
+            return False
+        time.sleep(0.5)
+    return True
 
 
 def args(depot, tmp_path, *extra):
@@ -183,7 +206,7 @@ def test_budget_qui_tombe_pendant_un_mutant_tue_l_arbre(outil, depot, tmp_path):
     assert rc == 0
     assert duree < 60 + 45  # le mutant dort 300 s : il a bien été interrompu
     assert pid.exists(), "aucun mutant n'était en cours à l'échéance"
-    assert not any(map(vivant, pids(pid)))  # arbre tué, pas d'orphelin
+    assert aucun_vivant(pids(pid))  # arbre tué, pas d'orphelin
     res = json.loads((tmp_path / "out" / "survivants.json").read_text(encoding="utf-8"))
     assert res["par_module"][0]["budget_depasse"] is True
     assert res["totaux"]["executes"] == 0 and res["totaux"]["non_executes"] > 0
@@ -218,7 +241,7 @@ def test_mutant_au_dela_du_timeout_test_tue_sans_orphelin(outil, depot, tmp_path
     assert tot["executes"] >= 1 and tot["tues"] == tot["executes"]
     assert tot["survivants"] == 0
     assert 1 <= len(pids(pid)) <= tot["executes"]  # sous charge, un mutant peut expirer avant pytest
-    assert not any(map(vivant, pids(pid)))
+    assert aucun_vivant(pids(pid))
     assert time.time() - t0 < 4 * 60 + 45
     propre(wt)
 
@@ -254,6 +277,7 @@ def test_script_tue_laisse_le_depot_propre_et_copie_retiree_ensuite(
     finally:
         # équivalent de taskkill /F /T ou SIGKILL : aucun finally du script ne tourne
         ms.kill_tree(proc)
+    assert aucun_vivant(pids(pid))  # ni cosmic-ray ni le pytest du mutant ne survivent
     assert (wt / "calc.py").read_text(encoding="utf-8") == VIEUX + NEUF
     assert git(wt, "status", "--porcelain", "--ignored") == ""
     assert len(git(wt, "worktree", "list").splitlines()) == 2  # la copie tuée traîne
@@ -299,3 +323,36 @@ def test_nettoyage_epargne_copie_vivante_et_worktrees_hors_copies(depot, tmp_pat
         git(wt, "worktree", "remove", "--force", str(voisin))
         ms.retirer_copie(wt, vivante)
     propre(wt)
+
+
+def test_descendants_suit_toute_la_filiation(monkeypatch):
+    sortie = "  1     0\n 10     1\n 11    10\n 12    11\n 13    10\n 20     1\n bad x\n"
+    monkeypatch.setattr(
+        ms.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout=sortie),
+    )
+    assert sorted(ms.descendants(10)) == [11, 12, 13]
+    assert ms.descendants(12) == []
+
+
+@pytest.mark.skipif(os.name == "nt", reason="sessions POSIX ; Windows suit la filiation")
+def test_kill_tree_tue_les_sessions_imbriquees(tmp_path):
+    """Défaut de la 0.12.0 sous POSIX : un petit-enfant dans sa propre session (comme le pytest
+    d'un mutant sous `--borne`) survivait au `killpg` du seul groupe racine."""
+    pidf = tmp_path / "pid"
+    enfant = (
+        "import subprocess, sys, time\n"
+        "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(300)'],"
+        " start_new_session=True)\n"
+        f"open({str(pidf)!r}, 'w').write(str(p.pid))\n"
+        "time.sleep(300)\n"
+    )
+    proc = ms.popen([sys.executable, "-c", enfant], tmp_path)
+    fin = time.time() + 30
+    while not (pidf.exists() and pidf.read_text()) and time.time() < fin:
+        time.sleep(0.2)
+    petit = int(pidf.read_text())
+    ms.kill_tree(proc)
+    assert proc.poll() is not None
+    assert aucun_vivant([petit])
