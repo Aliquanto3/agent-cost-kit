@@ -68,6 +68,8 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Vérification front](docs/verif-front.md) (expérimental) : sous-agent `verif-front` (Playwright MCP) copié par l'installation, chiffres de la veille (T12).
 - [Historique des versions](CHANGELOG.md).
 
+**Contribuer** : la CI lance les tests sur Linux et Windows et valide le plugin (`claude plugin validate . --strict`) à chaque PR ; `master` est protégé, une PR ne fusionne que si la CI est verte.
+
 ## English summary
 
 A Claude Code plugin for agent-based development at a fraction of the cost. Measured on 3 projects, 109 stories and about $1,850 of API-equivalent spend: cache reads and writes make up about 80 % of the cost, an agent that spawns agents takes 36 to 47 % of a story, and a 1-hour subagent cache costs about 30 % more for most subagents. The kit ships Sonnet for coding, a Haiku second opinion, an Opus reviewer, a Haiku lookup agent, a cost-measurement script that reads local transcripts, and a live cost band above the prompt (`couts-session`). Install with the three commands above. Details are in `docs/` (in French).
