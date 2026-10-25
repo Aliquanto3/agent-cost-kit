@@ -1,6 +1,6 @@
 ---
 title: "agent-cost-kit 0.13.0 : sous-agent de vérification front (expérimental)"
-status: ready
+status: review
 date: 2026-10-25
 source: "veille agents de code, tests T7 et T12 (https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T12-front)"
 ---

@@ -115,3 +115,13 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Observer** : output par jour, relances, perte de détail dans les revues.
 - **Sortie** : stable si l'output baisse sans relance en plus ; écarté sinon.
 - **Veille** : « à intégrer » : couvre l'essentiel d'i-have-adhd sans dépendance.
+
+## verif-front
+
+- **Dépôt** : modèle du kit (`modeles/agents/verif-front.md`) + `@playwright/mcp` 0.0.83 épinglé · **Commit** : n/a (version npm épinglée) · **Licence** : Apache-2.0
+- **Problème visé** : les défauts d'interface que ni pytest ni axe-core ne voient (rendu, mobile, clavier, ordre des étapes).
+- **Quand** : une story qui change un écran, dans un projet front avec Node.js et Chromium. Demande Anaël : confirmer les FAIL `spec`.
+- **Protocole** : 1. copier le modèle par `cost-kit-install` (étape « Projet front ») ; 2. après `dev-story`, démarrer l'application et lancer `verif-front` avec l'URL et la spec ; 3. ne renvoyer à `dev-story` que les FAIL `spec` ; 4. noter pour chaque FAIL s'il est confirmé ou faux ; détail dans `docs/verif-front.md`.
+- **Observer** : FAIL `spec` confirmés, faux positifs, FAIL `hors-spec` utiles, coût et durée par vérification.
+- **Sortie** : sur les 10 premières stories front, stable si au moins un vrai défaut trouvé et au plus un faux positif ; retiré sinon.
+- **Veille** : [T12](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T12-front) : 22 défauts semés sur 25 trouvés, 0 faux positif sur 8 versions sans défaut, 0,141 $ et 60 s ; aucun gain mesuré dans la boucle de développement.
