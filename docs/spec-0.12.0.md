@@ -96,6 +96,24 @@ Passe 1 (Opus, base `master` à jour en `5c8b575`, commit relu `1785972`).
 - Choix : repris de T4 (filtre sur les lignes du diff, annotations retirées, budget, arbre tué) et T10 (diff d'une ligne, note `CosmicRayTestingException`) ; cosmic-ray et pytest viennent de `uv run --with` à chaque commande (l'environnement éphémère de uv disparaît entre deux appels, d'où `--python` pour fournir un interpréteur prêt) ; sorties et bases cosmic-ray hors dépôt ; sources sauvegardées en octets et réécrites dans un `finally`.
 - Reports : arrêt du budget au milieu d'un mutant couvert par la restauration, mais non testé par un test dédié (le test de budget nul vérifie la restauration, pas l'arrêt en cours d'exécution) ; surcoût de `uv run` par mutant non mesuré ; pas de `--modules` en dehors de Python.
 
+### Revue
+
+Passe 1 (Opus, base `master` `5c8b575` à jour). Complexité : 0 constat (structures bornées par la story, parcours linéaires).
+
+- high · second avis · corrigé · script tué (`taskkill /F`, SIGKILL, timeout de l'appelant) : sources du dépôt laissées mutées. Le script mute désormais une copie jetable (`git worktree add --detach` de HEAD dans `%TEMP%/mutation-story/copies`), retirée à la fin et au démarrage suivant (`nettoyer_copies`) ; Ctrl-C tue l'arbre (`attendre`). Test : script tué en plein mutant, dépôt propre, copie retirée ensuite.
+- medium · second avis · corrigé · `uv run` dans le dépôt créait `.venv` et `uv.lock` : il tourne dans la copie, donc avec l'environnement du projet (synchronisé dans la copie) ; le test de fixture a un `pyproject.toml` sans lock et vérifie `git status --porcelain --ignored` vide.
+- medium · second avis · corrigé · suite de référence et `cosmic-ray init` hors budget : bornées par l'échéance (`run_borne`, arbre tué), message « budget épuisé pendant… ».
+- medium · second avis · corrigé · `except SystemExit → skip` masquait les échecs : saut seulement si `uv` manque ou si `import cosmic_ray` échoue dans l'overlay ; sinon le test échoue.
+- medium · second avis · corrigé · budget tombant pendant un mutant, arbre tué et `--tests` non testés : test avec un test de fixture qui dort 300 s sur code muté (durée < budget + 45 s, PID du mutant mort, `budget_depasse`), `--tests` dans tous les tests d'intégration.
+- low · second avis · corrigé · `cosmic-ray==8.7.0` épinglé (`COSMIC_RAY`).
+- low · second avis · corrigé · consigne de `docs/mutation-guidee.md` complétée par la contrainte du bras C de T10 (nouveaux fichiers `test_renf_*.py`, ni source ni tests existants modifiés).
+- low · second avis · corrigé · assertion `survivants >= len(uniques)` : lignes exactes `[5, 6]`, regroupement strict, somme des `autres_mutations`, exclusion hors diff.
+- low · second avis · corrigé · « 13 à 42 minutes en plein » : chiffres exacts de T4 (1,7 min ; 13,5 min ; trois au-delà de 20 min, 24 à 42 min estimés).
+- low · revue · corrigé · `conftest.py` et aides sous `tests/` passés à pytest comme tests (ou mutés) : seuls `test_*.py` et `*_test.py` sont des tests, rien sous `tests/` n'est muté.
+- low · revue · corrigé · `--worktree` donné en sous-dossier : chemins du diff faux ; racine résolue par `git rev-parse --show-toplevel`.
+- low · revue · reporté · au délai par mutant (`--timeout-test`), cosmic-ray tue `uv` mais peut-être pas le pytest petit-enfant (dans la copie seulement). Vérification : mutant qui dépasse `--timeout-test` sous Windows, aucun `python` résiduel ensuite.
+- low · revue · rejeté · critère « `uv run --no-project python -m pytest` » : pytest absent de l'interpréteur nu (`No module named pytest`) ; la commande qui marche est `uv run --no-project --with pytest python -m pytest -q tests/test_mutation_story.py` (7 tests, environ 100 s).
+
 ## Version et publication (après les deux stories)
 - `.claude-plugin/plugin.json` en `0.12.0`, entrée `0.12.0` en tête de `CHANGELOG.md` (format des entrées voisines : ce qui change, d'où ça vient, chiffres, liens), au même niveau de détail que 0.10.0 et 0.11.0.
 - L'orchestrateur ouvre la PR, vérifie la CI, fusionne, tague `v0.12.0` (annoté) et publie la release avec ses notes.

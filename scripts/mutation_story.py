@@ -3,7 +3,12 @@
 Mute seulement les lignes ajoutées ou modifiées par la story (`git diff -U0 <base> HEAD`),
 lance seulement les tests de la story, sous un budget de temps, puis écrit les survivants
 dédoublonnés par ligne (survivants.json et survivants.md). Stdlib seulement ; cosmic-ray est
-lancé par `uv run --with cosmic-ray` dans le dépôt cible, sans toucher à son pyproject.
+lancé par `uv run --with cosmic-ray==8.7.0` (environnement du projet, plus cosmic-ray et pytest).
+
+Le dépôt de l'utilisateur n'est jamais muté : le script travaille dans une copie jetable
+(`git worktree add --detach` de HEAD, dans le dossier temporaire), retirée à la fin et, si le
+script a été tué, au démarrage suivant. Le budget couvre tout le passage (suite de référence,
+`cosmic-ray init`, mutants) ; à l'échéance, l'arbre de processus est tué.
 
 Usage :
   uv run --no-project python scripts/mutation_story.py --worktree <wt> --base <sha> \
@@ -11,7 +16,6 @@ Usage :
 
 Outillage repris de T4 (`mutation_story.py`) et T10 (`mutation.py`) du dépôt veille-agents-code
 (même auteur, Apache-2.0), rendu générique et portable Windows/Linux.
-Les sources sont toujours restaurées à la fin, même si le budget tombe pendant un mutant.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -30,7 +35,14 @@ import tempfile
 import time
 from pathlib import Path
 
-ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"}
+# Version mesurée en T4 ; le script lit son schéma SQLite interne.
+COSMIC_RAY = "cosmic-ray==8.7.0"
+ENV = {
+    **{k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"},
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUTF8": "1",
+}
+COPIES = Path(tempfile.gettempdir()) / "mutation-story" / "copies"
 NOTE_EXC = (
     "`CosmicRayTestingException` : classe d'exception jamais levée, donc l'`except` concerné "
     "n'attrape plus rien."
@@ -49,6 +61,13 @@ def run(cmd, cwd, timeout=None):
         timeout=timeout,
         env=ENV,
     )
+
+
+def popen(cmd, cwd, **kw) -> subprocess.Popen:
+    """Processus dans son propre groupe, pour pouvoir tuer tout son arbre."""
+    if os.name != "nt":
+        kw["start_new_session"] = True
+    return subprocess.Popen(cmd, cwd=cwd, env=ENV, **kw)
 
 
 def kill_tree(proc: subprocess.Popen) -> None:
@@ -70,20 +89,81 @@ def kill_tree(proc: subprocess.Popen) -> None:
         pass
 
 
+def attendre(proc: subprocess.Popen, timeout: float) -> bool:
+    """Attend la fin du processus ; tue son arbre à l'échéance ou sur Ctrl-C. True si fini à temps."""
+    try:
+        proc.wait(timeout=max(timeout, 0))
+        return True
+    except subprocess.TimeoutExpired:
+        kill_tree(proc)
+        return False
+    except BaseException:
+        kill_tree(proc)
+        raise
+
+
+def run_borne(cmd, cwd, timeout: float) -> tuple[int | None, str]:
+    """Comme `run`, mais borné : (code de retour ou None si l'échéance tombe, sortie)."""
+    with tempfile.TemporaryFile() as f:
+        proc = popen(cmd, cwd, stdout=f, stderr=subprocess.STDOUT)
+        fini = attendre(proc, timeout)
+        f.seek(0)
+        sortie = f.read().decode("utf-8", errors="replace")
+    return (proc.returncode if fini else None), sortie
+
+
 def est_test(chemin: str) -> bool:
-    p = Path(chemin)
-    return (
-        p.name.startswith("test_") or p.name.endswith("_test.py") or "tests" in p.parts
-    )
+    nom = Path(chemin).name
+    return nom.startswith("test_") or nom.endswith("_test.py")
 
 
 def fichiers_story(wt: Path, base: str) -> tuple[list[str], list[str]]:
-    """(sources, tests) .py ajoutés ou modifiés entre base et HEAD."""
+    """(sources, tests) .py ajoutés ou modifiés entre base et HEAD ; les autres fichiers des
+    dossiers de tests (conftest, aides) ne sont ni mutés ni passés à pytest."""
     out = run(
         ["git", "diff", "--name-only", "--diff-filter=AM", base, "HEAD"], wt
     ).stdout
     py = [f for f in out.splitlines() if f.endswith(".py")]
-    return [f for f in py if not est_test(f)], [f for f in py if est_test(f)]
+    sources = [
+        f for f in py if not est_test(f) and not {"tests", "test"} & set(Path(f).parts)
+    ]
+    return sources, [f for f in py if est_test(f)]
+
+
+def racine_git(chemin: Path) -> Path:
+    p = run(["git", "rev-parse", "--show-toplevel"], chemin)
+    if p.returncode != 0:
+        sys.exit(f"pas un dépôt git : {chemin}")
+    return Path(p.stdout.strip()).resolve()
+
+
+def retirer_copie(depot: Path, copie: Path) -> None:
+    run(["git", "worktree", "remove", "--force", str(copie)], depot)
+    if copie.exists():  # fichier verrouillé (Windows) : retiré au prochain passage
+        shutil.rmtree(copie, ignore_errors=True)
+    run(["git", "worktree", "prune"], depot)
+
+
+def nettoyer_copies(depot: Path) -> None:
+    """Retire les copies jetables laissées par un passage tué (et les entrées git orphelines)."""
+    out = run(["git", "worktree", "list", "--porcelain"], depot).stdout
+    racine = str(COPIES.resolve()).lower()
+    for ligne in out.splitlines():
+        if ligne.startswith("worktree "):
+            chemin = Path(ligne[len("worktree ") :]).resolve()
+            if str(chemin).lower().startswith(racine):
+                retirer_copie(depot, chemin)
+    run(["git", "worktree", "prune"], depot)
+
+
+def creer_copie(depot: Path) -> Path:
+    COPIES.mkdir(parents=True, exist_ok=True)
+    copie = Path(tempfile.mkdtemp(prefix=f"{depot.name[:20]}-", dir=COPIES)).resolve()
+    copie.rmdir()
+    p = run(["git", "worktree", "add", "--detach", str(copie), "HEAD"], depot)
+    if p.returncode != 0:
+        sys.exit(f"copie jetable impossible : {p.stderr[-400:]}")
+    return copie
 
 
 def lignes_ajoutees(wt: Path, base: str, module: str) -> set[int]:
@@ -177,7 +257,7 @@ def lanceur(python: str | None) -> list[str]:
     """
     if python:
         return [python]
-    return ["uv", "run", "--with", "cosmic-ray", "--with", "pytest", "python"]
+    return ["uv", "run", "--with", COSMIC_RAY, "--with", "pytest", "python"]
 
 
 def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
@@ -194,9 +274,11 @@ def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
         encoding="utf-8",
     )
     cr = [*py, "-m", "cosmic_ray.cli"]
-    p = run([*cr, "init", str(cfg), str(db)], wt)
-    if p.returncode != 0:
-        sys.exit(f"cosmic-ray init a échoué : {p.stdout[-400:]} {p.stderr[-400:]}")
+    rc, sortie = run_borne([*cr, "init", str(cfg), str(db)], wt, deadline - time.time())
+    if rc is None:
+        sys.exit(f"budget épuisé pendant cosmic-ray init ({module})")
+    if rc != 0:
+        sys.exit(f"cosmic-ray init a échoué : {sortie[-800:]}")
 
     con = sqlite3.connect(db)
     rows = con.execute(
@@ -222,20 +304,13 @@ def muter_module(wt, module, py, tests, test_cmd, args, deadline, tmp) -> dict:
     restant = deadline - time.time()
     budget_depasse = False
     if effectifs and restant > 5:
-        kw = {"start_new_session": True} if os.name != "nt" else {}
-        proc = subprocess.Popen(
+        proc = popen(
             [*cr, "exec", str(cfg), str(db)],
-            cwd=wt,
-            env=ENV,
+            wt,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            **kw,
         )
-        try:
-            proc.wait(timeout=restant)
-        except subprocess.TimeoutExpired:
-            kill_tree(proc)
-            budget_depasse = True
+        budget_depasse = not attendre(proc, restant)
     elif effectifs:
         budget_depasse = True
 
@@ -299,16 +374,23 @@ def main(argv=None) -> int:
     )
     args = ap.parse_args(argv)
 
-    wt = Path(args.worktree).resolve()
+    depot = racine_git(Path(args.worktree).resolve())
     out = (
         Path(args.out)
         if args.out
-        else Path(tempfile.gettempdir()) / "mutation-story" / wt.name
+        else Path(tempfile.gettempdir()) / "mutation-story" / depot.name
     )
     out.mkdir(parents=True, exist_ok=True)
-    deadline = time.time() + args.budget_min * 60
+    debut = time.time()
+    deadline = debut + args.budget_min * 60
 
-    sources, tests_diff = fichiers_story(wt, args.base)
+    nettoyer_copies(depot)
+    if run(["git", "status", "--porcelain"], depot).stdout.strip():
+        print(
+            "attention : modifications non commitées ignorées (la copie part de HEAD)",
+            file=sys.stderr,
+        )
+    sources, tests_diff = fichiers_story(depot, args.base)
     modules = [m for m in args.modules.split(",") if m] if args.modules else sources
     tests = [t for t in args.tests.split(",") if t] if args.tests else tests_diff
     if not modules or not tests:
@@ -330,27 +412,45 @@ def main(argv=None) -> int:
             *(shlex.quote(t) for t in tests),
         ]
     )
-    # suite cible hors mutation : doit être verte
-    t0 = time.time()
-    p = run(
-        [*py, "-m", "pytest", "-x", "-q", "--tb=no", "-p", "no:cacheprovider", *tests],
-        wt,
-    )
-    if p.returncode != 0:
-        sys.exit(f"suite cible rouge sans mutation :\n{p.stdout[-500:]}")
-    duree_tests = round(time.time() - t0, 1)
-
-    sauvegarde = {m: (wt / m).read_bytes() for m in modules}
+    wt = creer_copie(depot)
     resultats = []
     try:
-        with tempfile.TemporaryDirectory(prefix="cr-") as t:
-            for m in modules:
-                resultats.append(
-                    muter_module(wt, m, py, tests, test_cmd, args, deadline, Path(t))
-                )
+        sauvegarde = {m: (wt / m).read_bytes() for m in modules}
+        try:
+            # suite cible hors mutation, dans la copie : doit être verte
+            t0 = time.time()
+            rc, sortie = run_borne(
+                [
+                    *py,
+                    "-m",
+                    "pytest",
+                    "-x",
+                    "-q",
+                    "--tb=no",
+                    "-p",
+                    "no:cacheprovider",
+                    *tests,
+                ],
+                wt,
+                deadline - t0,
+            )
+            if rc is None:
+                sys.exit("budget épuisé pendant la suite de référence (sans mutation)")
+            if rc != 0:
+                sys.exit(f"suite cible rouge sans mutation :\n{sortie[-800:]}")
+            duree_tests = round(time.time() - t0, 1)
+            with tempfile.TemporaryDirectory(prefix="cr-") as t:
+                for m in modules:
+                    resultats.append(
+                        muter_module(
+                            wt, m, py, tests, test_cmd, args, deadline, Path(t)
+                        )
+                    )
+        finally:
+            for m, brut in sauvegarde.items():
+                (wt / m).write_bytes(brut)
     finally:
-        for m, brut in sauvegarde.items():
-            (wt / m).write_bytes(brut)
+        retirer_copie(depot, wt)
 
     survivants = [s for r in resultats for s in r["liste_survivants"]]
     uniques = dedoublonner(survivants)
@@ -367,7 +467,7 @@ def main(argv=None) -> int:
         "modules": modules,
         "secondes_tests": duree_tests,
         "budget_min": args.budget_min,
-        "secondes_total": round(time.time() - (deadline - args.budget_min * 60), 1),
+        "secondes_total": round(time.time() - debut, 1),
         "totaux": totaux,
         "par_module": [
             {k: v for k, v in r.items() if k != "liste_survivants"} for r in resultats
