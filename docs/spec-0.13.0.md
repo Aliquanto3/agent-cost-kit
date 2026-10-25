@@ -57,3 +57,15 @@ D'où : un filet de sécurité bon marché, à garder expérimental tant qu'on n
 
 - `uv run --no-project --with pytest python -m pytest -q --tb=short tests/test_modele_verif_front.py`, puis la suite complète une fois à la fin.
 - `claude plugin validate .` si la commande est disponible.
+
+## Revue
+
+Base à jour (`origin/master` `dab6638` ancêtre de la branche). Complexité : 0 constat (aucune structure qui grossit à l'exécution).
+
+- medium · second avis 1 · rejeté · `Path.read_text` ouvre en mode texte (newline universel) : un fichier CRLF est lu en LF, prouvé sur un fichier `---\r\n...` écrit sur disque ; la preuve du second avis portait sur une chaîne en mémoire.
+- low · second avis 2 · rejeté · `mcpServers`, T1-T3 et le plafond de 40 appels ne sont pas exigés par le livrable 6 ; la version épinglée, seul point à risque, est testée.
+- low · second avis 3 · corrigé · `docs/verif-front.md` : le coût d'un rapport tout PASS est celui de la vérification, en plus de la chaîne.
+- low · second avis 4 · rejeté · `command: npx` est la forme demandée par la spec ; la variante `cmd /c` est faite par `cost-kit-install` et documentée dans les prérequis.
+- low · second avis 5 · rejeté · choix de la spec (`tools: Read` seul, consigne de ne lire que la spec) ; aucun outil d'écriture ni Bash.
+- low · second avis 6 · corrigé · `docs/verif-front.md` étape 4 : revérifier sur l'application redémarrée ou rechargée.
+- low · reviewer · reporté · le sous-agent réel (chargement de `mcpServers` en ligne, `npx` et Chromium) n'a pas tourné : à vérifier sur la première story front réelle, en lançant `verif-front` sur l'application démarrée et en contrôlant que les outils `browser_*` sont présents et que la session principale ne les reçoit pas.

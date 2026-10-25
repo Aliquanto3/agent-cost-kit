@@ -30,11 +30,11 @@ Pour une story qui change un écran :
 1. `dev-story` implémente.
 2. L'orchestrateur démarre l'application (commande du dépôt, une seule instance, attente du port).
 3. `verif-front`, appel bloquant. Il reçoit l'URL et le chemin de la spec, **la même que celle donnée à `dev-story`**, pas une paraphrase : une fiche plus riche produit des FAIL « hors spec » (2 cellules sur 6 en T12).
-4. **Seulement s'il y a au moins un FAIL classé `spec`** : second appel à `dev-story` avec ces seuls FAIL (jamais les `hors-spec`, que l'orchestrateur note pour l'utilisateur), puis nouvelle vérification, une seule fois au plus.
+4. **Seulement s'il y a au moins un FAIL classé `spec`** : second appel à `dev-story` avec ces seuls FAIL (jamais les `hors-spec`, que l'orchestrateur note pour l'utilisateur), puis nouvelle vérification, une seule fois au plus, sur l'application redémarrée (ou rechargée) pour servir le code corrigé.
 5. L'orchestrateur arrête l'application.
 6. `second-avis`, puis `reviewer`.
 
-Rapport tout PASS : rien d'autre à faire (0,10 à 0,15 $ au total).
+Rapport tout PASS : rien d'autre à faire ; la vérification aura coûté 0,10 à 0,15 $ en plus de la chaîne.
 
 ## Coût attendu et limites
 
