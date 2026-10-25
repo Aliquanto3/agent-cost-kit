@@ -1,6 +1,6 @@
 # agent-cost-kit
 
-Un plugin Claude Code pour développer par agents en payant 4 à 5 fois moins, sans perdre en qualité de revue. Les choix du kit viennent de mesures sur 109 stories et environ 1 850 $ d'équivalent API ([détail](docs/mesures.md)).
+Un plugin Claude Code pour développer par agents en payant 4 à 5 fois moins, sans perdre en qualité de revue. Les choix du kit viennent de mesures sur 109 stories et environ 1 850 $ d'équivalent API ([détail](docs/mesures.md)). Ils ont ensuite été mis à l'épreuve d'une veille de 47 dépôts et de 20 tests pratiques : [d'où vient le kit et ce que les tests ont conclu](docs/genese.md).
 
 ![La bande couts-session au-dessus du prompt : coût, tokens lus et écrits, contexte, carbone, puis le tableau par modèle et par sous-agent](docs/demo.svg)
 
@@ -61,6 +61,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 
 ## Pour aller plus loin
 
+- [D'où vient le kit](docs/genese.md) : la facture de départ, la veille, les 20 tests, ce qui a été ajouté et ce qui a été écarté.
 - [Les mesures](docs/mesures.md) : corpus, revue, setup mesuré en série, ce qui dépend de votre projet, limites.
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, l'impact (ImpactIA expérimental, EcoLogits), la mise à jour quand de nouveaux modèles sortent.
 - [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC.
@@ -75,7 +76,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 
 ## English summary
 
-A Claude Code plugin for agent-based development at a fraction of the cost. Measured on 3 projects, 109 stories and about $1,850 of API-equivalent spend: cache reads and writes make up about 80 % of the cost, an agent that spawns agents takes 36 to 47 % of a story, and a 1-hour subagent cache costs about 30 % more for most subagents. The kit ships Sonnet for coding, a Haiku second opinion, an Opus reviewer, a Haiku lookup agent, a cost-measurement script that reads local transcripts, and a live cost band above the prompt (`couts-session`). Install with the three commands above. Details are in `docs/` (in French).
+A Claude Code plugin for agent-based development at a fraction of the cost. Measured on 3 projects, 109 stories and about $1,850 of API-equivalent spend: cache reads and writes make up about 80 % of the cost, an agent that spawns agents takes 36 to 47 % of a story, and a 1-hour subagent cache costs about 30 % more for most subagents. The kit ships Sonnet for coding, a Haiku second opinion, an Opus reviewer, a Haiku lookup agent, a cost-measurement script that reads local transcripts, and a live cost band above the prompt (`couts-session`). Its rules were then checked against a review of 47 public repositories and 20 practical tests (blind human ratings, seeded defects, pre-registered criteria): none of the tools reviewed did strictly better than the simplest option, native Claude Code or the kit's chain (`docs/genese.md`). Install with the three commands above. Details are in `docs/` (in French).
 
 ## Licence
 
