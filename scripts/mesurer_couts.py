@@ -112,6 +112,11 @@ TTFT_FAMILLE = _IMP["ttft_famille_s"]
 GRANDEURS = ("energie_wh", "gwp_gco2e", "eau_l", "pe_mj", "adpe_mgsbe")
 
 
+OUTILS_COMMANDE = ("Bash", "PowerShell")
+OUTILS_DETAIL = {"Agent": "subagent_type", "Task": "subagent_type", "Skill": "skill"}
+COMMANDE_MAX = 160
+
+
 def dossier_transcriptions(projet: Path, racine: Path) -> Path:
     """Claude Code encode le chemin du projet en remplaçant tout caractère hors [A-Za-z0-9] par '-'."""
     encode = re.sub(r"[^A-Za-z0-9]", "-", str(projet.resolve()))
@@ -140,8 +145,22 @@ def instant(texte: str) -> datetime:
     return datetime.fromisoformat(texte.replace("Z", "+00:00"))
 
 
-def appels(chemin: Path) -> list[dict]:
-    """Un appel par message.id : usage max, caractères émis cumulés sur ses lignes."""
+def detail_outil(nom: str, entree: dict) -> str | None:
+    """Détail court d'un outil : commande (160 caractères), type de sous-agent ou nom du skill."""
+    if nom in OUTILS_COMMANDE:
+        valeur = entree.get("command")
+        return str(valeur)[:COMMANDE_MAX] if valeur else None
+    cle = OUTILS_DETAIL.get(nom)
+    valeur = entree.get(cle) if cle else None
+    return str(valeur) if valeur else None
+
+
+def appels(chemin: Path, details: bool = False) -> list[dict]:
+    """Un appel par message.id : usage max, caractères émis cumulés sur ses lignes.
+
+    ``details`` ajoute ``effort``, ``cwd``, ``session`` et ``outils`` (liste de ``(nom, détail)``) ;
+    les autres champs ne changent pas.
+    """
     par_id: dict[str, dict] = {}
     for ligne in chemin.read_text(encoding="utf-8").splitlines():
         try:
@@ -156,8 +175,13 @@ def appels(chemin: Path) -> list[dict]:
             continue
         appel = par_id.setdefault(
             message["id"],
-            {"fam": fam, "modele": str(message.get("model", "")), "ts": entree.get("timestamp", ""), "car": 0, "u": {}},
+            {"fam": fam, "modele": str(message.get("model", "")), "ts": entree.get("timestamp", ""), "car": 0, "u": {},
+             "effort": None, "cwd": None, "session": None, "outils": []},
         )
+        if details:
+            for champ, cle in (("effort", "effort"), ("cwd", "cwd"), ("session", "sessionId")):
+                if appel[champ] is None:
+                    appel[champ] = entree.get(cle)
         for bloc in message.get("content") or []:
             if not isinstance(bloc, dict):
                 continue
@@ -167,6 +191,9 @@ def appels(chemin: Path) -> list[dict]:
                 appel["car"] += len(bloc.get("thinking", ""))
             elif bloc.get("type") == "tool_use":
                 appel["car"] += len(json.dumps(bloc.get("input"), ensure_ascii=False))
+                if details:
+                    saisie = bloc.get("input") if isinstance(bloc.get("input"), dict) else {}
+                    appel["outils"].append((str(bloc.get("name")), detail_outil(str(bloc.get("name")), saisie)))
         usage = message.get("usage") or {}
         if usage and int(usage.get("output_tokens") or 0) >= int(appel["u"].get("output_tokens") or 0):
             appel["u"] = usage
@@ -176,8 +203,14 @@ def appels(chemin: Path) -> list[dict]:
         ecrit = int(u.get("cache_creation_input_tokens") or 0)
         ecrit_1h = int((u.get("cache_creation") or {}).get("ephemeral_1h_input_tokens") or 0)
         sortie_declaree = int(u.get("output_tokens") or 0)
+        extra = (
+            {"effort": appel["effort"], "cwd": appel["cwd"], "session": appel["session"], "outils": appel["outils"]}
+            if details
+            else {}
+        )
         resultat.append(
             {
+                **extra,
                 "id": mid,
                 "fam": appel["fam"],
                 "modele": appel["modele"],
