@@ -111,6 +111,76 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
   .nav-links{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Sections 04 à 07 : mêmes jetons Wavestone que le gabarit ; une couleur par famille d'étapes. */
+:root{
+  --st-besoin:#E0A800; --st-specs:#B79CFF; --st-archi:#7B5CE6; --st-dev:#451DC7; --st-relecture:#03B957;
+  --st-livraison:#0FA3B1; --st-pilotage:#FF7A45; --st-recherche:#2D9CDB; --st-outillage:#8a8a9e;
+  --st-contenus:#E85D9E; --st-libre:#CFCFDA;
+}
+.legende-etapes{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px;font-size:12.5px;color:var(--ws-ink-soft)}
+.legende-etapes span{display:inline-flex;align-items:center;gap:6px}
+.legende-etapes i{width:10px;height:10px;border-radius:2px;display:block}
+.pile{display:flex;height:12px;border-radius:3px;overflow:hidden;min-width:180px;background:var(--ws-line)}
+.pile i{display:block;height:100%}
+td.lien a{color:var(--ws-ink);text-decoration:none;border-bottom:1px solid var(--ws-line)}
+td.lien a:hover{color:var(--ws-purple);border-color:var(--ws-purple)}
+.pill{display:inline-block;font:600 12px var(--sans);padding:2px 9px;border-radius:999px;background:var(--ws-cream);border:1px solid var(--ws-line);color:var(--ws-ink-soft)}
+.ver{font:500 11.5px var(--mono);color:var(--ws-gray);margin-left:6px}
+tr.sous-total td{font-weight:800;background:var(--ws-cream)}
+tr.sous-total td:first-child{background:var(--ws-cream)}
+tr.hors td.name{padding-left:26px;color:var(--ws-ink-soft)}
+.intro a{color:var(--ws-purple)}
+/* Étapes : une ligne par famille, barre de carbone bas – haut, détail repliable. */
+.etapes{display:grid;gap:8px}
+.etape{border:1px solid var(--ws-line);border-radius:var(--radius-sm);background:#fff}
+.etape>button{width:100%;border:none;border-radius:var(--radius-sm);background:none;padding:12px 16px;display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(120px,2fr) 92px 120px 86px;gap:14px;align-items:center;text-align:left;color:var(--ws-ink)}
+.etape>button:hover{color:var(--ws-ink);background:var(--ws-cream)}
+.etape .nom{font:700 14px var(--sans);display:flex;gap:8px;align-items:center;min-width:0}
+.etape .nom i{width:10px;height:10px;border-radius:2px;flex:none}
+.barre{position:relative;height:14px;background:var(--ws-cream);border-radius:3px;overflow:hidden}
+.barre .haut{position:absolute;inset:0 auto 0 0;opacity:.35}
+.barre .bas{position:absolute;inset:0 auto 0 0}
+.etape .chiffre{font:700 13.5px var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.etape .chiffre small{display:block;font:500 11px var(--sans);color:var(--ws-ink-soft)}
+.etape .detail{padding:0 16px 14px;overflow-x:auto}
+.etape .detail table{font-size:13px}
+.etape .detail td,.etape .detail th{padding:7px 10px}
+.etape .detail td:first-child,.etape .detail th:first-child{position:static;border-right:none}
+.entete-etapes{display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(120px,2fr) 92px 120px 86px;gap:14px;padding:0 17px 4px;font:600 11.5px var(--sans);color:var(--ws-gray);text-transform:uppercase;letter-spacing:.06em}
+.entete-etapes span:nth-child(n+3){text-align:right}
+.constat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 20px}
+.constat div{background:var(--ws-cream);border-radius:var(--radius-sm);padding:14px 16px;font-size:13.5px;color:var(--ws-ink-soft)}
+.constat b{display:block;font:800 1.35rem var(--mono);color:var(--ws-ink);letter-spacing:-.02em}
+/* Orchestrateur et sous-agents. */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.duo>div{border:1px solid var(--ws-line);border-radius:var(--radius-md);padding:18px 20px;display:grid;gap:10px;background:#fff}
+.duo h3{margin:0;font-size:16px}
+.duo dl{margin:0;display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px}
+.duo dt{font-size:12px;color:var(--ws-ink-soft)}
+.duo dd{margin:0;font:800 1.2rem var(--mono);font-variant-numeric:tabular-nums}
+.duo .part{height:8px;border-radius:4px;background:var(--ws-line);overflow:hidden}
+.duo .part i{display:block;height:100%;background:var(--ws-purple)}
+tr.role td.name button{font:600 14px var(--sans);border:none;background:none;padding:0;text-align:left}
+tr.me td.name{padding-left:30px;color:var(--ws-ink-soft);font-weight:500}
+/* Recommandations : ordonnées par gain estimé. */
+.recos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;counter-reset:reco}
+.reco{border:1px solid var(--ws-line);border-radius:var(--radius-md);padding:18px 20px;display:grid;gap:8px;align-content:start;background:#fff;counter-increment:reco}
+.reco h3{margin:0;font-size:15.5px;line-height:1.3;display:flex;gap:10px}
+.reco h3::before{content:counter(reco);font:800 13px var(--mono);color:#fff;background:var(--ws-purple);border-radius:999px;min-width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
+.reco p{margin:0;font-size:13.5px;color:var(--ws-ink-soft)}
+.reco p b{color:var(--ws-ink)}
+.gain{justify-self:start;font:700 12px var(--sans);padding:3px 10px;border-radius:999px;background:var(--ws-green-light);color:var(--ws-green-ink)}
+.gain.neutre{background:var(--ws-purple-soft);color:var(--ws-purple)}
+.bancs{margin-top:20px;background:var(--ws-cream);border-radius:var(--radius-md);padding:18px 20px}
+.bancs h3{margin:0 0 8px;font-size:15.5px}
+.bancs ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;color:var(--ws-ink-soft)}
+.bancs b{color:var(--ws-ink)}
+@media (max-width:900px){
+  .constat,.duo,.recos{grid-template-columns:1fr}
+  .etape>button,.entete-etapes{grid-template-columns:1fr 92px;row-gap:6px}
+  .etape .barre{grid-column:1/-1;order:5}
+  .etape .chiffre.part-orch,.etape .chiffre.co2,.entete-etapes span:nth-child(2),.entete-etapes span:nth-child(4),.entete-etapes span:nth-child(5){display:none}
+}
 </style>
 
 <div class="progress" id="progress"></div>
@@ -130,7 +200,7 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
         <path d="M0-20.58h-2.653c-2.896 3.035-5.583 6.249-7.672 9.626a51.752 51.752 0 0 0-2.356 4.236l-4.442-8.107h-4.246L-13.275 0l.002-.008C-10.777-7.504-6.209-14.46 0-20.58" transform="matrix(2 0 0 2 60.381 41.16)"/>
       </svg>
     </a>
-    <div class="nav-links">
+    <div class="nav-links" id="nav-links">
       <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
     </div>
   </div>
@@ -218,6 +288,70 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
     </details>
   </div>
 </section>
+
+<div id="detail-mount"></div>
+<template id="tpl-detail">
+<section id="projets">
+  <div class="container">
+    <div class="eyebrow">04 — Par projet</div>
+    <h2 id="titre-projets">Ce qu'a consommé chaque projet du portfolio</h2>
+    <p class="intro" id="intro-projets"></p>
+    <div class="legende-etapes" id="legende-etapes"></div>
+    <div class="table-box"><table id="tbl-projets"></table></div>
+    <p class="hint">Coût en équivalent API. Carbone en kgCO2e, fourchette basse – haute de la méthode ImpactIA.</p>
+  </div>
+</section>
+
+<section class="explain" id="etapes">
+  <div class="container">
+    <div class="eyebrow">05 — Par étape</div>
+    <h2>Du besoin à la livraison, ce que coûte chaque étape</h2>
+    <p class="intro">Onze familles d'activités, de la plus en amont à la plus transverse. Cliquez sur une famille pour voir le détail par skill ou par type de sous-agent. La barre montre le carbone : la partie pleine est le bas de la fourchette, la partie claire va jusqu'au haut.</p>
+    <div class="constat" id="constat-etapes"></div>
+    <div class="entete-etapes"><span>Étape</span><span>Carbone (kgCO2e)</span><span>Coût API</span><span>Carbone</span><span>Orchestrateur</span></div>
+    <div class="etapes" id="liste-etapes"></div>
+    <details>
+      <summary>🧮 Comment chaque appel est rattaché à une étape</summary>
+      <div class="body">
+        <p><b>Sous-agents.</b> Le type de l'agent décide quand il est explicite : <code>dev-story</code> pour le développement ; <code>reviewer</code> et <code>second-avis</code> pour la relecture ; <code>lookup</code> et <code>Explore</code> pour la recherche. Pour un sous-agent généraliste, on prend le skill qu'il exécute à ce moment-là (plan, implémentation, tests et revue d'aidd-dev se suivent dans le même agent), sinon les mots de sa description (« review », « Implement story », « recherche »…), sinon le skill de la session qui l'a lancé.</p>
+        <p><b>Session principale.</b> Le dernier skill invoqué (<code>/bmad-prd</code>, <code>/bmad-architecture</code>…) vaut jusqu'au skill suivant ou au <code>/clear</code>. Sans skill actif, l'outil appelé décide : commande git ou gh de PR, de CI ou de release pour la livraison ; lancement d'agent pour le pilotage ; pytest ou ruff pour les tests ; édition de fichier pour le développement. Le reste (lecture, commandes, réponses) forme la famille « Échanges sans étape identifiée ».</p>
+        <p><b>Limite.</b> Un skill reste attribué tant qu'on ne change pas de tâche. Les suites de session après <code>/agent-cost-kit:avancement-run</code> comptent donc dans le pilotage, même quand l'orchestrateur y relance des stories. Les ordres de grandeur sont fiables ; à quelques pourcents près, la frontière entre deux familles voisines ne l'est pas.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="container">
+    <div class="eyebrow">06 — Par rôle</div>
+    <h2>Orchestrateur et sous-agents</h2>
+    <p class="intro">L'orchestrateur est la session principale, celle où l'on tape. Les sous-agents sont lancés par elle, chacun avec un contexte neuf. Cliquez sur un rôle pour voir le détail par modèle et par effort.</p>
+    <div class="duo" id="duo"></div>
+    <div class="controls"><span class="label">Déplier</span><button type="button" id="t-roles" aria-pressed="false"><span class="chev">›</span>🤖 Modèle et effort de chaque rôle</button></div>
+    <div class="table-box"><table id="tbl-roles"></table></div>
+    <p class="hint">« Coût médian par agent » : la moitié des agents de ce type ont coûté moins. Contexte moyen : tokens d'input relus à chaque appel.</p>
+  </div>
+</section>
+
+<section class="explain" id="recos">
+  <div class="container">
+    <div class="eyebrow">07 — Recommandations</div>
+    <h2>Ce que ces mesures recommandent</h2>
+    <p class="intro">Classées par gain estimé sur la période, à qualité égale. Les gains sont des ordres de grandeur, calculés sur les coûts médians mesurés ci-dessus. Ce que le kit en a tiré : <a href="https://github.com/Aliquanto3/agent-cost-kit/blob/master/docs/genese.md" target="_blank" rel="noopener">docs/genese.md</a>. Le carbone suit à peu près le coût, parce que les deux viennent surtout du contexte relu.</p>
+    <div class="recos" id="liste-recos"></div>
+    <div class="bancs">
+      <h3>🧪 Ce que disent les bancs d'essai du 13 octobre</h3>
+      <ul>
+        <li><b>À tâche égale, les trois modèles consomment à peu près autant de tokens.</b> L'écart de coût vient du prix du token et du nombre de tours : Sonnet a fait 33 appels contre 57 pour Opus sur la même implémentation.</li>
+        <li><b>Sonnet coûte de 17 à 55 % de moins qu'Opus à la tâche</b>, pas 50 % partout : la lecture du cache coûte le même prix chez les deux.</li>
+        <li><b>Opus reste devant en architecture, en spec transverse et en recherche web</b> qui fonde une décision. Notes en aveugle : 8,5 contre 7,5 pour Sonnet en architecture, 8,4 contre 7,8 en recherche web.</li>
+        <li><b>En revue, Haiku trouve des défauts réels pour quelques centimes.</b> La réunion des constats Sonnet et Haiku offre le meilleur rapport qualité-prix ; Opus juge mieux la gravité.</li>
+        <li><b>Le parallélisme accélère la dépense sans la grossir</b> : jusqu'à 11 agents simultanés n'ont pas augmenté le coût par tâche. Le mode économique (une seule passe de revue) a fait baisser de 40 % le coût par story.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</template>
 
 <footer><div class="container"><span id="footer-date">Bilan Claude Code</span><span id="footer-methode">Calcul : agent-cost-kit</span></div></footer>
 
@@ -395,4 +529,103 @@ document.getElementById("footer-date").textContent=`Bilan Claude Code · donnée
 const bar=document.getElementById("progress");
 addEventListener("scroll",()=>{const m=document.documentElement.scrollHeight-innerHeight;bar.style.width=(m>0?100*scrollY/m:0)+"%";},{passive:true});
 render();
+</script>
+<script>
+// Sections 04 à 07 (BILAN.detail) : exécutées après le script principal, qui fournit esc, tok, usd, nf, rng et pct.
+addEventListener("DOMContentLoaded",function(){
+const D=BILAN.detail;
+if(!D)return;
+document.getElementById("detail-mount").innerHTML=document.getElementById("tpl-detail").innerHTML;
+document.getElementById("nav-links").insertAdjacentHTML("beforeend",'<a href="#projets">Projets</a><a href="#etapes">Étapes</a><a href="#agents">Rôles</a><a href="#recos">Pistes</a>');
+const ETAPE_COL={besoin:"var(--st-besoin)",specs:"var(--st-specs)",archi:"var(--st-archi)",dev:"var(--st-dev)",relecture:"var(--st-relecture)",livraison:"var(--st-livraison)",pilotage:"var(--st-pilotage)",recherche:"var(--st-recherche)",outillage:"var(--st-outillage)",contenus:"var(--st-contenus)",libre:"var(--st-libre)"};
+const ET=D.etapes, TOT=D.total.cout;
+const kg=g=>rng(g,1000), kwh=e=>rng(e,1000);
+const ctxMoy=b=>tok(Math.round(b.inTot/Math.max(b.appels,1)));
+document.getElementById("legende-etapes").innerHTML=ET.map(e=>`<span><i style="background:${ETAPE_COL[e.id]}"></i>${esc(e.label.replace(/^\S+\s/,""))}</span>`).join("");
+
+// --- 04 Projets ---
+const AVEC_PORTFOLIO=!!D.portfolio;
+document.getElementById("titre-projets").textContent=AVEC_PORTFOLIO?"Ce qu'a consommé chaque projet du portfolio":"Ce qu'a consommé chaque dépôt";
+const lienPortfolio=D.portfolio_url?`<a href="${esc(D.portfolio_url)}" target="_blank" rel="noopener">portfolio</a>`:"portfolio";
+document.getElementById("intro-projets").innerHTML=(AVEC_PORTFOLIO?`Les projets du ${lienPortfolio}, avec leur état publié sur GitHub. `:"Un dossier de travail par ligne. ")
+  +"Chaque appel est rattaché au dépôt de son dossier de travail, worktrees et anciens noms compris. La barre répartit le coût du projet entre les étapes de la section suivante.";
+const pile=p=>`<div class="pile" role="img" aria-label="Répartition du coût par étape">${ET.map(e=>{const v=p.par_groupe[e.id]||0;return v>0&&p.cout>0?`<i style="width:${100*v/p.cout}%;background:${ETAPE_COL[e.id]}" title="${esc(e.label)} : ${usd(v)}"></i>`:""}).join("")}</div>`;
+const port=D.projets.filter(p=>p.portfolio), hors=AVEC_PORTFOLIO?D.projets.filter(p=>!p.portfolio):[];
+const somme=l=>l.reduce((t,p)=>{t.cout+=p.cout;t.gwp=[t.gwp[0]+p.gwp[0],t.gwp[1]+p.gwp[1]];t.nrj=[t.nrj[0]+p.nrj[0],t.nrj[1]+p.nrj[1]];t.appels+=p.appels;t.inTot+=p.inTot;
+  for(const k in p.par_groupe)t.par_groupe[k]=(t.par_groupe[k]||0)+p.par_groupe[k];return t;},{cout:0,gwp:[0,0],nrj:[0,0],appels:0,inTot:0,par_groupe:{}});
+let horsOuvert=false;
+function rendreProjets(){
+  const ligne=(p,cls,nom,etat)=>`<tr class="${cls}"><td class="name ${p.url?"lien":""}">${nom}</td>${AVEC_PORTFOLIO?`<td style="text-align:left">${etat}</td>`:""}<td>${usd(p.cout)}<span class="share">${pct(p.cout,TOT)} du total</span></td><td>${kg(p.gwp)}</td><td>${kwh(p.nrj)}</td><td>${tok(p.inTot)}</td><td style="text-align:left">${pile(p)}</td></tr>`;
+  let h=`<thead><tr><th>📁 ${AVEC_PORTFOLIO?"Projet":"Dépôt"}</th>${AVEC_PORTFOLIO?'<th style="text-align:left">État</th>':""}<th>💵 Coût<span class="unit">$ · part du total</span></th><th>🌍 Carbone<span class="unit">kgCO2e</span></th><th>⚡ Énergie<span class="unit">kWh</span></th><th>📥 Input<span class="unit">tokens traités</span></th><th style="text-align:left">Répartition par étape</th></tr></thead><tbody>`;
+  const sansPortfolio=!AVEC_PORTFOLIO;
+  for(const p of sansPortfolio?D.projets:port){
+    const nom=p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.nom)}</a>`:esc(p.nom);
+    h+=ligne(p,"",nom,`${p.statut?`<span class="pill">${esc(p.statut)}</span>`:""}${p.version?`<span class="ver">${esc(p.version)}</span>`:""}`);
+  }
+  if(AVEC_PORTFOLIO){
+    h+=ligne(somme(port),"sous-total",`Portfolio IA · ${port.length} projets`,"");
+    if(hors.length)h+=ligne(somme(hors),"sous-total",`<button type="button" id="t-hors" aria-expanded="${horsOuvert}" style="font:800 14px var(--sans);border:none;background:none;padding:0"><span class="chev">›</span>Hors portfolio · ${hors.length} dossiers</button>`,"");
+    if(horsOuvert&&hors.length)for(const p of hors)h+=ligne(p,"hors",esc(p.nom),"");
+  }
+  document.getElementById("tbl-projets").innerHTML=h+"</tbody>";
+}
+document.getElementById("tbl-projets").addEventListener("click",e=>{if(e.target.closest("#t-hors")){horsOuvert=!horsOuvert;rendreProjets();}});
+rendreProjets();
+
+// --- 05 Étapes ---
+const parId=Object.fromEntries(ET.map(e=>[e.id,e]));
+const grp=ids=>ids.reduce((t,i)=>{const e=parId[i];if(e){t.c+=e.cout;t.g=[t.g[0]+e.gwp[0],t.g[1]+e.gwp[1]];}return t;},{c:0,g:[0,0]});
+const amont=grp(["besoin","specs","archi"]),coeur=grp(["dev","relecture"]),autour=grp(["livraison","pilotage","recherche","outillage","contenus","libre"]);
+document.getElementById("constat-etapes").innerHTML=[
+  [amont,"Cadrage, spécifications et architecture"],[coeur,"Développement, relecture et tests"],[autour,"Livraison, pilotage, recherche et le reste"]
+].map(([v,l])=>`<div><b>${pct(v.c,TOT)}</b>${l} : ${usd(v.c)}, ${kg(v.g)} kgCO2e</div>`).join("");
+const gmax=Math.max(1e-9,...ET.map(e=>e.gwp[1]));
+const ouverts=new Set();
+function rendreEtapes(){
+  document.getElementById("liste-etapes").innerHTML=ET.map(e=>{
+    const ouvert=ouverts.has(e.id);
+    const sous=ouvert?`<div class="detail"><table><thead><tr><th>Skill ou type de sous-agent</th><th>Appels</th><th>Contexte moyen</th><th>Coût</th><th>Carbone (kgCO2e)</th></tr></thead><tbody>${e.sous.map(s=>`<tr><td class="name">${esc(s.label)}</td><td>${nf(s.appels)}</td><td>${ctxMoy(s)}</td><td>${usd(s.cout)}<span class="share">${pct(s.cout,e.cout)} de l'étape</span></td><td>${kg(s.gwp)}</td></tr>`).join("")}</tbody></table></div>`:"";
+    return `<div class="etape"><button type="button" data-etape="${esc(e.id)}" aria-expanded="${ouvert}">
+      <span class="nom"><span class="chev">›</span><i style="background:${ETAPE_COL[e.id]}"></i>${esc(e.label)}</span>
+      <span class="barre" aria-hidden="true"><span class="haut" style="width:${100*e.gwp[1]/gmax}%;background:${ETAPE_COL[e.id]}"></span><span class="bas" style="width:${100*e.gwp[0]/gmax}%;background:${ETAPE_COL[e.id]}"></span></span>
+      <span class="chiffre">${usd(e.cout)}<small>${pct(e.cout,TOT)}</small></span>
+      <span class="chiffre co2">${kg(e.gwp)}<small>kgCO2e</small></span>
+      <span class="chiffre part-orch">${pct(e.cout_orch,e.cout)}<small>en session</small></span>
+    </button>${sous}</div>`;}).join("");
+}
+document.getElementById("liste-etapes").addEventListener("click",ev=>{const b=ev.target.closest("[data-etape]");if(!b)return;const id=b.dataset.etape;ouverts.has(id)?ouverts.delete(id):ouverts.add(id);rendreEtapes();});
+rendreEtapes();
+
+// --- 06 Orchestrateur et sous-agents ---
+const O=D.orch,S=D.sous;
+const nbAgents=D.roles.filter(r=>!r.orch).reduce((t,r)=>t+r.n_agents,0);
+document.getElementById("duo").innerHTML=[
+  ["🎛️ Orchestrateur (session principale)",O,`${nf(O.appels)} appels`],
+  ["🤖 Sous-agents",S,`${nf(nbAgents)} agents lancés, ${nf(S.appels)} appels`]
+].map(([t,b,sub])=>`<div><h3>${t}</h3><div class="part" aria-hidden="true"><i style="width:${TOT>0?100*b.cout/TOT:0}%"></i></div>
+  <dl><div><dt>Coût API</dt><dd>${usd(b.cout)}</dd></div><div><dt>Part du coût</dt><dd>${pct(b.cout,TOT)}</dd></div>
+  <div><dt>Carbone</dt><dd>${kg(b.gwp)} kg</dd></div><div><dt>Contexte moyen par appel</dt><dd>${ctxMoy(b)}</dd></div></dl>
+  <p class="hint" style="margin:0">${sub}</p></div>`).join("");
+let rolesOuverts=new Set();
+function rendreRoles(){
+  let h='<thead><tr><th>🤖 Rôle</th><th>Agents lancés</th><th>Coût médian<span class="unit">par agent</span></th><th>Appels</th><th>Contexte moyen<span class="unit">tokens par appel</span></th><th>💵 Coût<span class="unit">$ · part du total</span></th><th>🌍 Carbone<span class="unit">kgCO2e</span></th></tr></thead><tbody>';
+  for(const r of D.roles){
+    const id=r.label,o=rolesOuverts.has(id);
+    h+=`<tr class="role"><td class="name"><button type="button" data-role="${esc(id)}" aria-expanded="${o}"><span class="chev">›</span>${esc(r.orch?"Orchestrateur":r.label)}</button></td><td>${r.orch?"—":nf(r.n_agents)}</td><td>${r.orch?"—":usd(r.cout_median)}</td><td>${nf(r.appels)}</td><td>${ctxMoy(r)}</td><td>${usd(r.cout)}<span class="share">${pct(r.cout,TOT)}</span></td><td>${kg(r.gwp)}</td></tr>`;
+    if(o)for(const m of r.par_me)h+=`<tr class="me"><td class="name">${esc(m.label)}</td><td></td><td></td><td>${nf(m.appels)}</td><td>${ctxMoy(m)}</td><td>${usd(m.cout)}<span class="share">${pct(m.cout,r.cout)} du rôle</span></td><td>${kg(m.gwp)}</td></tr>`;
+  }
+  document.getElementById("tbl-roles").innerHTML=h+"</tbody>";
+  document.getElementById("t-roles").setAttribute("aria-pressed",rolesOuverts.size===D.roles.length);
+}
+document.getElementById("tbl-roles").addEventListener("click",ev=>{const b=ev.target.closest("[data-role]");if(!b)return;const id=b.dataset.role;rolesOuverts.has(id)?rolesOuverts.delete(id):rolesOuverts.add(id);rendreRoles();});
+document.getElementById("t-roles").addEventListener("click",()=>{rolesOuverts=rolesOuverts.size===D.roles.length?new Set():new Set(D.roles.map(r=>r.label));rendreRoles();});
+rendreRoles();
+
+// --- 07 Recommandations (textes calculés par le script ; mesure et pratique sont du HTML produit par lui) ---
+const arrondiGain=v=>v>=100?Math.round(v/10)*10:Math.round(v);
+const gainTxt=g=>g?`Gain estimé : ≈ ${nf(arrondiGain(g[0]))} à ${nf(arrondiGain(g[1]))} $ sur la période`:"Gain : neutre";
+document.getElementById("liste-recos").innerHTML=D.recos.length
+  ?D.recos.map(r=>`<article class="reco"><h3>${esc(r.titre)}</h3><p><b>Mesure.</b> ${r.mesure}</p><p><b>Pratique.</b> ${r.pratique}</p><span class="gain${r.gain?"":" neutre"}">${gainTxt(r.gain)}</span></article>`).join("")
+  :'<p class="hint">Aucune recommandation ne se déclenche sur cette période.</p>';
+});
 </script>

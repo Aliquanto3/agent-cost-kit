@@ -1,6 +1,6 @@
 ---
 title: "agent-cost-kit 0.16.0 : bilan des tokens par projet, par étape et par rôle"
-status: ready
+status: review
 date: 2026-10-27
 source: "bilan d'octobre 2026 (1er au 26, 3 PC, 137 054 appels), fait à la main avec des scripts hors dépôt ; ce lot les intègre au kit"
 ---

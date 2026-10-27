@@ -21,6 +21,11 @@ Deux modes :
 - **Fusion** (``--fusionner a.json b.json ...``) : combine plusieurs bilans ``<mois>-<machine>.json``
   du même mois, un par machine, en un ``<mois>-consolide.json`` + ``.html``.
 
+Options de période et de portée : ``--du/--au`` (jours UTC inclus, même mois, exclusif avec ``--mois``) ;
+``--racine`` répétable (un appel par ``message.id`` sur l'ensemble) ; ``--detail`` et ``--config`` ajoutent le champ
+``detail`` (projet, étape, rôle, recommandations : voir ``bilan_detail.py``). ``--fusionner`` refuse des périodes
+différentes et fusionne ``detail`` quand tous les bilans en ont un.
+
 Écrit aussi la page HTML (``skills/bilan-tokens/gabarit.html``) à côté du JSON. Aucun contenu de
 transcription n'est recopié : seuls des totaux par modèle.
 
@@ -39,12 +44,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bilan_detail as bd
 import mesurer_couts as mc
 
 UTC = timezone.utc  # noqa: UP017 - datetime.UTC n'existe qu'à partir de Python 3.11
 SCHEMA = 1
 GABARIT = Path(__file__).resolve().parent.parent / "skills" / "bilan-tokens" / "gabarit.html"
 PLACEHOLDER = "const BILAN=/*__BILAN__*/null;"
+RACINE_DEFAUT = Path.home() / ".claude" / "projects"
 
 
 def mois_courant() -> str:
@@ -62,20 +69,65 @@ def projets_retenus(racine: Path, dossier: Path | None) -> list[Path]:
     return [d for d in racine.iterdir() if d.is_dir() and (d.name == prefixe or d.name.startswith(prefixe + "-"))]
 
 
-def collecter(projets: list[Path], mois: str) -> list[dict]:
-    """Tous les appels des ``*.jsonl`` de ``projets`` (sous-agents compris), dédoublonnés et filtrés sur ``mois``."""
+def liste_racines(options) -> list[Path]:
+    """Racines de transcriptions : ``--racine`` répétée (ou une seule valeur), sinon ``~/.claude/projects``."""
+    racines = getattr(options, "racine", None)
+    if isinstance(racines, Path):
+        return [racines]
+    return list(racines or [RACINE_DEFAUT])
+
+
+def verifier_periode(du: str | None, au: str | None) -> None:
+    """``--du`` et ``--au`` vont ensemble, sont des dates valides, dans l'ordre et dans le même mois."""
+    if du is None and au is None:
+        return
+    if du is None or au is None:
+        sys.exit("--du et --au vont ensemble.")
+    for nom, valeur in (("--du", du), ("--au", au)):
+        try:
+            datetime.strptime(valeur, "%Y-%m-%d")
+        except ValueError:
+            sys.exit(f"{nom} {valeur!r} : date AAAA-MM-JJ attendue.")
+    if du > au:
+        sys.exit(f"--du {du} après --au {au}.")
+    if du[:7] != au[:7]:
+        sys.exit(f"--du {du} et --au {au} doivent être dans le même mois (pas de période à cheval sur deux mois).")
+
+
+def dans_periode(ts: str, mois: str, du: str | None = None, au: str | None = None) -> bool:
+    """Horodatage UTC dans la période ``du``..``au`` (jours inclus) ou, sans elle, dans le mois."""
+    return du <= ts[:10] <= au if du and au else ts[:7] == mois
+
+
+def collecter_bruts(projets: list[Path], detail: bool = False) -> tuple[list[dict], dict[str, dict]]:
+    """Appels des ``*.jsonl`` de ``projets`` (sous-agents compris), dédoublonnés par ``message.id``, et infos de fichiers."""
     bruts: list[dict] = []
+    infos: dict[str, dict] = {}
     for projet in sorted(projets):
         for chemin in sorted(projet.rglob("*.jsonl")):
-            bruts.extend(mc.appels(chemin))
+            if detail:
+                liste, infos[str(chemin)] = bd.lire_fichier(chemin)
+            else:
+                liste = mc.appels(chemin)
+            bruts.extend(liste)
     bruts = [a for a in bruts if a["id"] != "<synthetic>"]
     bruts.sort(key=lambda a: mc.instant(a["ts"]))
     vus: dict[str, dict] = {}
     for a in bruts:
         vus.setdefault(a["id"], a)
-    retenus = [a for a in vus.values() if a["ts"][:7] == mois]
+    return list(vus.values()), infos
+
+
+def retenir(appels_uniques: list[dict], mois: str, du: str | None = None, au: str | None = None) -> list[dict]:
+    """Appels dans le mois ou dans ``du``..``au``, en ordre chronologique."""
+    retenus = [a for a in appels_uniques if dans_periode(a["ts"], mois, du, au)]
     retenus.sort(key=lambda a: mc.instant(a["ts"]))
     return retenus
+
+
+def collecter(projets: list[Path], mois: str, du: str | None = None, au: str | None = None) -> list[dict]:
+    """Tous les appels de ``projets``, dédoublonnés et filtrés sur ``mois`` (ou sur ``du``..``au``)."""
+    return retenir(collecter_bruts(projets)[0], mois, du, au)
 
 
 def par_modele(appels_retenus: list[dict], mix: str, methode: str = mc.METHODE_DEFAUT) -> list[dict]:
@@ -211,20 +263,27 @@ def afficher_tableau(modeles: list[dict], titre: str) -> None:
 
 
 def commande_collecte(options) -> int:
-    mois = options.mois or mois_courant()
-    projets = projets_retenus(options.racine, options.dossier)
+    du, au = getattr(options, "du", None), getattr(options, "au", None)
+    detail = getattr(options, "detail", False)
+    verifier_periode(du, au)
+    mois = du[:7] if du else options.mois or mois_courant()
+    libelle = f"{du} au {au}" if du else mois
+    racines = liste_racines(options)
+    projets = [p for racine in racines for p in projets_retenus(racine, options.dossier)]
     if not projets:
-        print(f"Aucun dossier de transcriptions sous {options.racine}" + (f" pour {options.dossier}" if options.dossier else ""), file=sys.stderr)
+        print(f"Aucun dossier de transcriptions sous {', '.join(map(str, racines))}" + (f" pour {options.dossier}" if options.dossier else ""), file=sys.stderr)
         return 1
-    retenus = collecter(projets, mois)
+    uniques, infos = collecter_bruts(projets, detail)
+    retenus = retenir(uniques, mois, du, au)
     if not retenus:
-        print(f"Aucun appel pour {mois}.", file=sys.stderr)
+        print(f"Aucun appel pour {libelle}.", file=sys.stderr)
         return 1
     modeles = par_modele(retenus, options.mix, options.methode)
     bilan = {
         "schema": SCHEMA,
         "machine": options.machine,
         "mois": mois,
+        **({"du": du, "au": au} if du else {}),
         "dossier": str(options.dossier.resolve()) if options.dossier else None,
         "genere_le": datetime.now(UTC).isoformat(timespec="seconds"),
         "premier_appel": retenus[0]["ts"],
@@ -234,15 +293,21 @@ def commande_collecte(options) -> int:
         "modeles": modeles,
         "prix": table_prix([m["modele"] for m in modeles]),
     }
-    options.out.mkdir(parents=True, exist_ok=True)
-    base = f"{mois}-{options.machine}"
-    chemin_json = options.out / f"{base}.json"
-    chemin_html = options.out / f"{base}.html"
+    if detail:
+        config = bd.charger_config(getattr(options, "config", None))
+        bilan["detail"] = bd.construire(retenus, infos, config, options.mix, options.methode)
+    ecrire_bilan(bilan, options.out, f"{du}_{au}" if du else mois, options.machine)
+    afficher_tableau(modeles, f"Bilan {libelle} — {options.machine}")
+    return 0
+
+
+def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str) -> None:
+    """Écrit ``<periode>-<suffixe>.json`` et ``.html`` dans ``out``."""
+    out.mkdir(parents=True, exist_ok=True)
+    chemin_json, chemin_html = out / f"{periode}-{suffixe}.json", out / f"{periode}-{suffixe}.html"
     chemin_json.write_text(json.dumps(bilan, ensure_ascii=False, indent=2), encoding="utf-8")
     ecrire_html(bilan, chemin_html)
-    afficher_tableau(modeles, f"Bilan {mois} — {options.machine}")
     print(f"\nÉcrit : {chemin_json}\n        {chemin_html}")
-    return 0
 
 
 def charger_bilan(chemin: Path) -> dict:
@@ -260,6 +325,10 @@ def commande_fusion(options) -> int:
     mois = {b["mois"] for b in bilans}
     if len(mois) > 1:
         sys.exit(f"Mois différents dans les bilans à fusionner : {sorted(mois)}.")
+    periodes = {(b.get("du"), b.get("au")) for b in bilans}
+    if len(periodes) > 1:
+        sys.exit(f"Périodes différentes dans les bilans à fusionner : {sorted(periodes, key=str)}.")
+    du, au = bilans[0].get("du"), bilans[0].get("au")
     machines = [b["machine"] for b in bilans]
     if len(set(machines)) != len(machines):
         sys.exit(f"Machine présente plusieurs fois : {machines}.")
@@ -274,7 +343,6 @@ def commande_fusion(options) -> int:
         sys.exit(f"Portées différentes : certains bilans couvrent tous les projets, d'autres un dossier ({dossiers}).")
     distincts = sorted({d for d in dossiers if d})
     mois_unique = next(iter(mois))
-    options.out.mkdir(parents=True, exist_ok=True)
     modeles = sommer_blocs([b["modeles"] for b in bilans])
     prix = {}
     for b in bilans:
@@ -282,6 +350,7 @@ def commande_fusion(options) -> int:
     consolide = {
         "schema": SCHEMA,
         "mois": mois_unique,
+        **({"du": du, "au": au} if du else {}),
         "genere_le": datetime.now(UTC).isoformat(timespec="seconds"),
         "premier_appel": min(b["premier_appel"] for b in bilans),
         "dernier_appel": max(b["dernier_appel"] for b in bilans),
@@ -295,12 +364,14 @@ def commande_fusion(options) -> int:
         "modeles": modeles,
         "prix": prix,
     }
-    chemin_json = options.out / f"{mois_unique}-consolide.json"
-    chemin_html = options.out / f"{mois_unique}-consolide.html"
-    chemin_json.write_text(json.dumps(consolide, ensure_ascii=False, indent=2), encoding="utf-8")
-    ecrire_html(consolide, chemin_html)
-    afficher_tableau(modeles, f"Bilan {mois_unique} — consolidé ({', '.join(machines)})")
-    print(f"\nÉcrit : {chemin_json}\n        {chemin_html}")
+    if all("detail" in b for b in bilans):
+        config = bd.charger_config(getattr(options, "config", None))
+        consolide["detail"] = bd.fusionner([b["detail"] for b in bilans], config, consolide["mix"], consolide["methode"])
+    elif any("detail" in b for b in bilans):
+        print("Avertissement : tous les bilans n'ont pas de détail (--detail), le consolidé n'en a pas.", file=sys.stderr)
+    periode = f"{du}_{au}" if du else mois_unique
+    ecrire_bilan(consolide, options.out, periode, "consolide")
+    afficher_tableau(modeles, f"Bilan {du + ' au ' + au if du else mois_unique} — consolidé ({', '.join(machines)})")
     return 0
 
 
@@ -310,7 +381,11 @@ def main() -> int:
     analyseur = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     analyseur.add_argument("--mois", help="AAAA-MM (défaut : mois UTC courant)")
     analyseur.add_argument("--dossier", type=Path, help="limite aux projets sous ce chemin (défaut : tous)")
-    analyseur.add_argument("--racine", type=Path, default=Path.home() / ".claude" / "projects")
+    analyseur.add_argument("--du", metavar="AAAA-MM-JJ", help="premier jour (UTC, inclus), avec --au, dans le même mois ; exclusif avec --mois")
+    analyseur.add_argument("--au", metavar="AAAA-MM-JJ", help="dernier jour (UTC, inclus)")
+    analyseur.add_argument("--racine", type=Path, action="append", help="racine de transcriptions, répétable (défaut : ~/.claude/projects)")
+    analyseur.add_argument("--detail", action="store_true", help="ajoute le détail par projet, étape et rôle (JSON et sections 04 à 07)")
+    analyseur.add_argument("--config", type=Path, default=bd.CONFIG_DEFAUT, help="config du détail (défaut : ~/.claude/cost-kit/bilan-config.json)")
     analyseur.add_argument("--machine", default=platform.node())
     analyseur.add_argument("--out", type=Path, default=Path.home() / ".claude" / "cost-kit" / "bilans")
     analyseur.add_argument("--mix", choices=sorted(mc.MIX), default=mc.MIX_DEFAUT)
@@ -318,6 +393,8 @@ def main() -> int:
                            help="méthode d'impact : impactia (défaut, entrée comptée, expérimental) ou ecologits (sortie seule)")
     analyseur.add_argument("--fusionner", nargs="+", metavar="JSON", help="fusionne ces bilans (une machine chacun) au lieu de collecter")
     options = analyseur.parse_args()
+    if options.mois and (options.du or options.au):
+        analyseur.error("--mois est exclusif avec --du/--au.")
     if options.fusionner:
         return commande_fusion(options)
     return commande_collecte(options)

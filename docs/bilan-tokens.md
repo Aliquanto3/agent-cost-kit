@@ -13,6 +13,9 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 ```
 
 - `--mois` (défaut : mois UTC courant) filtre sur le préfixe de l'horodatage UTC de chaque appel, tel qu'écrit par Claude Code.
+- `--du AAAA-MM-JJ --au AAAA-MM-JJ` (dates UTC incluses, dans le même mois, exclusif avec `--mois`) remplace le mois entier. Le JSON gagne les champs `du` et `au` (`mois` reste le mois des deux dates) et les fichiers s'appellent `<du>_<au>-<machine>`.
+- `--racine` est répétable : toutes les racines sont lues, un appel par `message.id` sur l'ensemble (première occurrence chronologique). Usage : une copie des transcriptions d'un PC plus le dossier local du même PC.
+- `--detail` ajoute le détail par projet, étape et rôle (section ci-dessous) ; `--config` (défaut `~/.claude/cost-kit/bilan-config.json`) le règle.
 - `--dossier` limite aux dossiers de projet sous `--racine` (défaut `~/.claude/projects`) dont le nom encodé commence par celui du chemin donné (même encodage que `mesurer_couts.dossier_transcriptions`) : il couvre donc ce dossier et ses sous-dossiers, pas un dossier frère au nom plus long (`GitHub2` pour `GitHub`). Sans l'option, tous les projets du compte sont comptés.
 - Les `*.jsonl` sont parcourus récursivement (sous-agents compris), un appel par `message.id` dédoublonné sur l'ensemble des fichiers retenus (première occurrence chronologique gardée), les messages synthétiques (`id == "<synthetic>"`) écartés.
 
@@ -24,7 +27,46 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 python scripts/bilan_tokens.py --fusionner 2026-10-pc1.json 2026-10-pc2.json --out mesures/
 ```
 
-Refuse des bilans de mois différents, la même machine en double, des mix électriques différents, ou un mélange de bilans « tous les projets » et de bilans limités à un dossier. Les dossiers des PC (chemins propres à chaque machine) sont recopiés dans le consolidé. Écrit `<mois>-consolide.json` (modèles sommés, liste des machines, total par machine) et sa page HTML, avec un bouton supplémentaire pour déplier le détail par PC.
+Refuse des bilans de périodes différentes (`mois`, `du`, `au`), la même machine en double, des mix électriques différents, ou un mélange de bilans « tous les projets » et de bilans limités à un dossier. Les dossiers des PC (chemins propres à chaque machine) sont recopiés dans le consolidé. Écrit `<mois>-consolide.json` (modèles sommés, liste des machines, total par machine) et sa page HTML, avec un bouton supplémentaire pour déplier le détail par PC. Quand une période `--du/--au` a été utilisée, le consolidé s'appelle `<du>_<au>-consolide`. Si **tous** les bilans ont un `detail`, il est fusionné (sommes recalculées, recommandations recalculées avec la config courante) ; sinon le consolidé n'en a pas et un avertissement le dit.
+
+## Détail par projet, étape et rôle
+
+`--detail` ajoute au JSON un champ `detail` et à la page quatre sections : 04 par projet, 05 par étape, 06 par rôle, 07 recommandations. Le code est dans `scripts/bilan_detail.py`. Chaque appel est classé ainsi :
+
+- **Projet.** Le dépôt est le premier segment du dossier de travail (`cwd`) sous un dossier parent de dépôts (`parents`, défaut `GitHub` et `dev`, sans tenir compte de la casse). On applique ensuite `alias` (préfixe de nom vers clé de dépôt), puis la clé du portfolio dont le nom est égal ou préfixe suivi de `-` ou `_` (la plus longue d'abord, pour les worktrees `depot-lot4`), sinon le nom tel quel, hors portfolio. Un dossier hors de tout parent, ou le parent lui-même, va dans « Racine des dépôts (sessions transverses) ».
+- **Étape**, onze familles : cadrage du besoin, spécifications, architecture et plan, développement, relecture et tests, intégration et livraison, pilotage, recherche et documentation, outillage et mesure, contenus, échanges sans étape. Dans la session principale, le dernier skill invoqué (commande tapée ou outil `Skill`) vaut jusqu'au skill suivant ou à `/clear` ; une commande git ou gh de livraison l'emporte toujours ; sans skill, l'outil de l'appel décide (édition : développement, pytest ou ruff : tests, lancement d'agent : pilotage…). Pour un sous-agent, le type explicite (`dev-story`, `reviewer`, `second-avis`, `lookup`, `Explore`, `Plan`) décide ; sinon le skill qu'il exécute au moment de l'appel ; sinon les mots de sa description, puis de son premier prompt ; sinon le skill de la session qui l'a lancé ; sinon le développement.
+- **Rôle.** L'orchestrateur (session principale) ou le type du sous-agent, avec la sous-clé `modèle · effort`.
+
+Le JSON ne garde pas les appels : `detail.brut` contient des sommes par cellule (dimension, clé, sous-clé) et par modèle, plus le coût de chaque sous-agent arrondi au centime. C'est ce qui permet la fusion de plusieurs PC. Les blocs d'affichage (`projets`, `etapes`, `roles`, `orch`, `sous`, `total`) et les `recos` se recalculent depuis `brut`. Aucun texte de transcription n'en sort : seulement des noms de skills, de types d'agents et de dépôts ; les descriptions et premiers prompts des sous-agents servent au classement puis sont oubliés.
+
+**Recommandations.** Huit, calculées en Python et affichées seulement si leur condition est remplie, triées par gain maximal décroissant (les neutres à la fin) : implémenter avec `dev-story` plutôt qu'un généraliste, simplifier la relecture, raccourcir le contexte de l'orchestrateur, quitter une version ancienne d'un modèle, faire le point d'un run dans une session neuve, et trois constats neutres (effort, amont, mesure). Les seuils sont des constantes nommées de `bilan_detail.py`.
+
+**Config** `~/.claude/cost-kit/bilan-config.json` (absente : valeurs par défaut ; JSON invalide : erreur) :
+
+```json
+{
+  "portfolio": {
+    "url": "https://github.com/Aliquanto3",
+    "fichier": "C:/chemin/vers/portfolio.json",
+    "proprietaire": "Aliquanto3",
+    "topic": "ai-portfolio"
+  },
+  "alias": {"ancien-nom-du-depot": "cle-du-depot"},
+  "parents": ["GitHub", "dev"],
+  "motif_experiences": "^(T\\d|Banc|banc|Test W)"
+}
+```
+
+- `portfolio.fichier` : un `portfolio.json` au format du profil Aliquanto3 (`repos.<clé>.name`, `statuses.<topic>.fr`). `proprietaire` et `topic` servent à lire l'état (premier topic `status-*` connu) et la version (dernière release) par `gh repo list` ; si `gh` manque, échoue ou dépasse 30 s, le bilan continue sans état et avertit. Sans section `portfolio`, la page liste un dépôt par ligne, sans colonne État. `url` est le lien affiché.
+- `motif_experiences` : description des sous-agents de bancs d'essai (recommandation « Mesurer reste rentable »).
+
+Limites du classement :
+
+- Un skill reste attribué jusqu'au suivant : le pilotage est surestimé après `avancement-run`, dont la session continue de compter comme pilotage même quand l'orchestrateur y relance des stories.
+- La frontière entre familles voisines n'est fiable qu'à quelques pourcents près ; les ordres de grandeur le sont.
+- La fusion applique la config courante aux états du portfolio et aux recommandations, mais le classement (projet, étape) a été fait à la collecte, avec la config de chaque PC.
+- Seuls des noms de skills, de types d'agents et de dépôts sortent des transcriptions, jamais leur texte.
+- Pas de période à cheval sur deux mois.
 
 ## Limites
 
