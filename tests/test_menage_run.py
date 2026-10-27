@@ -266,7 +266,7 @@ def test_worktree_non_fusionne_ou_recent_garde(monde, capsys):
     ajouter_wt(m, "wt-frais")
     m.g("commit", "-q", "--allow-empty", "-m", "frais", cwd=m.racine / "wt-frais", recent=True)
     m.g("merge", "-q", "wt-frais")  # contenu dans main, mais le commit est récent
-    code, plan = lancer(m, capsys)
+    _, plan = lancer(m, capsys)
     par = {Path(w["chemin"]).name: (w["action"], w["motif"]) for w in plan["worktrees"]}
     assert par == {"wt-travail": ("garder", "non fusionné"), "wt-frais": ("garder", "activité récente (commit)")}
 
