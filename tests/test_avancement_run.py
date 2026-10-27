@@ -632,3 +632,38 @@ def test_titre_d_epic_absent_sans_parentheses(tmp_path, monkeypatch):
                      titre="# Run autonome du 21 octobre : modèle distant et hybride (epic 17)")
     r2 = " ".join(ar.rapport(ar.analyser(p2, datetime(2026, 10, 21, 20, 0))).split())
     assert "terminé : epic 17 (modèle distant et hybride)." in r2
+
+
+def test_etape_menage_reconnue():
+    assert ar.normaliser_etape("ménage") == "ménage" and ar.normaliser_etape("Menage") == "ménage"
+    evts = ar.lire_journal("## Journal\n\n- 2026-10-27 12:00 · run · ménage · 3 worktrees retirés, 0 verrous levés · —\n")
+    assert len(evts) == 1 and evts[0]["etape"] == "ménage" and evts[0]["stories"] == []
+
+
+JOURNAL_FINI = ["- 2026-10-19 08:00 · 1.1 · dev · lancé · —", "- 2026-10-19 09:00 · 1.1 · fusion · ok · —"]
+MENAGE = "- 2026-10-19 21:00 · run · ménage · 2 worktrees retirés, 1 verrous levés, 4 branches locales, 0 distantes supprimées · —"
+
+
+def test_menage_sans_effet_sur_stories_et_estimation(tmp_path, monkeypatch):
+    sans = ar.analyser(mini(tmp_path / "a", monkeypatch, {"1.1": "done", "1.2": "backlog"}, JOURNAL_FINI), NOW)
+    avec = ar.analyser(mini(tmp_path / "b", monkeypatch, {"1.1": "done", "1.2": "backlog"}, JOURNAL_FINI + [MENAGE]), NOW)
+    assert list(avec["stories"]) == ["1.1", "1.2"] and avec["hors_suivi"] == []
+    assert avec["estimation"] == sans["estimation"] and avec["rythme"] == sans["rythme"]
+    assert {k: s["etat"] for k, s in avec["stories"].items()} == {"1.1": "fait", "1.2": "à faire"}
+
+
+def test_puce_menage_fait(tmp_path, monkeypatch):
+    a = ar.analyser(mini(tmp_path, monkeypatch, {"1.1": "done"}, JOURNAL_FINI + [MENAGE]), NOW)
+    r = " ".join(ar.rapport(a, detail=True).split())
+    assert ("Ménage de clôture fait le 2026-10-19 21:00 : 2 worktrees retirés, 1 verrous levés, 4 branches locales, "
+            "0 distantes supprimées.") in r
+    assert "Ménage de clôture à faire" not in r and "Ménage de clôture fait le 2026-10-19 21:00." in r
+
+
+def test_puce_menage_a_faire_seulement_quand_tout_est_termine(tmp_path, monkeypatch):
+    fini = " ".join(ar.rapport(ar.analyser(mini(tmp_path / "a", monkeypatch, {"1.1": "done"}, JOURNAL_FINI), NOW)).split())
+    assert "Tous les développements prévus sont terminés" in fini
+    assert "Ménage de clôture à faire : `scripts/menage_run.py` en simulation, puis `--appliquer`." in fini
+    enc = " ".join(ar.rapport(ar.analyser(mini(tmp_path / "b", monkeypatch, {"1.1": "done", "1.2": "backlog"},
+                                               JOURNAL_FINI), NOW)).split())
+    assert "Ménage de clôture" not in enc

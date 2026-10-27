@@ -32,6 +32,7 @@ Le mod exige les mods de code de Claude Code, en accès anticipé : ajoutez `"CL
 | Mod `couts-session` | Coût, tokens, contexte et carbone estimé de la session, par modèle et par sous-agent ([doc](docs/couts-session.md)). |
 | `/agent-cost-kit:mesurer-couts` | Le coût réel de chaque agent et de chaque story, relu dans vos transcriptions locales, sans appel d'API ([doc](docs/mesurer-couts.md)). |
 | `/agent-cost-kit:avancement-run` | La synthèse d'avancement d'un run autonome BMAD ([doc](docs/avancement-run.md)). |
+| `scripts/menage_run.py` | Le ménage de clôture d'un run : worktrees, verrous et branches des stories fusionnées, en simulation par défaut ([doc](docs/menage-run.md)). |
 | `/bilan-tokens` | Le bilan mensuel des tokens par modèle (coût API équivalent, impact ImpactIA ou EcoLogits), en page HTML, avec consolidation de plusieurs PC. |
 | `bancs/` | Les protocoles pour refaire les mesures quand de nouveaux modèles sortent ([bancs/README.md](bancs/README.md)). |
 

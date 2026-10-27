@@ -205,6 +205,8 @@ def normaliser_etape(brut: str) -> str:
     e = brut.strip().lower()
     if re.match(r"pr(?![a-zà-ÿ])", e):
         return "pr"
+    if e.startswith(("ménage", "menage")):
+        return "ménage"  # étape de clôture, colonne story « run » : aucune story
     for cle in ("second-avis", "review", "fusion", "ci", "blocked", "attente humaine", "report",
                 "décision", "dev"):
         if e.startswith(cle):
@@ -476,7 +478,9 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     noms = lire_titres(projet, statuts_bruts)
     manquants = hors_suivi(evts, plan, statuts, maintenant)
     meteo_ = meteo(stories, estimation, manquants)
+    menage = next((e for e in reversed(evts) if e["etape"] == "ménage"), None)
     return {"projet": projet.name, "maintenant": maintenant, "plan": plan, "stories": stories,
+            "menage": {"t": menage["t"], "resultat": menage["resultat"]} if menage else None,
             "noms": noms, "meteo": meteo_, "hors_suivi": manquants,
             "ecarts": [k for k, s in stories.items() if "journal en avance" in s["drapeaux"]],
             "maj_lisible": maj is not None,
@@ -694,6 +698,8 @@ def rapport_detail(a: dict) -> str:
     if att_fus:
         L.append(f"- Développées mais pas fusionnées : {', '.join(att_fus)}"
                  + (f" (PR ouvertes : {', '.join(pr_ouv)})" if pr_ouv else "") + ".")
+    if a.get("menage"):
+        L.append(f"- Ménage de clôture fait le {fmt_t(a['menage']['t'])}.")
     if a["ecarts"]:
         L.append(f"- sprint-status en retard sur le journal : {', '.join(a['ecarts'])}.")
     if not a.get("maj_lisible", True):
@@ -874,11 +880,15 @@ def puces(a: dict) -> list[str]:
     if mixtes:
         parts.append(f"étapes humaines à venir pour {', '.join(mixtes)}")
     out.append("Attendu d'Anaël : " + ("; ".join(parts) if parts else "rien pour l'instant") + ".")
+    if a.get("menage"):
+        out.append(f"Ménage de clôture fait le {fmt_t(a['menage']['t'])} : {a['menage']['resultat'] or 'sans détail'}.")
+    elif es["reste"] == 0 and not a["hors_suivi"]:
+        out.append("Ménage de clôture à faire : `scripts/menage_run.py` en simulation, puis `--appliquer`.")
     src = a["sources_heures"]
     if es.get("fin") and src.get("interpolé", 0) * 2 > sum(src.values()):
         out.append("L'heure de fin est approximative : la plupart des lignes du journal n'ont pas d'heure "
                    "(ajouter AAAA-MM-JJ HH:MM à chaque ligne l'affine).")
-    return out[:6]
+    return out[:7]
 
 
 def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:

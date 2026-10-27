@@ -2,7 +2,7 @@
 
 Points relevés pendant les runs autonomes, avec leur contournement et ce qu'il faudrait changer dans le kit. Chaque entrée porte la source (projet et date). Une entrée traitée passe dans le `CHANGELOG` et sort de cette liste.
 
-Traités en 0.7.0 (voir le `CHANGELOG`) : points 1 à 22, 24 et 25 des runs WaveDevSecOps et wavelocalai v2 (18 et 19 octobre 2026). Les points 6 et 8 n'appelaient pas de changement de code : le 6 figure dans `docs/pieges-runs.md`, le 8 tombe avec le 1. Leur détail (limite, contournement, source) reste lisible dans l'historique : `git show 362165f:docs/amelioration-continue.md`.
+Traités en 0.7.0 (voir le `CHANGELOG`) : points 1 à 22, 24 et 25 des runs WaveDevSecOps et wavelocalai v2 (18 et 19 octobre 2026). Point 28 traité en 0.15.0 (`scripts/menage_run.py`, `docs/menage-run.md`). Les points 6 et 8 n'appelaient pas de changement de code : le 6 figure dans `docs/pieges-runs.md`, le 8 tombe avec le 1. Leur détail (limite, contournement, source) reste lisible dans l'historique : `git show 362165f:docs/amelioration-continue.md`.
 
 ## Ouverts
 

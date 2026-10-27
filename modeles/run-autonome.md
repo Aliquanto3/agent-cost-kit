@@ -20,7 +20,7 @@ Plafond global : 5 agents actifs à la fois sous Windows (développement, revue 
 - Suite complète : pas en local pendant un run parallèle, la CI de branche la joue et sert de porte de fusion. Attente : `gh run watch <id> --interval 60`.
 - Fusion : la file de PR se fusionne par `scripts/file_prs.py`. Journaliser `fusion` seulement après avoir vérifié `MERGED`.
 - Fusion de la branche principale à conflits de fond (refusée aux sous-agents) : l'orchestrateur la lance, résout les fichiers d'état et le trivial, et confie la fusion en cours au reviewer (« étape 1 »).
-- `git worktree prune` avant chaque lancement. Les worktrees ne sont supprimés qu'en fin de run.
+- `git worktree prune` avant chaque lancement. Les worktrees ne sont supprimés qu'en fin de run. Clôture : après la dernière fusion, `scripts/menage_run.py` en simulation, puis `--appliquer` (ligne `ménage` au journal) ; branches distantes seulement avec `--distant`, liste montrée à Anaël.
 - Heure du journal : toujours prise par `date` au moment d'écrire, jamais devinée. `uv run python` sous Windows.
 
 ## Sessions autorisées à modifier le périmètre
@@ -47,7 +47,7 @@ Noms, constantes, formats décidés tôt et envoyés par message aux agents en c
 
 ## Journal
 
-Une ligne par étape : `- AAAA-MM-JJ HH:MM · story · étape · résultat · commit`. Étapes : `dev` (« lancé », puis « fini »), `second-avis`, `review`, `PR`, `fusion` (MERGED vérifié), `CI` (« rouge » si échec), `blocked`, `attente humaine`, `décision`, `report`. Une story est terminée quand sa PR est fusionnée.
+Une ligne par étape : `- AAAA-MM-JJ HH:MM · story · étape · résultat · commit`. Étapes : `dev` (« lancé », puis « fini »), `second-avis`, `review`, `PR`, `fusion` (MERGED vérifié), `CI` (« rouge » si échec), `blocked`, `attente humaine`, `décision`, `report`, `ménage` (clôture, colonne story `run`). Une story est terminée quand sa PR est fusionnée.
 
 - 2026-10-19 09:00 · 1.1 · dev · lancé (dev-story Opus, worktree) · —
 - 2026-10-19 09:40 · 1.1 · dev · fini, 61 tests verts · abc1234
