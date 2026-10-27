@@ -206,6 +206,8 @@ def test_aucun_dossier_sous_aucune_racine(tmp_path, capsys):
     ("/home/u/GitHub/agentic-harness-training-demo", "wavestack"),
     ("/home/u/GitHub/autre-depot", "autre-depot"),
     ("/home/u/GitHub", bd.RACINE),
+    ("/home/dev/GitHub/agent-cost-kit", "agent-cost-kit"),  # parent suivi d'un parent : le second compte (revue 0.16.0)
+    ("/home/u/GitHub/autre-depot/dev/src", "autre-depot"),
     ("C:\\Users\\u\\GitHub\\", bd.RACINE),
     ("/tmp/hors-parent", bd.RACINE),
     ("", bd.RACINE),
@@ -256,6 +258,21 @@ def test_etape_sous_agent_type_explicite_skill_propre_description_puis_prompt():
     assert c.etape(agent("/x/S1/subagents/e.jsonl", "t9", "general-purpose")) == ("recherche", "Sous-agents généralistes (recherche)")
     assert c.etape(agent("/x/S1/subagents/h.jsonl", "t9", "general-purpose")) == ("dev", "Sous-agents généralistes (implémentation)")
     assert c.etape(agent("/x/S1/subagents/o.jsonl", "t9", "Autre")) == ("specs", "Sous-agent Autre lancé par bmad-prd")
+
+
+def test_balise_command_name_citee_dans_un_texte_n_en_fait_pas_un_skill(tmp_path):
+    """Revue 0.16.0 : seul un nom plausible sort d'une balise ; un texte cité ne devient jamais un sous-libellé."""
+    f = ecrire(tmp_path / "S1.jsonl", [
+        user("2026-10-02T08:00:00Z", "Cite <command-name>Tu implémentes la story, git push et build</command-name> ici"),
+        user("2026-10-02T08:01:00Z", "<command-name>/bmad-prd</command-name>"),
+        asst("2026-10-02T08:02:00Z", "a1", outils=[("Skill", "texte libre avec espaces")]),
+    ])
+    assert [nom for _, nom in bd.lire_infos(f)["skills"]] == ["bmad-prd"]
+
+
+def test_desc_port_ne_capte_ni_report_ni_support():
+    assert bd.groupe_desc("Write the monthly report") is None
+    assert bd.groupe_desc("Port the parser to Rust") == "dev"
 
 
 def test_etape_sous_agent_sans_aucun_indice_retombe_sur_dev():
@@ -606,6 +623,7 @@ def test_reco_effort_neutre():
     assert reco["gain"] is None and "medium" in reco["mesure"] and "high" in reco["mesure"]
     assert "effort-neutre" not in ids_recos(construire(orch("medium", 100, 100_000) + orch("high", 100, 200_000), infos))  # écart
     assert "effort-neutre" not in ids_recos(construire(orch("medium", 99, 100_000) + orch("high", 100, 100_000), infos))  # < 100 appels
+    assert "effort-neutre" not in ids_recos(construire(orch("medium", 100, 0) + orch("high", 100, 0), infos))  # coût nul : pas de division
     sonnet = [appel(mid=f"s{i}", modele=SONNET, effort=e, lu=100_000) for i in range(100) for e in ("medium", "high")]
     assert "effort-neutre" not in ids_recos(construire(sonnet, infos))  # Opus seulement
 

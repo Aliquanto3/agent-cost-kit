@@ -68,7 +68,7 @@ DESC = [
     (r"review|revue|relecture|audit|hunter|v[ée]rif|recette|e2e|assert|\bqa\b|test|banc", "relecture"),
     (r"recherche|research|search|explor|veille|lookup|investig|analy", "recherche"),
     (r"archi|plan\b|design", "archi"),
-    (r"implement|impl[ée]ment|story|fix|lot\b|lot \d|restes|finish|refactor|rewrite|port|corrig", "dev"),
+    (r"implement|impl[ée]ment|story|fix|lot\b|lot \d|restes|finish|refactor|rewrite|\bport|corrig", "dev"),
     (r"spec|prd|epic", "specs"),
 ]
 ETIQ = {"relecture": "revue, audit, tests", "recherche": "recherche", "archi": "plan, conception",
@@ -84,6 +84,8 @@ LIBELLE_LECTURE = "Lecture du code et commandes"
 LIBELLE_SANS_OUTIL = "Réponse ou réflexion sans outil"
 PROMPT_MAX = 300
 COMMANDE = re.compile(r"<command-name>/?([^<]+)</command-name>")
+# Un nom de skill ou de commande plausible : la balise citée dans un texte libre ne doit pas en faire sortir du texte.
+NOM_SKILL = re.compile(r"[\w:.-]{1,80}")
 
 # --- Projets ---
 PARENTS_DEFAUT = ["GitHub", "dev"]
@@ -175,12 +177,14 @@ def lire_infos(chemin: Path) -> dict:
             )
             if sous_agent and info["prompt"] is None and texte and not entree.get("isMeta"):
                 info["prompt"] = texte[:PROMPT_MAX]
-            info["skills"].extend((ts, nom.strip()) for nom in COMMANDE.findall(texte or ""))
+            info["skills"].extend((ts, nom.strip()) for nom in COMMANDE.findall(texte or "") if NOM_SKILL.fullmatch(nom.strip()))
         elif message.get("role") == "assistant":
             for bloc in contenu or []:
                 if isinstance(bloc, dict) and bloc.get("type") == "tool_use" and bloc.get("name") == "Skill":
                     saisie = bloc.get("input") if isinstance(bloc.get("input"), dict) else {}
-                    info["skills"].append((ts, str(saisie.get("skill"))))
+                    nom = str(saisie.get("skill") or "")
+                    if NOM_SKILL.fullmatch(nom):
+                        info["skills"].append((ts, nom))
     return info
 
 
@@ -337,7 +341,9 @@ class Classeur:
 
     def projet(self, cwd: str | None) -> str:
         segments = [s for s in (cwd or "").replace("\\", "/").split("/") if s]
-        rang = next((i for i, s in enumerate(segments) if s.lower() in self.parents), None)
+        # Premier parent suivi d'un segment qui n'est pas lui-même un parent (``/home/dev/GitHub/depot`` -> ``depot``).
+        rang = next((i for i, s in enumerate(segments[:-1])
+                     if s.lower() in self.parents and segments[i + 1].lower() not in self.parents), None)
         if rang is None or rang + 1 >= len(segments):
             return RACINE
         nom = segments[rang + 1]
@@ -607,7 +613,7 @@ def reco_implementation(agents: dict) -> dict | None:
     if len(generalistes) < IMPL_MIN_GENERALISTES or len(dev_story) < IMPL_MIN_GENERALISTES:
         return None
     mg, md = mediane_centimes(generalistes), mediane_centimes(dev_story)
-    if mg <= IMPL_FACTEUR_MEDIANE * md:
+    if md <= 0 or mg <= IMPL_FACTEUR_MEDIANE * md:
         return None
     gain = (mg - md) * len(generalistes)
     return reco(
@@ -719,7 +725,7 @@ def reco_effort(orch: dict) -> dict | None:
     if not moyen or not haut or min(moyen[0], haut[0]) < EFFORT_APPELS_MIN:
         return None
     cm, ch = moyen[1] / moyen[0], haut[1] / haut[0]
-    if abs(ch - cm) / cm >= EFFORT_ECART:
+    if cm <= 0 or abs(ch - cm) / cm >= EFFORT_ECART:
         return None
     return reco(
         "effort-neutre", "Monter l'effort ne coûte presque rien, le contexte si",

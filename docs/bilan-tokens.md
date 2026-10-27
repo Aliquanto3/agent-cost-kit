@@ -96,3 +96,22 @@ Revue du commit a9e2687 (2026-10-23), avec le second avis.
 | low | second avis 10 | Ordre à égalité d'instant dépendant de `rglob` | Corrigé (parcours trié) |
 | info | revue | Complexité : `par_modele` et `sommer_blocs` en O(n), `ordre` linéaire sur quelques modèles seulement | Rien à corriger |
 | info | revue | JS du gabarit exécuté sous Node (DOM simulé) sur le bilan réel d'octobre et sur une fusion : aucune erreur, 4,64 Md input, 15,1 M output, 1 665 $ | Vérifié |
+
+### 0.16.0, passe 1 (2026-10-27, SHA revu c0d253d)
+
+Revue après rebase sur `origin/master` (0.15.0), avec le second avis.
+
+| Étiquette | Sévérité | Source | Constat | Suite |
+|---|---|---|---|---|
+| Important | medium | second avis 1 | Une balise `<command-name>` citée dans un texte utilisateur faisait d'un texte libre un « skill », repris comme sous-libellé d'étape dans le JSON | Corrigé : seul un nom plausible (`[\w:.-]{1,80}`) est retenu, aussi pour l'outil `Skill` ; test |
+| Important | medium | second avis 2 | `projet()` prenait le premier parent : `/home/dev/GitHub/depot` donnait « GitHub » | Corrigé : premier parent suivi d'un segment qui n'est pas un parent (un sous-dossier `dev` d'un dépôt reste sans effet) ; tests |
+| Nit | medium | second avis 3 | Base en retard de 5 commits | Traité par le rebase (conflits `CHANGELOG.md`, `plugin.json`, `README.md` résolus) |
+| Nit | low | second avis 4 | `reco_effort` : division par un coût medium nul | Corrigé (garde) ; test |
+| Nit | low | second avis 5 | `reco_implementation` avec une médiane `dev-story` nulle | Corrigé (garde) |
+| Nit | low | second avis 6 | `relecture` déclenchée par un seul appel `reviewer` Opus | Rejeté : condition de la spec (plus de 50 % des appels sur Opus), sans seuil de gain demandé |
+| Nit | low | second avis 7 | Motifs `DESC` non ancrés (`port` dans « report », « support ») | Corrigé pour `\bport` ; les autres restent ceux de la référence (frontière à quelques pourcents, voir Limites) |
+| Nit | low | second avis 8 | `executer` non transmis depuis les commandes | Rejeté : injection exigée au niveau de `bilan_detail` et utilisée par les tests ; aucun test de commande n'a de propriétaire, donc aucun ne lance `gh` |
+| Nit | low | second avis 9 | Double lecture des fichiers avec `--detail` | Accepté : 56 s de lecture sur 87 491 appels réels, classement 1,8 s |
+| Nit | low | dev-story | `modele-ancien` en une seule recommandation pour tous les modèles ; part Opus non affichée dans `implementation-generaliste` ; à la fusion, classement figé par PC | Acceptés : présentation, et le classement ne peut se refaire sans les transcriptions |
+| info | revue | Complexité : `skill_a` linéaire sur la chronologie d'une session (10 entrées au plus sur ce PC), agrégation en O(n) | Rien à corriger |
+| info | revue | Bilan réel du 1er au 26 octobre (`--detail`) : JS des sections 04 à 07 exécuté sous Node sans erreur, 7 recommandations ; aucun `git push`, `Tu implémentes` ni `command-name` dans le JSON ; page sans `detail` identique au rendu de master (mêmes contenus sous Node) | Vérifié |
