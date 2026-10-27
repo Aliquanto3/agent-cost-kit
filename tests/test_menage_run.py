@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -96,7 +97,7 @@ def branches(monde):
     m.g("checkout", "-q", "squash2")
     tetes["squash2_avance"] = m.commit("suite.txt", "suite")
     m.g("checkout", "-q", "main")
-    m.branche("unmerged", "unmerged.txt")
+    tetes["unmerged"] = m.branche("unmerged", "unmerged.txt")
     m.g("branch", "fresh", base, recent=True)
     m.g("push", "-q", "origin", "main", "anc", "unmerged", "openpr")
     tetes["openpr"] = m.g("rev-parse", "openpr")
@@ -106,8 +107,13 @@ def branches(monde):
 def prs_de(tetes):
     return [
         {"number": 7, "state": "OPEN", "headRefName": "openpr", "headRefOid": tetes["openpr"], "isCrossRepository": False},
-        {"number": 8, "state": "MERGED", "headRefName": "squash", "headRefOid": tetes["squash"], "isCrossRepository": False},
-        {"number": 9, "state": "MERGED", "headRefName": "squash2", "headRefOid": tetes["squash2"], "isCrossRepository": False},
+        {"number": 8, "state": "MERGED", "headRefName": "squash", "headRefOid": tetes["squash"], "baseRefName": "main",
+         "isCrossRepository": False},
+        {"number": 9, "state": "MERGED", "headRefName": "squash2", "headRefOid": tetes["squash2"], "baseRefName": "main",
+         "isCrossRepository": False},
+        # PR empilée fusionnée dans une branche de feature : la tête d'unmerged n'est pas dans main
+        {"number": 10, "state": "MERGED", "headRefName": "unmerged", "headRefOid": tetes["unmerged"],
+         "baseRefName": "feature", "isCrossRepository": False},
     ]
 
 
@@ -181,12 +187,42 @@ def test_distant_sans_gh_refuse_code_2_et_rien_supprime(branches, capsys):
     assert "origin/anc" in m.g("branch", "-r", "--format=%(refname:short)").split()
 
 
-def test_sans_gh_le_menage_local_reste_possible(branches, capsys):
+def test_sans_gh_aucune_branche_supprimee(branches, capsys):
     m, _ = branches
+    avant = locales(m)
     code, plan = lancer(m, capsys, "--appliquer", gh_ok=False)
-    assert code == 0
-    assert sorted(plan["resultat"]["locales"]) == ["anc", "cher", "openpr"]  # PR ouverte inconnue
-    assert "squash" in locales(m)  # critère PR sauté : le squash n'est pas reconnu
+    assert code == 0 and plan["resultat"]["locales"] == [] and locales(m) == avant
+    assert {b["motif"] for b in plan["locales"] + plan["distantes"]} == {mr.SANS_GH}
+
+
+def test_liste_de_pr_a_la_limite_vaut_gh_indisponible(branches, capsys, monkeypatch):
+    m, tetes = branches
+    monkeypatch.setattr(mr, "LIMITE_PR", 3)
+    avant = locales(m)
+    _, plan = lancer(m, capsys, "--appliquer", prs=prs_de(tetes)[:3])
+    assert plan["resultat"]["locales"] == [] and locales(m) == avant
+
+
+def test_distante_qui_a_bouge_n_est_pas_supprimee(branches, capsys):
+    m, tetes = branches
+    # Le distant avance anc après le dernier fetch : origin/anc du clone est en retard.
+    autre = m.racine / "autre"
+    subprocess.run(["git", "clone", "-q", "-b", "anc", str(m.distant), str(autre)], check=True)
+    (autre / "n.txt").write_text("n", encoding="utf-8")
+    m.g("add", "n.txt", cwd=autre)
+    m.g("commit", "-q", "-m", "poussé ailleurs", cwd=autre)
+    m.g("push", "-q", "origin", "anc", cwd=autre)
+    code, plan = lancer(m, capsys, "--appliquer", "--distant", prs=prs_de(tetes))
+    assert code == 1 and plan["resultat"]["distantes"] == []
+    assert any(e.startswith("distante anc non supprimée") for e in plan["resultat"]["erreurs"])
+    assert "anc" in m.g("for-each-ref", "--format=%(refname:short)", "refs/heads", cwd=m.distant).split()
+
+
+def test_pid_vivant_reel():
+    assert mr.pid_vivant(os.getpid()) is True
+    p = subprocess.Popen([sys.executable, "-c", "pass"])
+    p.wait()
+    assert mr.pid_vivant(p.pid) is False
 
 
 def test_depot_invalide_ou_defaut_introuvable_code_2(tmp_path, capsys, monkeypatch):
@@ -214,6 +250,27 @@ def test_worktrees_propre_retire_modifie_garde(monde, capsys):
     assert not propre.exists() and modifie.exists()
     assert "wt-propre" not in locales(m) and "wt-modifie" in locales(m)  # branche extraite : gardée
     assert motifs(plan, "locales")["wt-modifie"][1].startswith("extraite dans ")
+
+
+def test_worktree_fichiers_ignores(monde, capsys):
+    m = monde
+    (m.work / ".gitignore").write_text(".env\n__pycache__/\n.venv/\n", encoding="utf-8")
+    m.g("add", ".gitignore")
+    m.g("commit", "-q", "-m", "ignore")
+    m.g("push", "-q", "origin", "main")
+    secret, cache = ajouter_wt(m, "wt-secret"), ajouter_wt(m, "wt-cache")
+    (secret / ".env").write_text("CLE=1", encoding="utf-8")
+    for wt in (secret, cache):
+        (wt / "__pycache__").mkdir()
+        (wt / "__pycache__" / "a.pyc").write_bytes(b"x")
+        (wt / ".venv" / "lib").mkdir(parents=True)
+        (wt / ".venv" / "lib" / "x").write_text("x", encoding="utf-8")
+    code, plan = lancer(m, capsys, "--appliquer")
+    assert code == 0
+    par = {Path(w["chemin"]).name: (w["action"], w["motif"]) for w in plan["worktrees"]}
+    assert par == {"wt-secret": ("garder", "fichiers ignorés non régénérables : .env"),
+                   "wt-cache": ("retirer", "ancêtre")}
+    assert (secret / ".env").exists() and not cache.exists()
 
 
 @pytest.mark.parametrize("raison,vivant,retire,motif", [
@@ -282,8 +339,8 @@ def test_sortie_markdown_et_ligne_de_journal_lue_par_avancement(branches, capsys
     mr.main(["--depot", str(m.work), "--appliquer"], gh=lambda a, c: (0, json.dumps(prs_de(tetes))))
     texte = capsys.readouterr().out
     ligne = next(x for x in texte.splitlines() if "· run · ménage ·" in x)
-    assert ligne.endswith("· 0 worktrees retirés, 0 verrous levés, 3 branches locales, 0 distantes supprimées · —") or \
-        "3 branches locales, 0 distantes supprimées · —" in ligne
+    assert re.fullmatch(r"- \d{4}-\d{2}-\d{2} \d{2}:\d{2} · run · ménage · 0 worktrees retirés, 0 verrous levés, "
+                        r"3 branches locales, 0 distantes supprimées · —", ligne)
     assert f"- `git branch cher {tetes['cher']}`" in texte
     evts = ar.lire_journal("## Journal\n\n" + ligne + "\n")
     assert len(evts) == 1 and evts[0]["etape"] == "ménage" and evts[0]["stories"] == []

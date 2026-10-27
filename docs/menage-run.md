@@ -11,15 +11,15 @@ uv run --no-project python <kit>/scripts/menage_run.py [--depot DOSSIER] [--dist
 
 ## Critère « contenu dans la branche par défaut »
 
-Pour la tête T d'une branche (référence : `<distant>/<défaut>`, sinon la branche locale) : T est ancêtre de la référence (`ancêtre`) ; ou `git cherry` ne sort aucun `+` (`patchs équivalents`) ; ou une PR fusionnée porte cette branche avec cette tête (`PR #n fusionnée`, un squash par exemple).
+Pour la tête T d'une branche (référence : `<distant>/<défaut>`, sinon la branche locale) : T est ancêtre de la référence (`ancêtre`) ; ou `git cherry` ne sort aucun `+` (`patchs équivalents`) ; ou une PR fusionnée **dans la branche par défaut** porte cette branche avec cette tête (`PR #n fusionnée`, un squash par exemple ; une PR empilée fusionnée dans une autre branche ne compte pas).
 
 ## Exclusions (prioritaires)
 
-La branche par défaut et celle du worktree principal ; une PR ouverte sur la branche ; une activité récente : commit de tête ou dernière entrée du reflog de moins de `--age-min-heures` (le reflog protège une branche de story qui vient d'être créée sur une vieille tête). Sans `gh`, le critère PR est sauté et `--distant` est refusé.
+La branche par défaut et celle du worktree principal ; une PR ouverte sur la branche ; une activité récente : commit de tête ou dernière entrée du reflog de moins de `--age-min-heures` (le reflog protège une branche de story qui vient d'être créée sur une vieille tête). Sans `gh` (ou si la liste des PR atteint la limite de 1 000, donc peut-être tronquée), aucune branche locale ni distante n'est supprimée (motif « gh indisponible, PR ouvertes non vérifiables ») et `--distant` est refusé ; worktrees et verrous restent traités, car retirer un worktree ne supprime pas sa branche.
 
 ## Worktrees et verrous
 
-Un worktree propre dont la tête est contenue est retiré (`git worktree remove`, sans `-f`). Un dossier disparu est traité par `git worktree prune`. Un verrou dont la raison porte un PID (`pid 12345`) est levé si le processus a disparu ; PID vivant ou absent de la raison : verrou laissé. Ordre : verrous, worktrees, prune, branches locales (une branche extraite dans un worktree restant est sautée), branches distantes.
+Un worktree propre dont la tête est contenue est retiré (`git worktree remove`, sans `-f`). `git worktree remove` efface aussi les fichiers ignorés : un worktree qui en contient hors de la liste des régénérables (`.venv`, `venv`, `node_modules`, `__pycache__`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`, `.tox`, `.nox`, `dist`, `build`, `*.egg-info`, `.coverage`, `htmlcov`, `*.pyc`, `.hypothesis`) est gardé, le motif nomme les premiers (un `.env` par exemple). Un dossier disparu est traité par `git worktree prune`. Un verrou dont la raison porte un PID (`pid 12345`) est levé si le processus a disparu ; PID vivant, état du PID illisible ou PID absent de la raison : verrou laissé. Ordre : verrous, worktrees, prune, branches locales (une branche extraite dans un worktree restant est sautée), branches distantes. Chaque distante est supprimée avec `--force-with-lease=refs/heads/<nom>:<sha analysé>` : si elle a bougé sur le distant depuis le dernier fetch, git refuse, le refus est rapporté (code 1) et la branche reste.
 
 ## Exemple
 

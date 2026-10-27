@@ -4,9 +4,10 @@ Simulation par défaut : rien n'est modifié sans `--appliquer`. Les branches di
 qu'avec `--appliquer --distant` ; la simulation les liste toujours.
 
 Une branche (ou un worktree) est retirée si sa tête est dans la branche par défaut : ancêtre, patchs
-équivalents (`git cherry`), ou PR fusionnée dont la tête est ce commit. Sont toujours gardés : la branche par
-défaut, la branche du worktree principal, les branches d'une PR ouverte, et tout ce qui a eu une activité
-(commit ou reflog) de moins de `--age-min-heures`.
+équivalents (`git cherry`), ou PR fusionnée dans la branche par défaut dont la tête est ce commit. Sont toujours
+gardés : la branche par défaut, la branche du worktree principal, les branches d'une PR ouverte, toutes les
+branches si gh est indisponible, un worktree avec des fichiers ignorés non régénérables, et tout ce qui a eu
+une activité (commit ou reflog) de moins de `--age-min-heures`.
 
 Usage : python scripts/menage_run.py [--depot DOSSIER] [--distant-nom origin] [--branche-defaut main]
         [--age-min-heures 24] [--fetch] [--appliquer] [--distant] [--json]
@@ -17,6 +18,7 @@ Code de retour : 0 si tout va bien, 1 si une suppression a échoué, 2 en cas d'
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import re
@@ -31,6 +33,12 @@ from pathlib import Path
 Git = Callable[[list[str]], tuple[int, str]]
 Gh = Callable[[list[str], Path], tuple[int, str]]
 Vivant = Callable[[int], bool]
+
+LIMITE_PR = 1000
+# Fichiers ignorés régénérables : un worktree qui n'a que ceux-là est retirable (le reste, `.env` par exemple, le garde).
+REGENERABLES = (".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox",
+                ".nox", "dist", "build", "*.egg-info", ".coverage", "htmlcov", "*.pyc", ".hypothesis")
+SANS_GH = "gh indisponible, PR ouvertes non vérifiables"
 
 
 class ErreurUsage(Exception):
@@ -64,15 +72,25 @@ def pid_vivant(pid: int) -> bool:
     """Vrai si le processus existe encore (Windows : ctypes ; POSIX : signal 0)."""
     if os.name == "nt":
         import ctypes
+        from ctypes import wintypes
 
-        noyau = ctypes.windll.kernel32
+        noyau = ctypes.WinDLL("kernel32", use_last_error=True)
+        noyau.OpenProcess.restype = wintypes.HANDLE
+        noyau.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        noyau.GetExitCodeProcess.restype = wintypes.BOOL
+        noyau.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        noyau.CloseHandle.argtypes = (wintypes.HANDLE,)
         poignee = noyau.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
         if not poignee:
-            return noyau.GetLastError() == 5  # accès refusé : le processus existe
-        code = ctypes.c_ulong()
-        ok = noyau.GetExitCodeProcess(poignee, ctypes.byref(code))
-        noyau.CloseHandle(poignee)
-        return bool(ok) and code.value == 259  # STILL_ACTIVE
+            # ERROR_INVALID_PARAMETER : PID inexistant ; toute autre erreur (accès refusé...) : dans le doute, vivant.
+            return ctypes.get_last_error() != 87
+        try:
+            code = wintypes.DWORD()
+            if not noyau.GetExitCodeProcess(poignee, ctypes.byref(code)):
+                return True
+            return code.value == 259  # STILL_ACTIVE
+        finally:
+            noyau.CloseHandle(poignee)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -107,14 +125,16 @@ def court(sha: str) -> str:
 
 
 def lire_prs(gh: Gh, depot: Path) -> list[dict] | None:
-    """Toutes les PR du dépôt, ou None si gh échoue."""
-    champs = "number,state,headRefName,headRefOid,isCrossRepository"
-    code, sortie = gh(["pr", "list", "--state", "all", "--limit", "1000", "--json", champs], depot)
+    """Toutes les PR du dépôt, ou None si gh échoue ou si la liste atteint la limite (peut-être tronquée)."""
+    champs = "number,state,headRefName,headRefOid,baseRefName,isCrossRepository"
+    code, sortie = gh(["pr", "list", "--state", "all", "--limit", str(LIMITE_PR), "--json", champs], depot)
     try:
         donnees = json.loads(sortie)
     except ValueError:
         return None
-    return donnees if code == 0 and isinstance(donnees, list) else None
+    if code != 0 or not isinstance(donnees, list) or len(donnees) >= LIMITE_PR:
+        return None
+    return donnees
 
 
 def branche_defaut(git: Git, depot: Path, distant: str, demandee: str | None) -> str:
@@ -149,7 +169,8 @@ def contenu(ctx: Ctx, branche: str | None, tete: str) -> str | None:
         return "patchs équivalents"
     for pr in ctx.prs or []:
         if (pr.get("state") == "MERGED" and branche and pr.get("headRefName") == branche
-                and pr.get("headRefOid") == tete and not pr.get("isCrossRepository")):
+                and pr.get("headRefOid") == tete and pr.get("baseRefName") == ctx.defaut
+                and not pr.get("isCrossRepository")):
             return f"PR #{pr['number']} fusionnée"
     return None
 
@@ -202,6 +223,11 @@ def lire_worktrees(ctx: Ctx) -> list[dict]:
     return blocs[1:]
 
 
+def regenerable(chemin: str) -> bool:
+    """Vrai si un élément du chemin (fichier ou dossier ignoré) est dans REGENERABLES."""
+    return any(fnmatch.fnmatch(partie, motif) for partie in chemin.strip("/").split("/") for motif in REGENERABLES)
+
+
 def analyser_worktree(ctx: Ctx, wt: dict) -> dict:
     """Décision pour un worktree : action retirer|prune|garder, motif, PID de verrou à lever."""
     r = {"chemin": wt["chemin"], "sha": court(wt["tete"]), "branche": wt["branche"], "action": "garder",
@@ -221,6 +247,13 @@ def analyser_worktree(ctx: Ctx, wt: dict) -> dict:
         return {**r, "motif": f"état illisible : {sortie.strip()[:100]}"}
     if sortie.strip():
         return {**r, "motif": "modifié"}
+    code, sortie = ctx.g(["ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"], wt["chemin"])
+    if code != 0:
+        return {**r, "motif": f"fichiers ignorés illisibles : {sortie.strip()[:100]}"}
+    precieux = [f for f in sortie.split("\0") if f and not regenerable(f)]
+    if precieux:
+        noms = ", ".join(precieux[:3]) + (", ..." if len(precieux) > 3 else "")
+        return {**r, "motif": f"fichiers ignorés non régénérables : {noms}"}
     exclu = exclusion(ctx, wt["branche"], wt["tete"], horodatage_reflog(ctx, "HEAD", wt["chemin"]))
     if exclu:
         return {**r, "motif": exclu}
@@ -238,6 +271,9 @@ def analyser_branche(ctx: Ctx, nom: str, sha: str, locale: bool) -> dict:
         return {**r, "motif": f"extraite dans {ctx.extraits[nom]}"}
     if nom == ctx.principale:
         return {**r, "motif": "extraite dans le worktree principal"}
+    if ctx.prs is None:
+        return {**r, "motif": SANS_GH}
+    # Pour une distante aussi, le reflog lu est celui de la branche locale homonyme : protection en plus.
     reflog = horodatage_reflog(ctx, f"refs/heads/{nom}")
     exclu = exclusion(ctx, nom, sha, reflog)
     if exclu:
@@ -308,13 +344,16 @@ def appliquer(ctx: Ctx, plan: dict, avec_distant: bool) -> dict:
             res["locales"].append(b)
         else:
             res["erreurs"].append(f"branche {b['nom']} : {sortie.strip()[:200]}")
-    cibles = [b for b in plan["distantes"] if b["action"] == "supprimer"]
-    if avec_distant and cibles:
-        code, sortie = ctx.g(["push", ctx.distant, "--delete", *[b["nom"] for b in cibles]])
+    for b in plan["distantes"] if avec_distant else []:
+        if b["action"] != "supprimer":
+            continue
+        # Bail sur le sha analysé : si la branche a bougé sur le distant, git refuse la suppression.
+        ref = f"refs/heads/{b['nom']}"
+        code, sortie = ctx.g(["push", f"--force-with-lease={ref}:{b['tete']}", ctx.distant, f":{ref}"])
         if code == 0:
-            res["distantes"] = cibles
+            res["distantes"].append(b)
         else:
-            res["erreurs"].append(f"push --delete : {sortie.strip()[:300]}")
+            res["erreurs"].append(f"distante {b['nom']} non supprimée : {sortie.strip()[:300]}")
     return res
 
 
@@ -389,8 +428,8 @@ def construire(argv: list[str] | None, git: Git, gh: Gh, vivant: Vivant, mainten
     ref = reference(git, depot, o.distant_nom, defaut)
     prs = lire_prs(gh, depot)
     if prs is None:
-        print("Avertissement : gh indisponible, critère « PR fusionnée » et exclusion des PR ouvertes sautés.",
-              file=sys.stderr)
+        print(f"Avertissement : gh indisponible ou plus de {LIMITE_PR - 1} PR ; aucune branche ne sera supprimée "
+              "(worktrees et verrous seulement).", file=sys.stderr)
         if o.distant:
             raise ErreurUsage("--distant refusé sans gh (PR ouvertes non vérifiables)")
     ctx = Ctx(git, depot, o.distant_nom, defaut, ref, o.age_min_heures * 3600, maintenant, prs, vivant)
