@@ -27,7 +27,7 @@ def test_plus_de_francais_visible(langue):
     """Une phrase ajoutée au gabarit sans entrée au catalogue reste en français : ce test la signale."""
     page = i18n.traduire_page(GABARIT.read_text(encoding="utf-8"), langue, LIENS)
     autorises = tuple(i18n.lire_catalogue(langue).get("autorises", []))
-    assert i18n.francais_restant(page, autorises) == []
+    assert i18n.francais_restant(page, autorises, langue) == []
 
 
 @pytest.mark.parametrize("langue", i18n.LANGUES)

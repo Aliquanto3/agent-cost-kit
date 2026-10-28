@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import re
 import shutil
@@ -772,10 +773,10 @@ def test_page_traduite_executee_sous_node(tmp_path, langue):
     sortie = lancer_page(tmp_path, bilan, langue)
     assert i18n.LIBELLES[langue]["Orchestrateur (session principale)"] in sortie["duo"]
     titres = {textes[langue]["titre"] for textes in i18n.RECOS.values()}
-    assert bilan["detail"]["recos"] and all(t in titres for t in re.findall(r"<h3>(.*?)</h3>", sortie["liste-recos"]))
-    autorises = tuple(i18n.lire_catalogue(langue).get("autorises", []))
-    restes = i18n.francais_restant("\n".join(str(v) for v in sortie.values()), autorises)
-    assert restes == []
+    assert bilan["detail"]["recos"] and all(html.unescape(t) in titres for t in re.findall(r"<h3>(.*?)</h3>", sortie["liste-recos"]))
+    autorises = tuple(i18n.lire_catalogue(langue).get("autorises", [])) + ("Dépôt A",)  # nom de projet du portfolio de test
+    restes = i18n.francais_restant("\n".join(str(v) for v in sortie.values()), autorises, langue)
+    assert restes == [], restes
     assert "Orchestrateur (session principale)" in (out / "2026-10-pc.json").read_text(encoding="utf-8")  # le JSON reste en français
 
 

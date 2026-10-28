@@ -379,7 +379,9 @@ def traduire_page(gabarit: str, langue: str, liens: dict[str, str] | None = None
 
 
 # --- Contrôle du français restant ---
-_MOTS_FR = re.compile(r"\b(les|des|du|une|est|pour|avec|sur|dans|par|cette|chaque|aussi|depuis|selon|sans)\b")
+_MOTS_FR = ("les", "des", "du", "une", "est", "pour", "avec", "sur", "dans", "par", "cette", "chaque", "aussi", "depuis", "selon", "sans")
+# Mots courants du français qui sont aussi des mots de la langue cible (article allemand « des »).
+_MOTS_AUSSI = {"de": {"des"}}
 _ACCENTS = re.compile(r"[éèêàçùûôîœ«»]")
 
 
@@ -391,13 +393,15 @@ def texte_visible(html: str) -> str:
     return "\n".join(l for l in html.splitlines() if not l.strip().startswith("//"))
 
 
-def francais_restant(html: str, autorises: tuple[str, ...] = ()) -> list[str]:
+def francais_restant(html: str, autorises: tuple[str, ...] = (), langue: str = "en") -> list[str]:
     """Lignes qui portent encore des marques du français (accents, mots courants), hors ``autorises``."""
+    mots = [m for m in _MOTS_FR if m not in _MOTS_AUSSI.get(langue, set())]
+    motif = re.compile(r"\b(" + "|".join(mots) + r")\b")
     restes = []
     for ligne in texte_visible(html).splitlines():
         propre = ligne
         for a in autorises:
             propre = propre.replace(a, "")
-        if _ACCENTS.search(propre) or _MOTS_FR.search(propre):
+        if _ACCENTS.search(propre) or motif.search(propre):
             restes.append(ligne.strip()[:160])
     return restes
