@@ -1,4 +1,7 @@
+<!doctype html>
+<html lang="fr">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bilan tokens</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap">
@@ -15,12 +18,21 @@
 }
 body{background:#fff;color:var(--ws-ink);font:15px/1.55 var(--sans)}
 .progress{position:fixed;top:0;left:0;height:2px;width:0;background:var(--ws-green);z-index:50}
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--ws-line)}
+html{scroll-padding-top:76px}
+body{padding-top:61px}
+nav{position:fixed;top:0;left:0;right:0;padding-top:env(safe-area-inset-top,0px);z-index:40;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--ws-line)}
 .nav-in,.container{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,2rem)}
 .nav-in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
 .logo{display:flex;align-items:center}
 .logo-svg{height:22px;width:auto;display:block}
 .logo-svg path{fill:var(--ws-purple)!important}
+.nav-right{display:flex;align-items:center;gap:10px}
+.lang{display:flex;gap:2px;padding:3px;border:1px solid var(--ws-line);border-radius:999px;background:#fff;flex:none}
+.lang a{display:inline-flex;align-items:center;gap:5px;font:700 12px var(--mono);letter-spacing:.04em;color:var(--ws-ink-soft);text-decoration:none;padding:5px 9px;border-radius:999px}
+.lang a:hover{color:var(--ws-purple)}
+.lang a[aria-current="page"]{background:var(--ws-purple);color:#fff}
+.lang a:focus-visible{outline:2px solid var(--ws-purple);outline-offset:2px}
+.lang .flag{width:16px;height:11px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.12);flex:none}
 .nav-links{display:flex;gap:6px}
 .nav-links a{font:600 13px var(--mono);color:var(--ws-ink-soft);text-decoration:none;padding:7px 12px;border-radius:999px}
 .nav-links a:hover{background:var(--ws-purple-soft);color:var(--ws-purple)}
@@ -200,8 +212,11 @@ tr.me td.name{padding-left:30px;color:var(--ws-ink-soft);font-weight:500}
         <path d="M0-20.58h-2.653c-2.896 3.035-5.583 6.249-7.672 9.626a51.752 51.752 0 0 0-2.356 4.236l-4.442-8.107h-4.246L-13.275 0l.002-.008C-10.777-7.504-6.209-14.46 0-20.58" transform="matrix(2 0 0 2 60.381 41.16)"/>
       </svg>
     </a>
-    <div class="nav-links" id="nav-links">
-      <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+    <div class="nav-right">
+      <div class="nav-links" id="nav-links">
+        <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+      </div>
+      <!--LANGUES-->
     </div>
   </div>
 </nav>
@@ -629,3 +644,8 @@ document.getElementById("liste-recos").innerHTML=D.recos.length
   :'<p class="hint">Aucune recommandation ne se déclenche sur cette période.</p>';
 });
 </script>
+<script>
+// Changer de langue garde la section affichée.
+document.querySelectorAll(".lang a").forEach(a=>a.addEventListener("click",e=>{if(location.hash){e.preventDefault();location.href=a.getAttribute("href")+location.hash;}}));
+</script>
+</html>

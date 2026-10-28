@@ -19,7 +19,15 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 - `--dossier` limite aux dossiers de projet sous `--racine` (défaut `~/.claude/projects`) dont le nom encodé commence par celui du chemin donné (même encodage que `mesurer_couts.dossier_transcriptions`) : il couvre donc ce dossier et ses sous-dossiers, pas un dossier frère au nom plus long (`GitHub2` pour `GitHub`). Sans l'option, tous les projets du compte sont comptés.
 - Les `*.jsonl` sont parcourus récursivement (sous-agents compris), un appel par `message.id` dédoublonné sur l'ensemble des fichiers retenus (première occurrence chronologique gardée), les messages synthétiques (`id == "<synthetic>"`) écartés.
 
-Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis la page HTML correspondante, à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte Wavestone, un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis les pages HTML correspondantes (une par langue, voir « Langues »), à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte Wavestone, un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+
+## Langues
+
+Chaque bilan écrit trois pages : `<base>.html` (français), `<base>.en.html` (anglais) et `<base>.de.html` (allemand), reliées par un sélecteur de langue à drapeaux dans la barre de navigation, fixée en haut de l'écran. `--langues fr,en` restreint la liste (le français est toujours écrit ; `--langues fr` donne une seule page, sans sélecteur). Le JSON, lui, reste en français : les bilans de plusieurs PC se fusionnent comme avant.
+
+- **Gabarit.** Il reste écrit en français, seule source. `skills/bilan-tokens/i18n/en.json` et `de.json` listent des paires [texte français exact, traduction], appliquées du plus long au plus court par `scripts/bilan_i18n.py`. Une paire dont le texte a disparu du gabarit fait échouer la génération : modifier une phrase du gabarit oblige à mettre les deux catalogues à jour. `tests/test_bilan_i18n.py` vérifie aussi qu'aucun texte français ne reste visible dans les pages traduites (liste `autorises` du catalogue pour les noms de skills et de fichiers en français) et que leurs scripts sont valides.
+- **Données.** Les libellés d'étapes, de rôles, de statuts et le nom de la racine des dépôts sont traduits sur une copie du bilan (`LIBELLES` et `MOTIFS` de `bilan_i18n.py`) ; les noms de skills, de modèles et de dépôts restent tels quels. Les recommandations sont rédigées dans chaque langue (`RECOS`), avec les nombres et les montants au format de la langue (`1 234,5 $`, `$1,234.5`, `1.234,5 $`).
+- **Ajouter une phrase au gabarit** : l'ajouter aussi à `en.json` et `de.json`, puis lancer `pytest tests/test_bilan_i18n.py`.
 
 ## Consolider plusieurs PC
 
