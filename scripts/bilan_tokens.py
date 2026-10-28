@@ -45,6 +45,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bilan_detail as bd
+import bilan_i18n as i18n
 import mesurer_couts as mc
 
 UTC = timezone.utc  # noqa: UP017 - datetime.UTC n'existe qu'à partir de Python 3.11
@@ -241,12 +242,34 @@ def totaux_machine(modeles: list[dict]) -> dict:
     return t
 
 
-def ecrire_html(bilan: dict, chemin: Path) -> None:
+def ecrire_html(bilan: dict, chemin: Path, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, str] | None = None) -> None:
+    """Page du bilan dans ``langue`` ; ``liens`` {langue: nom de fichier} ajoute le sélecteur de langue."""
     gabarit = GABARIT.read_text(encoding="utf-8")
     if PLACEHOLDER not in gabarit:
         sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {GABARIT}")
-    injection = json.dumps(bilan, ensure_ascii=False).replace("</", "<\\/")
-    chemin.write_text(gabarit.replace(PLACEHOLDER, f"const BILAN={injection};"), encoding="utf-8")
+    try:
+        page = i18n.traduire_page(gabarit, langue, liens)
+    except i18n.CatalogueObsolete as erreur:
+        sys.exit(str(erreur))
+    detail = bilan.get("detail")
+    recos = bd.recommandations(detail["brut"], detail, langue) if detail and langue != i18n.LANGUE_SOURCE else None
+    donnees = i18n.traduire_donnees(bilan, langue, recos)
+    injection = json.dumps(donnees, ensure_ascii=False).replace("</", "<\\/")
+    chemin.write_text(page.replace(PLACEHOLDER, f"const BILAN={injection};"), encoding="utf-8")
+
+
+def noms_pages(base: str, langues: tuple[str, ...]) -> dict[str, str]:
+    """``<base>.html`` pour le français, ``<base>.<langue>.html`` pour les autres."""
+    return {l: f"{base}.html" if l == i18n.LANGUE_SOURCE else f"{base}.{l}.html" for l in langues}
+
+
+def langues_demandees(valeur: str | None) -> tuple[str, ...]:
+    """``fr,en,de`` -> ('fr', 'en', 'de') ; le français est toujours écrit, l'ordre suit ``i18n.LANGUES``."""
+    demandees = {l.strip() for l in (valeur or ",".join(i18n.LANGUES)).split(",") if l.strip()}
+    inconnues = demandees - set(i18n.LANGUES)
+    if inconnues:
+        sys.exit(f"Langue(s) inconnue(s) : {sorted(inconnues)} (possibles : {', '.join(i18n.LANGUES)}).")
+    return tuple(l for l in i18n.LANGUES if l in demandees | {i18n.LANGUE_SOURCE})
 
 
 def afficher_tableau(modeles: list[dict], titre: str) -> None:
@@ -296,18 +319,22 @@ def commande_collecte(options) -> int:
     if detail:
         config = bd.charger_config(getattr(options, "config", None))
         bilan["detail"] = bd.construire(retenus, infos, config, options.mix, options.methode)
-    ecrire_bilan(bilan, options.out, f"{du}_{au}" if du else mois, options.machine)
+    ecrire_bilan(bilan, options.out, f"{du}_{au}" if du else mois, options.machine,
+                 langues_demandees(getattr(options, "langues", None)))
     afficher_tableau(modeles, f"Bilan {libelle} — {options.machine}")
     return 0
 
 
-def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str) -> None:
-    """Écrit ``<periode>-<suffixe>.json`` et ``.html`` dans ``out``."""
+def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str, langues: tuple[str, ...] = i18n.LANGUES) -> None:
+    """Écrit ``<periode>-<suffixe>.json``, ``.html`` (français) et ``.<langue>.html`` par autre langue dans ``out``."""
     out.mkdir(parents=True, exist_ok=True)
-    chemin_json, chemin_html = out / f"{periode}-{suffixe}.json", out / f"{periode}-{suffixe}.html"
+    base = f"{periode}-{suffixe}"
+    chemin_json = out / f"{base}.json"
     chemin_json.write_text(json.dumps(bilan, ensure_ascii=False, indent=2), encoding="utf-8")
-    ecrire_html(bilan, chemin_html)
-    print(f"\nÉcrit : {chemin_json}\n        {chemin_html}")
+    pages = noms_pages(base, langues)
+    for langue, nom in pages.items():
+        ecrire_html(bilan, out / nom, langue, pages if len(pages) > 1 else None)
+    print(f"\nÉcrit : {chemin_json}" + "".join(f"\n        {out / nom}" for nom in pages.values()))
 
 
 def charger_bilan(chemin: Path) -> dict:
@@ -370,7 +397,7 @@ def commande_fusion(options) -> int:
     elif any("detail" in b for b in bilans):
         print("Avertissement : tous les bilans n'ont pas de détail (--detail), le consolidé n'en a pas.", file=sys.stderr)
     periode = f"{du}_{au}" if du else mois_unique
-    ecrire_bilan(consolide, options.out, periode, "consolide")
+    ecrire_bilan(consolide, options.out, periode, "consolide", langues_demandees(getattr(options, "langues", None)))
     afficher_tableau(modeles, f"Bilan {du + ' au ' + au if du else mois_unique} — consolidé ({', '.join(machines)})")
     return 0
 
@@ -391,6 +418,8 @@ def main() -> int:
     analyseur.add_argument("--mix", choices=sorted(mc.MIX), default=mc.MIX_DEFAUT)
     analyseur.add_argument("--methode", choices=mc.METHODES, default=mc.METHODE_DEFAUT,
                            help="méthode d'impact : impactia (défaut, entrée comptée, expérimental) ou ecologits (sortie seule)")
+    analyseur.add_argument("--langues", default=",".join(i18n.LANGUES),
+                           help="pages HTML à écrire, séparées par des virgules (défaut : fr,en,de ; le français est toujours écrit)")
     analyseur.add_argument("--fusionner", nargs="+", metavar="JSON", help="fusionne ces bilans (une machine chacun) au lieu de collecter")
     options = analyseur.parse_args()
     if options.mois and (options.du or options.au):

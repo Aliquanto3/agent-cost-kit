@@ -33,7 +33,7 @@ Le mod exige les mods de code de Claude Code, en accès anticipé : ajoutez `"CL
 | `/agent-cost-kit:mesurer-couts` | Le coût réel de chaque agent et de chaque story, relu dans vos transcriptions locales, sans appel d'API ([doc](docs/mesurer-couts.md)). |
 | `/agent-cost-kit:avancement-run` | La synthèse d'avancement d'un run autonome BMAD ([doc](docs/avancement-run.md)). |
 | `scripts/menage_run.py` | Le ménage de clôture d'un run : worktrees, verrous et branches des stories fusionnées, en simulation par défaut ([doc](docs/menage-run.md)). |
-| `/bilan-tokens` | Le bilan mensuel des tokens par modèle (coût API équivalent, impact ImpactIA ou EcoLogits), en page HTML, avec consolidation de plusieurs PC, période en jours et, avec `--detail`, détail par projet, étape et rôle avec recommandations chiffrées. |
+| `/bilan-tokens` | Le bilan mensuel des tokens par modèle (coût API équivalent, impact ImpactIA ou EcoLogits), en page HTML en français, anglais et allemand, avec consolidation de plusieurs PC, période en jours et, avec `--detail`, détail par projet, étape et rôle avec recommandations chiffrées. |
 | `bancs/` | Les protocoles pour refaire les mesures quand de nouveaux modèles sortent ([bancs/README.md](bancs/README.md)). |
 
 ## L'enchaînement par story
@@ -65,7 +65,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [D'où vient le kit](docs/genese.md) : la facture de départ, la veille, les 20 tests, ce qui a été ajouté et ce qui a été écarté.
 - [Les mesures](docs/mesures.md) : corpus, revue, setup mesuré en série, ce qui dépend de votre projet, limites.
 - [Mesurer les coûts et l'empreinte](docs/mesurer-couts.md) : le script, les pièges du calcul, l'impact (ImpactIA expérimental, EcoLogits), la mise à jour quand de nouveaux modèles sortent.
-- [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML, la consolidation de plusieurs PC, le détail par projet, étape et rôle.
+- [Bilan mensuel des tokens](docs/bilan-tokens.md) : le script, la page HTML et ses trois langues, la consolidation de plusieurs PC, le détail par projet, étape et rôle.
 - [Pièges vus en run autonome](docs/pieges-runs.md) : tests instables sous charge, extension SQLite, push refusé, `python` nu sous Windows.
 - [Catalogue d'essais](docs/experimental.md) (expérimental) : outils de la veille à essayer avec le skill `/agent-cost-kit:essai-outil`, commit épinglé et critère de sortie par fiche.
 - [Mutation guidée](docs/mutation-guidee.md) (expérimental) : étape optionnelle après dev-story, script `scripts/mutation_story.py`, chiffres de la veille (T4, T10, T10b).

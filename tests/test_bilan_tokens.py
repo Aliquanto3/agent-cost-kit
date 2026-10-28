@@ -128,6 +128,29 @@ def test_commande_collecte_ecrit_json_et_html(racine, tmp_path):
     assert "__BILAN__" not in html
     assert "claude-opus-5-5" in html
     assert '"machine":"pc-test"' in html.replace(" ", "")
+    for langue in ("en", "de"):
+        traduite = (out / f"2026-10-pc-test.{langue}.html").read_text(encoding="utf-8")
+        assert f'<html lang="{langue}">' in traduite and '"machine":"pc-test"' in traduite.replace(" ", "")
+        for page in ("2026-10-pc-test.html", "2026-10-pc-test.en.html", "2026-10-pc-test.de.html"):
+            assert f'href="{page}"' in traduite and f'href="{page}"' in html
+
+
+def test_langues_limitees_au_francais(racine, tmp_path):
+    racine_, depot_a, _ = racine
+    out = tmp_path / "out"
+    options = Namespace(mois="2026-10", dossier=depot_a, racine=racine_, machine="pc", out=out, mix=mc.MIX_DEFAUT,
+                        methode=mc.METHODE_DEFAUT, langues="fr")
+    assert bt.commande_collecte(options) == 0
+    assert sorted(p.name for p in out.iterdir()) == ["2026-10-pc.html", "2026-10-pc.json"]
+    assert 'class="lang"' not in (out / "2026-10-pc.html").read_text(encoding="utf-8")
+
+
+def test_langues_demandees():
+    assert bt.langues_demandees(None) == ("fr", "en", "de")
+    assert bt.langues_demandees("de, en") == ("fr", "en", "de")
+    assert bt.langues_demandees("en") == ("fr", "en")
+    with pytest.raises(SystemExit):
+        bt.langues_demandees("fr,it")
 
 
 def test_fusion_somme_deux_machines(racine, tmp_path):
@@ -211,7 +234,7 @@ def test_html_echappe_la_fermeture_de_script(tmp_path):
     html = chemin.read_text(encoding="utf-8")
     assert html.count("</script>") == bt.GABARIT.read_text(encoding="utf-8").count("</script>")
     assert r"pc<\/script>" in html
-    assert html.startswith('<meta charset="utf-8">')
+    assert html.startswith('<!doctype html>\n<html lang="fr">')
 
 
 def _bilan_min(tmp_path, nom, **champs):

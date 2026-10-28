@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bilan_detail as bd
+import bilan_i18n as i18n
 import bilan_tokens as bt
 import mesurer_couts as mc
 
@@ -709,9 +711,9 @@ process.stdout.write(JSON.stringify(Object.fromEntries(Object.entries(els).map((
 """
 
 
-def lancer_page(tmp_path, bilan):
-    html = tmp_path / "page.html"
-    bt.ecrire_html(bilan, html)
+def lancer_page(tmp_path, bilan, langue="fr"):
+    html = tmp_path / f"page.{langue}.html"
+    bt.ecrire_html(bilan, html, langue)
     stub = tmp_path / "stub.js"
     stub.write_text(STUB_NODE, encoding="utf-8")
     resultat = subprocess.run(["node", str(stub), str(html)], capture_output=True, text=True, encoding="utf-8", timeout=60)
@@ -755,3 +757,39 @@ def test_page_sans_portfolio_ni_detail(tmp_path):
     sortie = lancer_page(tmp_path, sans)
     assert "tbl-projets" not in sortie and "liste-recos" not in sortie and "nav-links" not in sortie
     assert "detail-mount" not in sortie
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node absent")
+@pytest.mark.parametrize("langue", ["en", "de"])
+def test_page_traduite_executee_sous_node(tmp_path, langue):
+    """Page anglaise ou allemande : libellés et recommandations traduits, plus aucun texte français affiché."""
+    racine = monde(tmp_path / "projects", "A")
+    config = config_portfolio(tmp_path, proprietaire=None)
+    (tmp_path / "cfg.json").write_text(json.dumps({"portfolio": config["portfolio"]}), encoding="utf-8")
+    out = tmp_path / "out"
+    assert bt.commande_collecte(options(racine, out, detail=True, config=tmp_path / "cfg.json")) == 0
+    bilan = json.loads((out / "2026-10-pc.json").read_text(encoding="utf-8"))
+    sortie = lancer_page(tmp_path, bilan, langue)
+    assert i18n.LIBELLES[langue]["Orchestrateur (session principale)"] in sortie["duo"]
+    titres = {textes[langue]["titre"] for textes in i18n.RECOS.values()}
+    assert bilan["detail"]["recos"] and all(t in titres for t in re.findall(r"<h3>(.*?)</h3>", sortie["liste-recos"]))
+    autorises = tuple(i18n.lire_catalogue(langue).get("autorises", []))
+    restes = i18n.francais_restant("\n".join(str(v) for v in sortie.values()), autorises)
+    assert restes == []
+    assert "Orchestrateur (session principale)" in (out / "2026-10-pc.json").read_text(encoding="utf-8")  # le JSON reste en français
+
+
+def test_recos_traduites_memes_ids_et_gains():
+    appels, infos = groupe(*flotte("g", "general-purpose", 5, modele=OPUS, lu=5_000_000, desc="T1 Implement story"),
+                           *flotte("d", "dev-story", 5, lu=200_000),
+                           [[appel(mid="v", modele="claude-sonnet-5", lu=3_000_000, ts="2026-10-02T12:00:00Z")], {}])
+    detail = construire(appels, infos)
+    fr = detail["recos"]
+    for langue in ("en", "de"):
+        traduites = bd.recommandations(detail["brut"], detail, langue)
+        assert [(r["id"], r["gain"]) for r in traduites] == [(r["id"], r["gain"]) for r in fr]
+        assert all(r["titre"] == i18n.RECOS[r["id"]][langue]["titre"] for r in traduites)
+    anglais = {r["id"]: r for r in bd.recommandations(detail["brut"], detail, "en")}
+    assert "5 general-purpose sub-agents" in anglais["implementation-generaliste"]["mesure"]
+    assert "$" in anglais["implementation-generaliste"]["mesure"] and "\u00a0$" not in anglais["implementation-generaliste"]["mesure"]
+

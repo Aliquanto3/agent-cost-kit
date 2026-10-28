@@ -1,6 +1,6 @@
 ---
 name: bilan-tokens
-description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact ImpactIA ou EcoLogits) par modèle, publie une page HTML à la charte Wavestone, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
+description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact ImpactIA ou EcoLogits) par modèle, publie une page HTML à la charte Wavestone en français, anglais et allemand, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
 ---
 
 Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans appel d'API.
@@ -19,7 +19,9 @@ Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans a
 
 2. **Commentaire, 10 lignes maximum.** D'après la sortie du script : input traité (dont la part de lecture de cache), output (déclaré → réestimé), coût total et son premier poste, impact en kgCO2e (fourchette), modèle dominant, une piste d'économie (cache perdu, dossier à exclure, modèle à router vers Sonnet/Haiku). Avec `--detail`, cite la première recommandation de `detail.recos` (titre, gain estimé) plutôt qu'une piste générique.
 
-3. **Publication.** Si l'outil Artifact est disponible, publie le HTML en Artifact (titre stable du type « Bilan tokens <mois> <année> », description d'une phrase) ; sinon donne le chemin du fichier écrit.
+3. **Publication.** Le script écrit trois pages reliées par un sélecteur de langue : `<base>.html` (français), `<base>.en.html` et `<base>.de.html` (`--langues fr` pour une seule page). Si l'outil Artifact est disponible, publie-les en un seul Artifact multi-fichiers : la page française comme page principale (`file_path`), et les trois fichiers sous leur propre nom dans `files` (`{"<base>.html": …, "<base>.en.html": …, "<base>.de.html": …}`), pour que les liens du sélecteur fonctionnent depuis chaque page. Titre stable du type « Bilan tokens <mois> <année> », description d'une phrase. Sans l'outil Artifact, donne les chemins des fichiers écrits.
+
+   Si la génération échoue avec « Catalogue en/de : texte(s) absent(s) du gabarit », le gabarit a changé sans ses catalogues : mets à jour `skills/bilan-tokens/i18n/en.json` et `de.json` (paires [texte français exact, traduction]) puis relance, ou relance avec `--langues fr` si l'utilisateur ne veut que le français.
 
 4. **Consolidation de plusieurs PC.** Rapatrie d'abord les JSON des autres PC (OneDrive, clé USB, ou un commit dans `mesures/bilans/` d'un dépôt — demande confirmation avant tout commit ou push), puis :
 
