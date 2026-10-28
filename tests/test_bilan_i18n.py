@@ -48,7 +48,7 @@ def test_scripts_de_la_page_valides(langue, tmp_path):
 def test_langue_selecteur_et_locale(langue, locale):
     page = i18n.traduire_page(GABARIT.read_text(encoding="utf-8"), langue, LIENS)
     assert f'<html lang="{langue}">' in page and i18n.MARQUE_LANGUES not in page
-    assert page.count('aria-current="page"') == 1
+    assert len(re.findall(r'<a [^>]*aria-current="page"', page)) == 1
     assert re.search(rf'href="{re.escape(LIENS[langue])}"[^>]*aria-current="page"', page)
     assert page.count('class="flag"') == 3
     assert f'"{locale}"' in page and (langue == "fr" or '"fr-FR"' not in page)

@@ -1,0 +1,582 @@
+{
+  "langue": "en",
+  "remplacements": [
+    [
+      "<title>Bilan tokens</title>",
+      "<title>Token report</title>"
+    ],
+    [
+      "<a href=\"#bilan\">Bilan</a><a href=\"#tableau\">Tableau</a><a href=\"#comprendre\">Comprendre</a>",
+      "<a href=\"#bilan\">Overview</a><a href=\"#tableau\">Table</a><a href=\"#comprendre\">Explained</a>"
+    ],
+    [
+      "Bilan Claude Code",
+      "Claude Code report"
+    ],
+    [
+      "<h1 id=\"h1\">Ce mois-ci, <em id=\"h-in\">—</em> de tokens lus pour <em id=\"h-out\">—</em> écrits</h1>",
+      "<h1 id=\"h1\">This month, <em id=\"h-in\">—</em> tokens read for <em id=\"h-out\">—</em> written</h1>"
+    ],
+    [
+      "<h3>💵 Où part l'argent ?</h3>",
+      "<h3>💵 Where does the money go?</h3>"
+    ],
+    [
+      "aria-label=\"Répartition du coût API par poste\"",
+      "aria-label=\"API cost breakdown by item\""
+    ],
+    [
+      "<p>La relecture du cache coûte plusieurs fois moins cher par token que l'input normal, mais elle en traite tellement qu'elle reste souvent le premier poste.</p>",
+      "<p>Cache reads cost several times less per token than regular input, but they process so many tokens that they are often the largest item.</p>"
+    ],
+    [
+      "<div class=\"eyebrow\">02 — Le détail</div>",
+      "<div class=\"eyebrow\">02 — The details</div>"
+    ],
+    [
+      "<h2>Tokens, coût et impact, du total au détail</h2>",
+      "<h2>Tokens, cost and impact, from total to detail</h2>"
+    ],
+    [
+      "Le tableau affiche d'abord l'essentiel : une ligne de total et une colonne par famille. Cliquez sur un en-tête de couleur pour voir ce qu'il contient, ou sur <b>Total</b> pour obtenir une ligne par modèle.",
+      "The table starts with the essentials: one total row and one column per group. Click a colored header to see what it contains, or <b>Total</b> to get one row per model."
+    ],
+    [
+      "Ce que le modèle lit à chaque appel : votre message, mais surtout tout l'historique de la conversation.",
+      "What the model reads on each call: your message, but above all the entire conversation history."
+    ],
+    [
+      "Ce que le modèle écrit : réponses, code, appels d'outils et réflexion.",
+      "What the model writes: replies, code, tool calls and reasoning."
+    ],
+    [
+      "<b>💵 Coût API</b>Ce que ces tokens auraient coûté au tarif public de l'API Anthropic.",
+      "<b>💵 API cost</b>What these tokens would have cost at Anthropic's public API pricing."
+    ],
+    [
+      "Estimation de l'empreinte de la génération : carbone, énergie, eau, ressources.",
+      "Estimated footprint of generation: carbon, energy, water, resources."
+    ],
+    [
+      "<span class=\"label\">Déplier</span>",
+      "<span class=\"label\">Expand</span>"
+    ],
+    [
+      "</span>🤖 Modèles</button>",
+      "</span>🤖 Models</button>"
+    ],
+    [
+      "</span>💵 Coût</button>",
+      "</span>💵 Cost</button>"
+    ],
+    [
+      "Tout déplier",
+      "Expand all"
+    ],
+    [
+      "Tout replier",
+      "Collapse all"
+    ],
+    [
+      "<div class=\"eyebrow\">03 — Comprendre</div>",
+      "<div class=\"eyebrow\">03 — Explained</div>"
+    ],
+    [
+      "<h2>Le cache et la méthode de calcul</h2>",
+      "<h2>The cache and the calculation method</h2>"
+    ],
+    [
+      "Deux explications, repliées par défaut, pour lire les chiffres sans contresens.",
+      "Two explanations, collapsed by default, to read the figures correctly."
+    ],
+    [
+      "<summary>♻️ À quoi sert le cache, et pourquoi l'input « non caché » est-il si petit ?</summary>",
+      "<summary>♻️ What is the cache for, and why is “uncached” input so small?</summary>"
+    ],
+    [
+      "<p>Un modèle de langage n'a pas de mémoire entre deux appels. À chaque tour, Claude Code lui renvoie <b>tout le contexte</b> : prompt système, <code>CLAUDE.md</code>, historique de la conversation, résultats d'outils. Sur une longue session, cela fait des centaines de milliers de tokens à chaque appel.</p>",
+      "<p>A language model has no memory between calls. On every turn, Claude Code sends it <b>the entire context</b>: system prompt, <code>CLAUDE.md</code>, conversation history, tool results. In a long session, that means hundreds of thousands of tokens per call.</p>"
+    ],
+    [
+      "<p>Le <b>cache de prompt</b> évite de recalculer la partie du début qui n'a pas changé depuis l'appel précédent. Chaque token d'input tombe dans l'une de trois cases :</p>",
+      "<p>The <b>prompt cache</b> avoids recomputing the leading part that has not changed since the previous call. Every input token falls into one of three buckets:</p>"
+    ],
+    [
+      "<b>♻️ Lecture cache</b>Le contexte déjà vu, relu depuis le cache. Plusieurs fois moins cher qu'un input normal.",
+      "<b>♻️ Cache read</b>Context already seen, reread from the cache. Several times cheaper than regular input."
+    ],
+    [
+      "<b>✍️ Écriture cache</b>Le contenu nouveau, mis en cache pour le prochain appel. 1,25 fois le prix normal (conservé 5 min), ou 2 fois (conservé 1 h).",
+      "<b>✍️ Cache write</b>New content, cached for the next call. 1.25× the regular price (kept 5 min), or 2× (kept 1 h)."
+    ],
+    [
+      "<b>🆕 Non caché</b>Les quelques tokens après le dernier point de cache. Prix normal, mais volume minuscule.",
+      "<b>🆕 Uncached</b>The few tokens after the last cache breakpoint. Regular price, but tiny volume."
+    ],
+    [
+      "<p><b>Signal à surveiller.</b> Beaucoup d'écriture par rapport à la lecture veut dire que le cache se perd : une pause plus longue que sa durée de vie (5 min), ou beaucoup de sessions courtes. <code>/agent-cost-kit:mesurer-couts</code> détaille ces expirations par agent.</p>",
+      "<p><b>Signal to watch.</b> A lot of writing relative to reading means the cache is being lost: a pause longer than its lifetime (5 min), or many short sessions. <code>/agent-cost-kit:mesurer-couts</code> breaks these expirations down by agent.</p>"
+    ],
+    [
+      "<summary>🧮 Méthode de calcul et limites</summary>",
+      "<summary>🧮 Calculation method and limitations</summary>"
+    ],
+    [
+      "<p><b>📂 Source.</b> Les transcriptions locales de Claude Code (<code>~/.claude/projects</code>), y compris celles des sous-agents. <span id=\"p-perimetre-dossier\"></span> Seuls les appels horodatés dans le mois sont retenus, un appel par identifiant de message (les doublons, y compris d'une session reprise, sont écartés).</p>",
+      "<p><b>📂 Source.</b> Claude Code's local transcripts (<code>~/.claude/projects</code>), including those of sub-agents. <span id=\"p-perimetre-dossier\"></span> Only calls timestamped within the month are kept, one call per message ID (duplicates, including from a resumed session, are discarded).</p>"
+    ],
+    [
+      "<p><b>💵 Coût.</b> Fonctions et table de prix de <code>agent-cost-kit</code> (<code>scripts/mesurer_couts.py</code>, <code>tarifs.json</code>). Prix publics par million de tokens :</p>",
+      "<p><b>💵 Cost.</b> Functions and price table from <code>agent-cost-kit</code> (<code>scripts/mesurer_couts.py</code>, <code>tarifs.json</code>). Public prices per million tokens:</p>"
+    ],
+    [
+      "<p>Le résultat est un <b>équivalent API</b> : sous abonnement, la dépense réelle est différente.</p>",
+      "<p>The result is an <b>API equivalent</b>: on a subscription, actual spending is different.</p>"
+    ],
+    [
+      "<p><b>⚠️ Périmètre.</b> <span id=\"p-limite\"></span></p>",
+      "<p><b>⚠️ Scope.</b> <span id=\"p-limite\"></span></p>"
+    ],
+    [
+      "<div class=\"eyebrow\">04 — Par projet</div>",
+      "<div class=\"eyebrow\">04 — By project</div>"
+    ],
+    [
+      "Ce qu'a consommé chaque projet du portfolio",
+      "What each portfolio project consumed"
+    ],
+    [
+      "Ce qu'a consommé chaque dépôt",
+      "What each repository consumed"
+    ],
+    [
+      "Coût en équivalent API. Carbone en kgCO2e, fourchette basse – haute de la méthode ImpactIA.",
+      "Cost as API equivalent. Carbon in kgCO2e, low–high range from the ImpactIA method."
+    ],
+    [
+      "<div class=\"eyebrow\">05 — Par étape</div>",
+      "<div class=\"eyebrow\">05 — By step</div>"
+    ],
+    [
+      "<h2>Du besoin à la livraison, ce que coûte chaque étape</h2>",
+      "<h2>From needs to delivery: what each step costs</h2>"
+    ],
+    [
+      "Onze familles d'activités, de la plus en amont à la plus transverse. Cliquez sur une famille pour voir le détail par skill ou par type de sous-agent. La barre montre le carbone : la partie pleine est le bas de la fourchette, la partie claire va jusqu'au haut.",
+      "Eleven activity families, from the most upstream to the most cross-cutting. Click a family to see the breakdown by skill or sub-agent type. The bar shows carbon: the solid part is the low end of the range, the light part extends to the high end."
+    ],
+    [
+      "<div class=\"entete-etapes\"><span>Étape</span><span>Carbone (kgCO2e)</span><span>Coût API</span><span>Carbone</span><span>Orchestrateur</span></div>",
+      "<div class=\"entete-etapes\"><span>Step</span><span>Carbon (kgCO2e)</span><span>API cost</span><span>Carbon</span><span>Orchestrator</span></div>"
+    ],
+    [
+      "<summary>🧮 Comment chaque appel est rattaché à une étape</summary>",
+      "<summary>🧮 How each call is assigned to a step</summary>"
+    ],
+    [
+      "<p><b>Sous-agents.</b> Le type de l'agent décide quand il est explicite : <code>dev-story</code> pour le développement ; <code>reviewer</code> et <code>second-avis</code> pour la relecture ; <code>lookup</code> et <code>Explore</code> pour la recherche. Pour un sous-agent généraliste, on prend le skill qu'il exécute à ce moment-là (plan, implémentation, tests et revue d'aidd-dev se suivent dans le même agent), sinon les mots de sa description (« review », « Implement story », « recherche »…), sinon le skill de la session qui l'a lancé.</p>",
+      "<p><b>Sub-agents.</b> The agent type decides when it is explicit: <code>dev-story</code> for development; <code>reviewer</code> and <code>second-avis</code> for review; <code>lookup</code> and <code>Explore</code> for research. For a general-purpose sub-agent, we use the skill it is running at that moment (aidd-dev's plan, implementation, tests and review follow one another in the same agent), otherwise the words in its description (“review”, “Implement story”, “recherche”…), otherwise the skill of the session that launched it.</p>"
+    ],
+    [
+      "<p><b>Session principale.</b> Le dernier skill invoqué (<code>/bmad-prd</code>, <code>/bmad-architecture</code>…) vaut jusqu'au skill suivant ou au <code>/clear</code>. Sans skill actif, l'outil appelé décide : commande git ou gh de PR, de CI ou de release pour la livraison ; lancement d'agent pour le pilotage ; pytest ou ruff pour les tests ; édition de fichier pour le développement. Le reste (lecture, commandes, réponses) forme la famille « Échanges sans étape identifiée ».</p>",
+      "<p><b>Main session.</b> The last skill invoked (<code>/bmad-prd</code>, <code>/bmad-architecture</code>…) applies until the next skill or <code>/clear</code>. With no active skill, the tool called decides: git or gh commands for PRs, CI or releases count as delivery; launching an agent as steering; pytest or ruff as testing; file edits as development. The rest (reading, commands, answers) forms the “Exchanges with no identified step” family.</p>"
+    ],
+    [
+      "<p><b>Limite.</b> Un skill reste attribué tant qu'on ne change pas de tâche. Les suites de session après <code>/agent-cost-kit:avancement-run</code> comptent donc dans le pilotage, même quand l'orchestrateur y relance des stories. Les ordres de grandeur sont fiables ; à quelques pourcents près, la frontière entre deux familles voisines ne l'est pas.</p>",
+      "<p><b>Limitation.</b> A skill stays attributed until the task changes. Session continuations after <code>/agent-cost-kit:avancement-run</code> therefore count as steering, even when the orchestrator relaunches stories there. Orders of magnitude are reliable; the boundary between two neighboring families is only accurate to within a few percent.</p>"
+    ],
+    [
+      "<div class=\"eyebrow\">06 — Par rôle</div>",
+      "<div class=\"eyebrow\">06 — By role</div>"
+    ],
+    [
+      "<h2>Orchestrateur et sous-agents</h2>",
+      "<h2>Orchestrator and sub-agents</h2>"
+    ],
+    [
+      "L'orchestrateur est la session principale, celle où l'on tape. Les sous-agents sont lancés par elle, chacun avec un contexte neuf. Cliquez sur un rôle pour voir le détail par modèle et par effort.",
+      "The orchestrator is the main session, the one you type in. Sub-agents are launched from it, each with a fresh context. Click a role to see the breakdown by model and effort."
+    ],
+    [
+      "</span>🤖 Modèle et effort de chaque rôle</button>",
+      "</span>🤖 Model and effort for each role</button>"
+    ],
+    [
+      "« Coût médian par agent » : la moitié des agents de ce type ont coûté moins. Contexte moyen : tokens d'input relus à chaque appel.",
+      "“Median cost per agent”: half the agents of this type cost less. Average context: input tokens reread on each call."
+    ],
+    [
+      "<div class=\"eyebrow\">07 — Recommandations</div>",
+      "<div class=\"eyebrow\">07 — Recommendations</div>"
+    ],
+    [
+      "<h2>Ce que ces mesures recommandent</h2>",
+      "<h2>What these measurements recommend</h2>"
+    ],
+    [
+      "Classées par gain estimé sur la période, à qualité égale. Les gains sont des ordres de grandeur, calculés sur les coûts médians mesurés ci-dessus. Ce que le kit en a tiré : ",
+      "Ranked by estimated savings over the period, at equal quality. Savings are orders of magnitude, based on the median costs measured above. What the kit drew from them: "
+    ],
+    [
+      "Le carbone suit à peu près le coût, parce que les deux viennent surtout du contexte relu.",
+      "Carbon roughly tracks cost, because both come mostly from reread context."
+    ],
+    [
+      "<h3>🧪 Ce que disent les bancs d'essai du 13 octobre</h3>",
+      "<h3>🧪 What the October 13 benchmarks show</h3>"
+    ],
+    [
+      "<li><b>À tâche égale, les trois modèles consomment à peu près autant de tokens.</b> L'écart de coût vient du prix du token et du nombre de tours : Sonnet a fait 33 appels contre 57 pour Opus sur la même implémentation.</li>",
+      "<li><b>For the same task, all three models use roughly the same number of tokens.</b> The cost gap comes from the token price and the number of turns: Sonnet made 33 calls versus 57 for Opus on the same implementation.</li>"
+    ],
+    [
+      "<li><b>Sonnet coûte de 17 à 55 % de moins qu'Opus à la tâche</b>, pas 50 % partout : la lecture du cache coûte le même prix chez les deux.</li>",
+      "<li><b>Sonnet costs 17% to 55% less than Opus per task</b>, not 50% across the board: cache reads cost the same for both.</li>"
+    ],
+    [
+      "<li><b>Opus reste devant en architecture, en spec transverse et en recherche web</b> qui fonde une décision. Notes en aveugle : 8,5 contre 7,5 pour Sonnet en architecture, 8,4 contre 7,8 en recherche web.</li>",
+      "<li><b>Opus stays ahead on architecture, cross-cutting specs and web research</b> that underpins a decision. Blind scores: 8.5 vs 7.5 for Sonnet on architecture, 8.4 vs 7.8 on web research.</li>"
+    ],
+    [
+      "<li><b>En revue, Haiku trouve des défauts réels pour quelques centimes.</b> La réunion des constats Sonnet et Haiku offre le meilleur rapport qualité-prix ; Opus juge mieux la gravité.</li>",
+      "<li><b>In review, Haiku finds real defects for a few cents.</b> Combining Sonnet's and Haiku's findings gives the best value for money; Opus is better at judging severity.</li>"
+    ],
+    [
+      "<li><b>Le parallélisme accélère la dépense sans la grossir</b> : jusqu'à 11 agents simultanés n'ont pas augmenté le coût par tâche. Le mode économique (une seule passe de revue) a fait baisser de 40 % le coût par story.</li>",
+      "<li><b>Parallelism speeds up spending without increasing it</b>: up to 11 concurrent agents did not raise the cost per task. Economy mode (a single review pass) cut the cost per story by 40%.</li>"
+    ],
+    [
+      "const MOIS_FR=[\"janvier\",\"février\",\"mars\",\"avril\",\"mai\",\"juin\",\"juillet\",\"août\",\"septembre\",\"octobre\",\"novembre\",\"décembre\"];",
+      "const MOIS_FR=[\"January\",\"February\",\"March\",\"April\",\"May\",\"June\",\"July\",\"August\",\"September\",\"October\",\"November\",\"December\"];"
+    ],
+    [
+      "\"fr-FR\"",
+      "\"en-US\""
+    ],
+    [
+      "nf(v/1e9,2)+\" Md\"",
+      "nf(v/1e9,2)+\" B\""
+    ],
+    [
+      "function usd(v){if(v===0)return \"0 $\";if(v<0.01)return \"< 0,01 $\";return nf(v,v>=100?0:2)+\" $\";}",
+      "function usd(v){if(v===0)return \"$0\";if(v<0.01)return \"< $0.01\";return \"$\"+nf(v,v>=100?0:2);}"
+    ],
+    [
+      "nf(100*v/t,v/t<0.01?1:0)+\" %\"",
+      "nf(100*v/t,v/t<0.01?1:0)+\"%\""
+    ],
+    [
+      "{h:\"📞 Appels\",u:\"requêtes au modèle\"",
+      "{h:\"📞 Calls\",u:\"model requests\""
+    ],
+    [
+      "{h:\"📥 Input traité\",u:\"tokens lus au total\"",
+      "{h:\"📥 Input processed\",u:\"total tokens read\""
+    ],
+    [
+      "{h:\"🆕 Non caché\",u:\"tokens, prix plein\"",
+      "{h:\"🆕 Uncached\",u:\"tokens, full price\""
+    ],
+    [
+      "{h:\"✍️ Écriture cache 5 min\",u:\"tokens, ×1,25\"",
+      "{h:\"✍️ Cache write 5 min\",u:\"tokens, ×1.25\""
+    ],
+    [
+      "{h:\"✍️ Écriture cache 1 h\",u:\"tokens, ×2\"",
+      "{h:\"✍️ Cache write 1 h\",u:\"tokens, ×2\""
+    ],
+    [
+      "{h:\"♻️ Lecture cache\",u:\"tokens · part\"",
+      "{h:\"♻️ Cache read\",u:\"tokens · share\""
+    ],
+    [
+      "+\" de l'input</span>\"",
+      "+\" of input</span>\""
+    ],
+    [
+      "{h:\"📤 Output\",u:\"tokens écrits (réestimés)\"",
+      "{h:\"📤 Output\",u:\"tokens written (re-estimated)\""
+    ],
+    [
+      "{h:\"🧾 Déclaré\",u:\"tokens dans les transcriptions\"",
+      "{h:\"🧾 Reported\",u:\"tokens in transcripts\""
+    ],
+    [
+      "{h:\"🔍 Sous-déclaration\",u:\"réestimé vs déclaré\",f:r=>r.outDecl?\"+\"+nf(100*(r.out/r.outDecl-1))+\" %\":\"—\"}",
+      "{h:\"🔍 Under-reporting\",u:\"re-estimated vs reported\",f:r=>r.outDecl?\"+\"+nf(100*(r.out/r.outDecl-1))+\"%\":\"—\"}"
+    ],
+    [
+      "label:\"💵 COÛT API\"",
+      "label:\"💵 API COST\""
+    ],
+    [
+      "{h:\"💵 Coût\",u:\"$ · part du total\"",
+      "{h:\"💵 Cost\",u:\"$ · share of total\""
+    ],
+    [
+      "{h:\"✍️ Écriture cache\",u:\"$\"",
+      "{h:\"✍️ Cache write\",u:\"$\""
+    ],
+    [
+      "{h:\"♻️ Lecture cache\",u:\"$\"",
+      "{h:\"♻️ Cache read\",u:\"$\""
+    ],
+    [
+      "{h:\"🌍 Carbone\",u:\"kgCO2e\"",
+      "{h:\"🌍 Carbon\",u:\"kgCO2e\""
+    ],
+    [
+      "{h:\"⚡ Énergie\",u:\"kWh\"",
+      "{h:\"⚡ Energy\",u:\"kWh\""
+    ],
+    [
+      "{h:\"💧 Eau\",u:\"litres\"",
+      "{h:\"💧 Water\",u:\"liters\""
+    ],
+    [
+      "{h:\"🛢️ Énergie primaire\",u:\"MJ\"",
+      "{h:\"🛢️ Primary energy\",u:\"MJ\""
+    ],
+    [
+      "{h:\"⛏️ Ressources minérales\",u:\"mgSbe (ADPe)\"",
+      "{h:\"⛏️ Mineral resources\",u:\"mgSbe (ADPe)\""
+    ],
+    [
+      "style=\"vertical-align:bottom\">🤖 Modèle</th>",
+      "style=\"vertical-align:bottom\">🤖 Model</th>"
+    ],
+    [
+      "title=\"${state[g.id]?\"Replier\":\"Déplier\"} le détail\"",
+      "title=\"${state[g.id]?\"Collapse\":\"Expand\"} details\""
+    ],
+    [
+      "title=\"${state.rows?\"Masquer\":\"Afficher\"} les modèles\"",
+      "title=\"${state.rows?\"Hide\":\"Show\"} models\""
+    ],
+    [
+      "document.title=`Bilan tokens ${",
+      "document.title=`Token report ${"
+    ],
+    [
+      "const periode=(debut.jour===1?\"1ᵉʳ\":debut.jour)+\" au \"+fin.jour+\" \"+moisTexte(BILAN.mois);",
+      "const periode=MOIS_FR[debut.mois]+\" \"+debut.jour+\" to \"+fin.jour+\", \"+fin.annee;"
+    ],
+    [
+      ":\"tous les projets\";",
+      ":\"all projects\";"
+    ],
+    [
+      "`${MACHINES.length} PC (${esc(MACHINES.join(\", \"))})`:`le PC <b>${esc(BILAN.machine)}</b>`",
+      "`${MACHINES.length} PCs (${esc(MACHINES.join(\", \"))})`:`the PC <b>${esc(BILAN.machine)}</b>`"
+    ],
+    [
+      "`Toutes les sessions Claude Code sur ${machineTxt}, dans ${lieu}, sous-agents compris, du ${periode}. Le modèle relit généralement bien plus qu'il n'écrit.`",
+      "`All Claude Code sessions on ${machineTxt}, in ${lieu}, sub-agents included, from ${periode}. The model usually rereads far more than it writes.`"
+    ],
+    [
+      "\"tokens d'input traités\"]",
+      "\"input tokens processed\"]"
+    ],
+    [
+      "\"tokens d'output\"]",
+      "\"output tokens\"]"
+    ],
+    [
+      "\"équivalent API\"]",
+      "\"API equivalent\"]"
+    ],
+    [
+      "\"CO2e estimés\"]",
+      "\"estimated CO2e\"]"
+    ],
+    [
+      "const parts=[[\"♻️ Lecture cache\",TOTAL.cLu,\"#451DC7\"],[\"✍️ Écriture cache\",TOTAL.cEc,\"#9d86ec\"],[\"📤 Output\",TOTAL.cOut,\"#04F06A\"],[\"🆕 Input non caché\",TOTAL.cIn,\"#FFCA4A\"]];",
+      "const parts=[[\"♻️ Cache read\",TOTAL.cLu,\"#451DC7\"],[\"✍️ Cache write\",TOTAL.cEc,\"#9d86ec\"],[\"📤 Output\",TOTAL.cOut,\"#04F06A\"],[\"🆕 Uncached input\",TOTAL.cIn,\"#FFCA4A\"]];"
+    ],
+    [
+      "fill=\"#0a0a14\">${nf(TOTAL.cTot)} $</text>",
+      "fill=\"#0a0a14\">$${nf(TOTAL.cTot)}</text>"
+    ],
+    [
+      "fill=\"#4a4a5e\">équivalent API</text>",
+      "fill=\"#4a4a5e\">API equivalent</text>"
+    ],
+    [
+      "`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`",
+      "`<b>How to read the figures.</b> The input actually processed is the <b>sum of the three buckets</b>, about ${tok(TOTAL.inTot)} tokens over the period. Spread over ${nf(TOTAL.appels)} calls, that gives an average context of about <b>${tok(ctxMoyen)} tokens per call</b>.`"
+    ],
+    [
+      "`<b>Ce que le cache rapporte.</b> Sans lui, cet input aurait coûté environ <b>${usd(TOTAL.cSansCache)}</b> au lieu d'environ ${usd(coutReel)}. Mais la relecture reste souvent le premier poste de dépense : plus une session est longue, plus chaque tour relit d'historique. D'où l'intérêt de <code>/clear</code> entre deux tâches et de sous-agents à contexte court.`",
+      "`<b>What the cache saves.</b> Without it, this input would have cost about <b>${usd(TOTAL.cSansCache)}</b> instead of about ${usd(coutReel)}. But rereading often remains the largest expense: the longer a session, the more history each turn rereads. Hence the value of <code>/clear</code> between two tasks and of short-context sub-agents.`"
+    ],
+    [
+      "`<b>Coût sans cache.</b> Input non caché, écriture et lecture valent ensemble environ ${usd(coutReel)}.`",
+      "`<b>Cost without cache.</b> Uncached input, cache writes and cache reads together come to about ${usd(coutReel)}.`"
+    ],
+    [
+      "`Limité à <code>${esc(BILAN.dossier)}</code> et ses sous-dossiers.`:\"Tous les projets du compte.\"",
+      "`Limited to <code>${esc(BILAN.dossier)}</code> and its subfolders.`:\"All projects in the account.\""
+    ],
+    [
+      "`<b>📤 Output réestimé.</b> Les transcriptions sous-déclarent parfois l'output (réflexion et appels d'outils). Le calcul garde la plus grande de deux valeurs : l'output déclaré, ou le texte réellement produit divisé par 2,2 caractères par token. Cela fait passer l'output déclaré de ${tok(TOTAL.outDecl)} à ${tok(TOTAL.out)} tokens.`",
+      "`<b>📤 Re-estimated output.</b> Transcripts sometimes under-report output (reasoning and tool calls). The calculation keeps the larger of two values: the reported output, or the text actually produced divided by 2.2 characters per token. This raises reported output from ${tok(TOTAL.outDecl)} to ${tok(TOTAL.out)} tokens.`"
+    ],
+    [
+      "`<tr><th>Modèle</th><th>Input</th><th>Écriture 5 min / 1 h</th><th>Lecture</th><th>Output</th></tr>",
+      "`<tr><th>Model</th><th>Input</th><th>Write 5 min / 1 h</th><th>Read</th><th>Output</th></tr>"
+    ],
+    [
+      "`Au-delà de ${tok(p.long_contexte.seuil_tokens)} tokens de contexte, <b>${nomAffiche(id).nom}</b> est facturé ×${p.long_contexte.facteur}.`",
+      "`Beyond ${tok(p.long_contexte.seuil_tokens)} tokens of context, <b>${nomAffiche(id).nom}</b> is billed ×${p.long_contexte.facteur}.`"
+    ],
+    [
+      "\"Les fourchettes d'impact (bas – haut) reflètent surtout le cache : la lecture du cache compte pour zéro en bas de fourchette et comme un input complet en haut ; s'y ajoutent l'incertitude sur la taille des modèles et l'efficacité des centres de données.\"",
+      "\"Impact ranges (low – high) mainly reflect the cache: cache reads count as zero at the low end and as full input at the high end; uncertainty about model size and data center efficiency adds to this.\""
+    ],
+    [
+      "`<b>🌍 Impact.</b> Méthode ImpactIA, <b>expérimentale</b> : d'après la <a href=\"https://github.com/mlco2/ecologits/pull/259\">PR EcoLogits #259</a>, non fusionnée (méthode <a href=\"https://github.com/SNCFdevelopers/ImpactIA\">Impact'IA</a> de SNCF, Wavestone et Resilio), sur les données ${ECOLOGITS_LIEN}. L'<b>input est compté</b> : sa durée de traitement (prefill) croît avec le nombre de tokens et s'ajoute à celle de la génération, pour le serveur, le réseau du centre de données et la fabrication du matériel ; l'énergie des GPU reste celle de la génération de l'output. Input non caché et écriture du cache : traitement complet. Lecture du cache : zéro en bas de fourchette (le cache n'est pas recalculé), traitement complet en haut. Mix électrique ${MIX_TXT}, fabrication du matériel, du réseau et du bâtiment incluse dans le carbone.`",
+      "`<b>🌍 Impact.</b> ImpactIA method, <b>experimental</b>: based on the unmerged <a href=\"https://github.com/mlco2/ecologits/pull/259\">EcoLogits PR #259</a> (the <a href=\"https://github.com/SNCFdevelopers/ImpactIA\">Impact'IA</a> method by SNCF, Wavestone and Resilio), using ${ECOLOGITS_LIEN} data. <b>Input is counted</b>: its processing time (prefill) grows with the number of tokens and adds to generation time for the server, the data center network and hardware manufacturing; GPU energy remains that of output generation. Uncached input and cache writes: full processing. Cache reads: zero at the low end (the cache is not recomputed), full processing at the high end. ${MIX_TXT} electricity mix; manufacturing of hardware, network and buildings included in carbon.`"
+    ],
+    [
+      "\"Calcul : agent-cost-kit · impact : ImpactIA (expérimental, PR EcoLogits #259)\"",
+      "\"Calculation: agent-cost-kit · impact: ImpactIA (experimental, EcoLogits PR #259)\""
+    ],
+    [
+      "\"Les fourchettes d'impact (bas – haut) reflètent l'incertitude d'EcoLogits sur la taille des modèles et l'efficacité des centres de données.\"",
+      "\"Impact ranges (low – high) reflect EcoLogits' uncertainty about model size and data center efficiency.\""
+    ],
+    [
+      "`<b>🌍 Impact.</b> Méthode ${ECOLOGITS_LIEN} : énergie des GPU et du serveur selon la taille estimée du modèle, PUE et consommation d'eau des centres de données, mix électrique ${MIX_TXT}, fabrication du matériel incluse dans le carbone. Seule la <b>génération de l'output</b> est comptée, pas le traitement de l'input : c'est une borne basse, l'impact réel est plus élevé.`",
+      "`<b>🌍 Impact.</b> ${ECOLOGITS_LIEN} method: GPU and server energy based on estimated model size, data center PUE and water use, ${MIX_TXT} electricity mix, hardware manufacturing included in carbon. Only <b>output generation</b> is counted, not input processing: this is a lower bound, and the real impact is higher.`"
+    ],
+    [
+      "\"Calcul : agent-cost-kit · impact : EcoLogits (output seul)\"",
+      "\"Calculation: agent-cost-kit · impact: EcoLogits (output only)\""
+    ],
+    [
+      ">Calcul : agent-cost-kit<",
+      ">Calculation: agent-cost-kit<"
+    ],
+    [
+      "`Plusieurs PC consolidés : ${esc(MACHINES.join(\", \"))}.`",
+      "`Several PCs consolidated: ${esc(MACHINES.join(\", \"))}.`"
+    ],
+    [
+      "`Ce PC uniquement (<b>${esc(BILAN.machine)}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`",
+      "`This PC only (<b>${esc(BILAN.machine)}</b>); consolidate with other PCs using <code>--fusionner</code>.`"
+    ],
+    [
+      "· données au ${genere.getUTCDate()} ${MOIS_FR[genere.getUTCMonth()]} ${genere.getUTCFullYear()}, ",
+      "· data as of ${MOIS_FR[genere.getUTCMonth()]} ${genere.getUTCDate()}, ${genere.getUTCFullYear()}, "
+    ],
+    [
+      "'<a href=\"#projets\">Projets</a><a href=\"#etapes\">Étapes</a><a href=\"#agents\">Rôles</a><a href=\"#recos\">Pistes</a>'",
+      "'<a href=\"#projets\">Projects</a><a href=\"#etapes\">Steps</a><a href=\"#agents\">Roles</a><a href=\"#recos\">Recommendations</a>'"
+    ],
+    [
+      "`Les projets du ${lienPortfolio}, avec leur état publié sur GitHub. `:\"Un dossier de travail par ligne. \"",
+      "`The projects in the ${lienPortfolio}, with their status as published on GitHub. `:\"One working folder per row. \""
+    ],
+    [
+      "\"Chaque appel est rattaché au dépôt de son dossier de travail, worktrees et anciens noms compris. La barre répartit le coût du projet entre les étapes de la section suivante.\"",
+      "\"Each call is attributed to the repository of its working directory, including worktrees and former names. The bar splits the project's cost across the steps in the next section.\""
+    ],
+    [
+      "aria-label=\"Répartition du coût par étape\"",
+      "aria-label=\"Cost breakdown by step\""
+    ],
+    [
+      "title=\"${esc(e.label)} : ${usd(v)}\"",
+      "title=\"${esc(e.label)}: ${usd(v)}\""
+    ],
+    [
+      "${pct(p.cout,TOT)} du total</span>",
+      "${pct(p.cout,TOT)} of total</span>"
+    ],
+    [
+      "<th>📁 ${AVEC_PORTFOLIO?\"Projet\":\"Dépôt\"}</th>${AVEC_PORTFOLIO?'<th style=\"text-align:left\">État</th>':\"\"}<th>💵 Coût<span class=\"unit\">$ · part du total</span></th><th>🌍 Carbone<span class=\"unit\">kgCO2e</span></th><th>⚡ Énergie<span class=\"unit\">kWh</span></th><th>📥 Input<span class=\"unit\">tokens traités</span></th><th style=\"text-align:left\">Répartition par étape</th>",
+      "<th>📁 ${AVEC_PORTFOLIO?\"Project\":\"Repository\"}</th>${AVEC_PORTFOLIO?'<th style=\"text-align:left\">Status</th>':\"\"}<th>💵 Cost<span class=\"unit\">$ · share of total</span></th><th>🌍 Carbon<span class=\"unit\">kgCO2e</span></th><th>⚡ Energy<span class=\"unit\">kWh</span></th><th>📥 Input<span class=\"unit\">tokens processed</span></th><th style=\"text-align:left\">Breakdown by step</th>"
+    ],
+    [
+      "`Portfolio IA · ${port.length} projets`",
+      "`AI portfolio · ${port.length} projects`"
+    ],
+    [
+      "Hors portfolio · ${hors.length} dossiers</button>",
+      "Outside portfolio · ${hors.length} folders</button>"
+    ],
+    [
+      "[amont,\"Cadrage, spécifications et architecture\"],[coeur,\"Développement, relecture et tests\"],[autour,\"Livraison, pilotage, recherche et le reste\"]",
+      "[amont,\"Framing, specifications and architecture\"],[coeur,\"Development, review and tests\"],[autour,\"Delivery, steering, research and the rest\"]"
+    ],
+    [
+      "${l} : ${usd(v.c)}, ${kg(v.g)} kgCO2e",
+      "${l}: ${usd(v.c)}, ${kg(v.g)} kgCO2e"
+    ],
+    [
+      "<th>Skill ou type de sous-agent</th><th>Appels</th><th>Contexte moyen</th><th>Coût</th><th>Carbone (kgCO2e)</th>",
+      "<th>Skill or sub-agent type</th><th>Calls</th><th>Average context</th><th>Cost</th><th>Carbon (kgCO2e)</th>"
+    ],
+    [
+      "${pct(s.cout,e.cout)} de l'étape</span>",
+      "${pct(s.cout,e.cout)} of the step</span>"
+    ],
+    [
+      "<small>en session</small>",
+      "<small>in session</small>"
+    ],
+    [
+      "[\"🎛️ Orchestrateur (session principale)\",O,`${nf(O.appels)} appels`]",
+      "[\"🎛️ Orchestrator (main session)\",O,`${nf(O.appels)} calls`]"
+    ],
+    [
+      "[\"🤖 Sous-agents\",S,`${nf(nbAgents)} agents lancés, ${nf(S.appels)} appels`]",
+      "[\"🤖 Sub-agents\",S,`${nf(nbAgents)} agents launched, ${nf(S.appels)} calls`]"
+    ],
+    [
+      "<dt>Coût API</dt>",
+      "<dt>API cost</dt>"
+    ],
+    [
+      "<dt>Part du coût</dt>",
+      "<dt>Share of cost</dt>"
+    ],
+    [
+      "<dt>Carbone</dt>",
+      "<dt>Carbon</dt>"
+    ],
+    [
+      "<dt>Contexte moyen par appel</dt>",
+      "<dt>Average context per call</dt>"
+    ],
+    [
+      "<th>🤖 Rôle</th><th>Agents lancés</th><th>Coût médian<span class=\"unit\">par agent</span></th><th>Appels</th><th>Contexte moyen<span class=\"unit\">tokens par appel</span></th><th>💵 Coût<span class=\"unit\">$ · part du total</span></th><th>🌍 Carbone<span class=\"unit\">kgCO2e</span></th>",
+      "<th>🤖 Role</th><th>Agents launched</th><th>Median cost<span class=\"unit\">per agent</span></th><th>Calls</th><th>Average context<span class=\"unit\">tokens per call</span></th><th>💵 Cost<span class=\"unit\">$ · share of total</span></th><th>🌍 Carbon<span class=\"unit\">kgCO2e</span></th>"
+    ],
+    [
+      "esc(r.orch?\"Orchestrateur\":r.label)",
+      "esc(r.orch?\"Orchestrator\":r.label)"
+    ],
+    [
+      "${pct(m.cout,r.cout)} du rôle</span>",
+      "${pct(m.cout,r.cout)} of the role</span>"
+    ],
+    [
+      "`Gain estimé : ≈ ${nf(arrondiGain(g[0]))} à ${nf(arrondiGain(g[1]))} $ sur la période`:\"Gain : neutre\"",
+      "`Estimated savings: ≈ $${nf(arrondiGain(g[0]))}–$${nf(arrondiGain(g[1]))} over the period`:\"Savings: neutral\""
+    ],
+    [
+      "<p><b>Mesure.</b> ${r.mesure}</p><p><b>Pratique.</b> ${r.pratique}</p>",
+      "<p><b>Measured.</b> ${r.mesure}</p><p><b>In practice.</b> ${r.pratique}</p>"
+    ],
+    [
+      "'<p class=\"hint\">Aucune recommandation ne se déclenche sur cette période.</p>'",
+      "'<p class=\"hint\">No recommendation is triggered for this period.</p>'"
+    ]
+  ],
+  "autorises": [
+    "Français",
+    "sans-serif",
+    "var(--sans)"
+  ]
+}
