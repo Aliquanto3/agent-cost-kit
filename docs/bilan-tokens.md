@@ -19,7 +19,11 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 - `--dossier` limite aux dossiers de projet sous `--racine` (défaut `~/.claude/projects`) dont le nom encodé commence par celui du chemin donné (même encodage que `mesurer_couts.dossier_transcriptions`) : il couvre donc ce dossier et ses sous-dossiers, pas un dossier frère au nom plus long (`GitHub2` pour `GitHub`). Sans l'option, tous les projets du compte sont comptés.
 - Les `*.jsonl` sont parcourus récursivement (sous-agents compris), un appel par `message.id` dédoublonné sur l'ensemble des fichiers retenus (première occurrence chronologique gardée), les messages synthétiques (`id == "<synthetic>"`) écartés.
 
-Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis la page HTML correspondante, à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte Wavestone, un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis la page HTML correspondante, à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte générique (jetons CSS `--c-*`, polices système, sans appel réseau), un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+
+### Page à votre propre charte
+
+La variable d'environnement `AGENT_COST_KIT_GABARIT_BILAN` désigne un autre fichier de gabarit (chemin vers un `.html`) ; `scripts/bilan_tokens.py` l'utilise à la place de `skills/bilan-tokens/gabarit.html`. Le fichier doit contenir le point d'injection `const BILAN=/*__BILAN__*/null;` ; le script s'arrête avec un message si le fichier est introuvable ou sans point d'injection. Marche à suivre : copier `gabarit.html`, y changer les jetons `--c-*` (et le logo), puis définir la variable dans l'environnement du shell ou dans la clé `env` de `~/.claude/settings.json`. Sans la variable, le gabarit du plugin est utilisé.
 
 ## Consolider plusieurs PC
 

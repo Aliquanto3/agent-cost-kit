@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import sys
 from datetime import datetime, timezone
@@ -50,6 +51,7 @@ import mesurer_couts as mc
 UTC = timezone.utc  # noqa: UP017 - datetime.UTC n'existe qu'à partir de Python 3.11
 SCHEMA = 1
 GABARIT = Path(__file__).resolve().parent.parent / "skills" / "bilan-tokens" / "gabarit.html"
+ENV_GABARIT = "AGENT_COST_KIT_GABARIT_BILAN"  # chemin d'un gabarit de remplacement (page à votre propre charte)
 PLACEHOLDER = "const BILAN=/*__BILAN__*/null;"
 RACINE_DEFAUT = Path.home() / ".claude" / "projects"
 
@@ -241,10 +243,22 @@ def totaux_machine(modeles: list[dict]) -> dict:
     return t
 
 
+def chemin_gabarit() -> Path:
+    """Gabarit du plugin, ou le fichier désigné par la variable d'environnement ``AGENT_COST_KIT_GABARIT_BILAN``."""
+    voulu = os.environ.get(ENV_GABARIT)
+    if not voulu:
+        return GABARIT
+    chemin = Path(voulu).expanduser()
+    if not chemin.is_file():
+        sys.exit(f"{ENV_GABARIT} : fichier introuvable : {chemin}")
+    return chemin
+
+
 def ecrire_html(bilan: dict, chemin: Path) -> None:
-    gabarit = GABARIT.read_text(encoding="utf-8")
+    source = chemin_gabarit()
+    gabarit = source.read_text(encoding="utf-8")
     if PLACEHOLDER not in gabarit:
-        sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {GABARIT}")
+        sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {source}")
     injection = json.dumps(bilan, ensure_ascii=False).replace("</", "<\\/")
     chemin.write_text(gabarit.replace(PLACEHOLDER, f"const BILAN={injection};"), encoding="utf-8")
 

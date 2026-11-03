@@ -252,3 +252,31 @@ def test_fusion_refuse_des_methodes_differentes(tmp_path):
     assert consolide["methode"] == "ecologits"
     with pytest.raises(SystemExit):
         bt.commande_fusion(Namespace(fusionner=[a, ancien], out=tmp_path / "ko2"))
+
+
+def test_gabarit_de_remplacement_par_variable_d_environnement(tmp_path, monkeypatch):
+    perso = tmp_path / "perso.html"
+    perso.write_text("<p>charte perso</p><script>" + bt.PLACEHOLDER + "</script>", encoding="utf-8")
+    monkeypatch.setenv(bt.ENV_GABARIT, str(perso))
+    assert bt.chemin_gabarit() == perso
+    sortie = tmp_path / "b.html"
+    bt.ecrire_html({"schema": 1, "machine": "pc", "mois": "2026-10", "dossier": None, "modeles": []}, sortie)
+    html = sortie.read_text(encoding="utf-8")
+    assert html.startswith("<p>charte perso</p>")
+    assert "const BILAN={" in html
+
+
+def test_gabarit_par_defaut_sans_variable(monkeypatch):
+    monkeypatch.delenv(bt.ENV_GABARIT, raising=False)
+    assert bt.chemin_gabarit() == bt.GABARIT
+
+
+def test_gabarit_de_remplacement_introuvable_ou_sans_point_d_injection(tmp_path, monkeypatch):
+    monkeypatch.setenv(bt.ENV_GABARIT, str(tmp_path / "absent.html"))
+    with pytest.raises(SystemExit, match="fichier introuvable"):
+        bt.chemin_gabarit()
+    vide = tmp_path / "vide.html"
+    vide.write_text("rien", encoding="utf-8")
+    monkeypatch.setenv(bt.ENV_GABARIT, str(vide))
+    with pytest.raises(SystemExit, match="point d'injection"):
+        bt.ecrire_html({"schema": 1}, tmp_path / "o.html")
