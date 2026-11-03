@@ -18,7 +18,7 @@ Une story, branche `feat/0.16-bilan-detail`. Le bilan mensuel (`bilan-tokens`) n
 - `.../scratchpad/sections.html` : CSS et JS des sections 04 à 07 (à intégrer au gabarit) ;
 - `.../scratchpad/bilan_periode.py` : filtre par période.
 
-Résultat attendu sur les données réelles (ordre de grandeur, pour se repérer) : 7 949 $ au total, dont 32 % pour l'orchestrateur ; développement 46 %, relecture et tests 25 % ; WaveStack 2 140 $.
+Résultat attendu sur les données réelles (ordre de grandeur, pour se repérer) : 7 949 $ au total, dont 32 % pour l'orchestrateur ; développement 46 %, relecture et tests 25 % ; HarnessLab 2 140 $.
 
 ## Ce que les transcriptions fournissent
 
