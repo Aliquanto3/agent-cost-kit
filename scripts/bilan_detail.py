@@ -47,7 +47,7 @@ SKILLS = [
     (r"cost-kit|mesurer-couts|bilan-tokens|plugin|update-config|permission|schedule|workflow-authoring"
      r"|keybindings|statusline|init|project-context|customize|skill-creator|demo-mod", "outillage"),
     (r"writing-style|slide|carrousel|linkedin|artifact|dataviz|docs|pptx|docx|credential|propale"
-     r"|writing-technical-docs", "contenus"),
+     r"|writing-technical-docs|site-web|landing|webdesign|(?<!aidd)-web$", "contenus"),
 ]
 # Commandes qui ne changent pas de tâche : elles n'interrompent ni ne remplacent le skill actif.
 IGNORES = {"plugin", "reload-plugins", "login", "model", "effort", "context", "details", "agents", "rename",

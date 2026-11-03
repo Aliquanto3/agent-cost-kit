@@ -244,21 +244,38 @@ def totaux_machine(modeles: list[dict]) -> dict:
 
 
 def chemin_gabarit() -> Path:
-    """Gabarit du plugin, ou le fichier désigné par la variable d'environnement ``AGENT_COST_KIT_GABARIT_BILAN``."""
+    """Gabarit du plugin, ou le fichier désigné par la variable d'environnement ``AGENT_COST_KIT_GABARIT_BILAN``.
+
+    ``~`` est développé ; un chemin relatif se résout depuis le dossier courant.
+    """
     voulu = os.environ.get(ENV_GABARIT)
     if not voulu:
         return GABARIT
-    chemin = Path(voulu).expanduser()
+    chemin = Path(voulu).expanduser().absolute()
+    if chemin.is_dir():
+        sys.exit(f"{ENV_GABARIT} : {chemin} est un dossier ; donner le chemin d'un fichier .html.")
     if not chemin.is_file():
         sys.exit(f"{ENV_GABARIT} : fichier introuvable : {chemin}")
     return chemin
 
 
-def ecrire_html(bilan: dict, chemin: Path) -> None:
+def lire_gabarit() -> str:
+    """Texte du gabarit, validé (UTF-8, point d'injection présent) ; à appeler avant d'écrire la moindre sortie."""
     source = chemin_gabarit()
-    gabarit = source.read_text(encoding="utf-8")
+    try:
+        gabarit = source.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        sys.exit(f"Gabarit illisible : {source} n'est pas encodé en UTF-8.")
+    except OSError as erreur:
+        sys.exit(f"Gabarit illisible : {source} ({erreur})")
     if PLACEHOLDER not in gabarit:
         sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {source}")
+    return gabarit
+
+
+def ecrire_html(bilan: dict, chemin: Path, gabarit: str | None = None) -> None:
+    if gabarit is None:
+        gabarit = lire_gabarit()
     injection = json.dumps(bilan, ensure_ascii=False).replace("</", "<\\/")
     chemin.write_text(gabarit.replace(PLACEHOLDER, f"const BILAN={injection};"), encoding="utf-8")
 
@@ -317,10 +334,11 @@ def commande_collecte(options) -> int:
 
 def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str) -> None:
     """Écrit ``<periode>-<suffixe>.json`` et ``.html`` dans ``out``."""
+    gabarit = lire_gabarit()  # gabarit invalide : arrêt avant toute écriture
     out.mkdir(parents=True, exist_ok=True)
     chemin_json, chemin_html = out / f"{periode}-{suffixe}.json", out / f"{periode}-{suffixe}.html"
     chemin_json.write_text(json.dumps(bilan, ensure_ascii=False, indent=2), encoding="utf-8")
-    ecrire_html(bilan, chemin_html)
+    ecrire_html(bilan, chemin_html, gabarit)
     print(f"\nÉcrit : {chemin_json}\n        {chemin_html}")
 
 

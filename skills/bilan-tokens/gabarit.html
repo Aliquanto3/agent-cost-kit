@@ -9,7 +9,7 @@
   --c-succes:#1D7337; --c-succes-doux:#E1F2E6;
   --c-alerte:#E8A317; --c-alerte-texte:#7A4E00; --c-alerte-doux:#FCF0D4;
   --c-erreur:#B42318; --c-erreur-doux:#FCE4E1;
-  --c-focus:#1F5FD1; --c-cat-3:#2F68D0; --c-sur-statut:#FFFFFF;
+  --c-focus:#1F5FD1; --c-cat-3:#2F68D0; --c-cat-8:#9A7400; --c-sur-statut:#FFFFFF;
   --radius-sm:12px; --radius-md:16px; --ease:cubic-bezier(0.16,1,0.3,1);
   --sans:system-ui,'Segoe UI',Roboto,sans-serif; --mono:'Cascadia Mono',Consolas,ui-monospace,monospace;
 }
@@ -187,9 +187,9 @@ tr.me td.name{padding-left:30px;color:var(--c-texte-attenue);font-weight:500}
   <div class="nav-in">
     <a href="#top" class="logo">
       <svg class="logo-svg" viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-        <rect width="32" height="32" rx="8" fill="var(--c-primaire)"/>
-        <path d="M9 10h14M9 16h9M9 22h14" stroke="var(--c-sur-statut)" stroke-width="3" stroke-linecap="round" fill="none"/>
-        <circle cx="23" cy="16" r="2.5" fill="var(--c-accent)"/>
+        <rect width="32" height="32" rx="8" style="fill:var(--c-primaire)"/>
+        <path d="M9 10h14M9 16h9M9 22h14" stroke-width="3" stroke-linecap="round" fill="none" style="stroke:var(--c-sur-statut)"/>
+        <circle cx="23" cy="16" r="2.5" style="fill:var(--c-accent)"/>
       </svg>
       <span>Bilan des tokens</span>
     </a>
@@ -354,7 +354,7 @@ const BILAN=/*__BILAN__*/null;
 // Échappement des textes venus du JSON (chemin, nom de machine, identifiant de modèle) avant innerHTML.
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);}
 // --- Dérivation du nom et de la couleur d'affichage depuis l'identifiant du modèle ---
-const HUES={opus:262,sonnet:142,haiku:42,fable:265,mythos:320};
+const HUES={opus:205,sonnet:142,haiku:42,fable:0,mythos:320};
 function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=(h*31+s.charCodeAt(i))|0;}return Math.abs(h);}
 function nomAffiche(id){
   const m=/claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?/.exec(id);
@@ -474,11 +474,11 @@ document.getElementById("kpis").innerHTML=[
 ].map(([c,i,v,l])=>`<div class="kpi ${c}"><span class="ico">${i}</span><b>${v}</b><span>${l}</span></div>`).join("");
 
 // Anneau de répartition du coût (r = 15,915 : circonférence de 100).
-const parts=[["♻️ Lecture cache",TOTAL.cLu,"var(--c-primaire)"],["✍️ Écriture cache",TOTAL.cEc,"var(--c-cat-3)"],["📤 Output",TOTAL.cOut,"var(--c-succes)"],["🆕 Input non caché",TOTAL.cIn,"var(--c-alerte)"]];
-let off=25,svg='<circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--c-trait)" stroke-width="6"/>';
+const parts=[["♻️ Lecture cache",TOTAL.cLu,"var(--c-primaire)"],["✍️ Écriture cache",TOTAL.cEc,"var(--c-cat-3)"],["📤 Output",TOTAL.cOut,"var(--c-succes)"],["🆕 Input non caché",TOTAL.cIn,"var(--c-cat-8)"]];
+let off=25,svg='<circle cx="21" cy="21" r="15.915" fill="none" stroke-width="6" style="stroke:var(--c-trait)"/>';
 for(const [,v,c] of parts){const p=TOTAL.cTot?100*v/TOTAL.cTot:0;if(p<0.05)continue;
-  svg+=`<circle cx="21" cy="21" r="15.915" fill="none" stroke="${c}" stroke-width="6" stroke-dasharray="${p} ${100-p}" stroke-dashoffset="${off}"/>`;off-=p;}
-svg+=`<text x="21" y="20.5" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="6" fill="var(--c-texte)">${nf(TOTAL.cTot)} $</text><text x="21" y="26" text-anchor="middle" font-family="system-ui,sans-serif" font-size="3" fill="var(--c-texte-attenue)">équivalent API</text>`;
+  svg+=`<circle cx="21" cy="21" r="15.915" fill="none" style="stroke:${c}" stroke-width="6" stroke-dasharray="${p} ${100-p}" stroke-dashoffset="${off}"/>`;off-=p;}
+svg+=`<text x="21" y="20.5" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="6" style="fill:var(--c-texte)">${nf(TOTAL.cTot)} $</text><text x="21" y="26" text-anchor="middle" font-family="system-ui,sans-serif" font-size="3" style="fill:var(--c-texte-attenue)">équivalent API</text>`;
 document.getElementById("donut").innerHTML=svg;
 document.getElementById("legend").innerHTML=parts.map(([l,v,c])=>`<div><i style="background:${c}"></i><span>${l}</span><b>${usd(v)}</b></div>`).join("");
 
