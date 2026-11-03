@@ -14,6 +14,12 @@ import bilan_tokens as bt
 import mesurer_couts as mc
 
 
+@pytest.fixture(autouse=True)
+def _sans_gabarit_de_remplacement(monkeypatch):
+    """Un gabarit personnel défini sur le poste ne doit pas changer le résultat des tests."""
+    monkeypatch.delenv(bt.ENV_GABARIT, raising=False)
+
+
 def ligne(ts: str, mid: str, modele: str, texte: str = "x" * 220, **usage) -> str:
     base_usage = {
         "input_tokens": 1000,
@@ -252,3 +258,70 @@ def test_fusion_refuse_des_methodes_differentes(tmp_path):
     assert consolide["methode"] == "ecologits"
     with pytest.raises(SystemExit):
         bt.commande_fusion(Namespace(fusionner=[a, ancien], out=tmp_path / "ko2"))
+
+
+def test_gabarit_de_remplacement_par_variable_d_environnement(tmp_path, monkeypatch):
+    perso = tmp_path / "perso.html"
+    perso.write_text("<p>charte perso</p><script>" + bt.PLACEHOLDER + "</script>", encoding="utf-8")
+    monkeypatch.setenv(bt.ENV_GABARIT, str(perso))
+    assert bt.chemin_gabarit() == perso
+    sortie = tmp_path / "b.html"
+    bt.ecrire_html({"schema": 1, "machine": "pc", "mois": "2026-10", "dossier": None, "modeles": []}, sortie)
+    html = sortie.read_text(encoding="utf-8")
+    assert html.startswith("<p>charte perso</p>")
+    assert "const BILAN={" in html
+
+
+def test_gabarit_par_defaut_sans_variable(monkeypatch):
+    monkeypatch.delenv(bt.ENV_GABARIT, raising=False)
+    assert bt.chemin_gabarit() == bt.GABARIT
+
+
+def test_gabarit_de_remplacement_introuvable_ou_sans_point_d_injection(tmp_path, monkeypatch):
+    monkeypatch.setenv(bt.ENV_GABARIT, str(tmp_path / "absent.html"))
+    with pytest.raises(SystemExit, match="fichier introuvable"):
+        bt.chemin_gabarit()
+    vide = tmp_path / "vide.html"
+    vide.write_text("rien", encoding="utf-8")
+    monkeypatch.setenv(bt.ENV_GABARIT, str(vide))
+    with pytest.raises(SystemExit, match="point d'injection"):
+        bt.ecrire_html({"schema": 1}, tmp_path / "o.html")
+
+
+def test_gabarit_invalide_arrete_avant_toute_sortie(tmp_path, monkeypatch):
+    bilan = {"schema": 1, "machine": "pc", "mois": "2026-10", "dossier": None, "modeles": []}
+    latin1 = tmp_path / "latin1.html"
+    latin1.write_bytes(("<p>charte é</p>" + bt.PLACEHOLDER).encode("latin-1"))
+    for valeur, motif in [(latin1, "UTF-8"), (tmp_path, "est un dossier"), (tmp_path / "absent.html", "introuvable")]:
+        monkeypatch.setenv(bt.ENV_GABARIT, str(valeur))
+        out = tmp_path / f"out-{motif[:4]}"
+        with pytest.raises(SystemExit, match=motif):
+            bt.ecrire_bilan(bilan, out, "2026-10", "pc")
+        assert not out.exists()
+
+
+def test_gabarit_de_remplacement_avec_tilde_et_chemin_relatif(tmp_path, monkeypatch):
+    perso = tmp_path / "perso.html"
+    perso.write_text(bt.PLACEHOLDER, encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setenv(bt.ENV_GABARIT, "~/perso.html")
+    assert bt.chemin_gabarit() == perso
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv(bt.ENV_GABARIT, "perso.html")
+    assert bt.chemin_gabarit() == perso
+
+
+def test_gabarit_du_plugin_coherent():
+    import re
+
+    gabarit = bt.GABARIT.read_text(encoding="utf-8")
+    assert gabarit.count(bt.PLACEHOLDER) == 1
+    assert "--ws-" not in gabarit
+    # Seule mention admise : la citation factuelle des auteurs d'ImpactIA.
+    assert "wavestone" not in gabarit.replace("SNCF, Wavestone et Resilio", "").lower()
+    definis = set(re.findall(r"(--[a-z][\w-]*)\s*:", gabarit))
+    utilises = set(re.findall(r"var\((--[a-z][\w-]*)", gabarit))
+    assert utilises and utilises <= definis, sorted(utilises - definis)
+    # var() n'est pas permis dans un attribut de présentation SVG : il passe par style.
+    assert not re.search(r'\s(?:fill|stroke)="var\(', gabarit)

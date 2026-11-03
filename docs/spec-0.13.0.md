@@ -25,7 +25,7 @@ D'où : un filet de sécurité bon marché, à garder expérimental tant qu'on n
 
 1. **`modeles/agents/verif-front.md`** : le modèle d'agent.
    - Frontmatter : `name: verif-front` ; `description` (une phrase : vérification en lecture seule, dans un vrai navigateur, des critères d'acceptation d'une story front, après dev-story et avant second-avis ; expérimental) ; `model: sonnet` ; `effort: medium` ; `tools: Read, mcp__playwright__*` (ni Bash, ni Edit, ni Write) ; `mcpServers` avec une définition en ligne `playwright` : `type: stdio`, `command: npx`, `args: ["-y", "@playwright/mcp@0.0.83", "--headless", "--isolated", "--output-dir", ".claude/cost-kit/verif-front"]`. Version **épinglée** (0.0.83 est celle relue et passée à SkillSpector en T7, provenance npm vérifiée) ; jamais `@latest`.
-   - Corps : reprendre la consigne du vérificateur de T12 (`tests-pratiques/T12-front/scripts/verifier.py`, constante `PROMPT`, dépôt `veille-agents-code`, dossier local `C:\Users\Utilisateur\Documents\GitHub\veille-agents-code`) en la généralisant et en y intégrant les leçons du test :
+   - Corps : reprendre la consigne du vérificateur de T12 (`tests-pratiques/T12-front/scripts/verifier.py`, constante `PROMPT`, dépôt `veille-agents-code`) en la généralisant et en y intégrant les leçons du test :
      - lecture seule : il ne modifie rien, ne lit pas le code source ; seulement le fichier de spec que l'orchestrateur lui désigne (outil Read), et le navigateur ;
      - l'orchestrateur lui donne : l'URL de l'application déjà démarrée, le chemin de la spec de la story (**la même que celle donnée à dev-story**, pas une paraphrase), et s'il y a lieu le mode de lancement ou un compte de test ;
      - il n'ouvre que cette application, au plus 40 appels d'outil ;

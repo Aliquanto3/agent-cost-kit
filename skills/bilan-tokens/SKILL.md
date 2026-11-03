@@ -1,6 +1,6 @@
 ---
 name: bilan-tokens
-description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact ImpactIA ou EcoLogits) par modèle, publie une page HTML à la charte Wavestone, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
+description: Refait le bilan mensuel des tokens Claude Code (input détaillé, output, coût API équivalent, impact ImpactIA ou EcoLogits) par modèle, publie une page HTML à la charte générique, et consolide plusieurs PC. À invoquer avec « bilan tokens », « combien de tokens ce mois », « consommation Claude Code du mois », « consolider mes PC ».
 ---
 
 Tu rejoues le bilan mensuel des tokens depuis les transcriptions locales, sans appel d'API.

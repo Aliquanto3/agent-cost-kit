@@ -16,6 +16,13 @@ import bilan_detail as bd
 import bilan_tokens as bt
 import mesurer_couts as mc
 
+
+@pytest.fixture(autouse=True)
+def _sans_gabarit_de_remplacement(monkeypatch):
+    """Un gabarit personnel défini sur le poste ne doit pas changer le résultat des tests."""
+    monkeypatch.delenv(bt.ENV_GABARIT, raising=False)
+
+
 CWD_A = "C:\\Users\\u\\Documents\\GitHub\\depot-a"
 OPUS, SONNET, HAIKU = "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"
 
@@ -755,3 +762,16 @@ def test_page_sans_portfolio_ni_detail(tmp_path):
     sortie = lancer_page(tmp_path, sans)
     assert "tbl-projets" not in sortie and "liste-recos" not in sortie and "nav-links" not in sortie
     assert "detail-mount" not in sortie
+
+
+@pytest.mark.parametrize(
+    ("skill", "attendu"),
+    [
+        ("wavestone-pptx", "contenus"), ("wavestone-web", "contenus"), ("wavestone-linkedin-carrousel", "contenus"),
+        ("wavestone-linkedin-video", "contenus"), ("wavestone-propale", "contenus"),
+        ("wavestone-credential", "contenus"), ("charte-web", "contenus"),
+        ("web-search", None), ("webapp", None), ("aidd-web", None),
+    ],
+)
+def test_skills_de_contenus_sans_nom_de_marque(skill, attendu):
+    assert bd.groupe_skill(skill) == attendu
