@@ -21,6 +21,7 @@ Plafond global : 5 agents actifs à la fois sous Windows (développement, revue 
 - Fusion : la file de PR se fusionne par `scripts/file_prs.py`. Journaliser `fusion` seulement après avoir vérifié `MERGED`.
 - Fusion de la branche principale à conflits de fond (refusée aux sous-agents) : l'orchestrateur la lance, résout les fichiers d'état et le trivial, et confie la fusion en cours au reviewer (« étape 1 »).
 - `git worktree prune` avant chaque lancement. Les worktrees ne sont supprimés qu'en fin de run. Clôture : après la dernière fusion, `scripts/menage_run.py` en simulation, puis `--appliquer` (ligne `ménage` au journal) ; branches distantes seulement avec `--distant`, liste montrée à Anaël.
+- Run lancé par `scripts/relancer_run.py` : s'arrêter seulement en fin de vague, aucun agent en cours, puis Brief + ligne `ETAT:`. Les agents d'une vague partent dans un même message (appels parallèles et bloquants), jamais en arrière-plan : en `claude -p`, une notification d'agent arrivée après la fin du tour est perdue.
 - Heure du journal : toujours prise par `date` au moment d'écrire, jamais devinée. `uv run python` sous Windows.
 
 ## Sessions autorisées à modifier le périmètre
@@ -34,6 +35,16 @@ Plafond global : 5 agents actifs à la fois sous Windows (développement, revue 
 Noms, constantes, formats décidés tôt et envoyés par message aux agents en cours.
 
 - (aucun)
+
+## Brief
+
+Reprise d'une nouvelle session (`scripts/relancer_run.py`, `/clear`) : 40 lignes au plus, pas de récit ; réécrit à chaque arrêt de session. Les autres sections restent la référence.
+
+- **Tâche du run** (quasi verbatim) : …
+- **Intention courante** : …
+- **Plan des vagues restantes** : …
+- **Artefacts utiles** (fichiers, modules, conventions, décisions) : …
+- **Pièges rencontrés** : …
 
 ## Sprint 1 — v0.1 (Epics 1 à 3)
 

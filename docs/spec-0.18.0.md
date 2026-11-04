@@ -1,6 +1,6 @@
 ---
 title: "agent-cost-kit 0.18.0 : relanceur des runs autonomes, nouvelle session au-delà d'un seuil de contexte"
-status: draft
+status: review
 date: 2026-11-04
 source: "veille-agents-code, T16 (tests-pratiques/T16-compaction-brief/resultats.md) et arXiv 2611.05306"
 ---
