@@ -112,3 +112,13 @@ Base à jour (origin/master 20eae7f, pas de rebase). Second avis Haiku repris po
 - **Nit**, low, revue : `avancement_run.lire_plan` cherche « Au plus N stories » dans tout le texte, Brief compris ; non corrigé (phrase improbable dans un brief).
 - Complexité : 0 constat (journal en ajout ; transcription relue une fois par tour, un tour durant une vague).
 - Ruff non lancé (pas de config, CI sans ruff, erreurs préexistantes).
+
+### Passe 2 (2026-11-04, SHA revu 3f83327)
+
+Base à jour (origin/master 20eae7f, pas de rebase). Relu : `git diff b70e31f..3f83327`. Aucun constat Important.
+
+- **Nit**, low, revue : `MOTIF_ETAT` en `IGNORECASE` reconnaît une ligne de prose en tête de ligne (`État : fini pour la story 2.1` → FINI). Sans effet si la vraie ligne `ETAT:` termine le résultat (la dernière l'emporte) ; sinon un FINI (code 0) remplace ABSENT (code 3), les deux arrêtent le run. Une ligne citée au milieu d'une phrase (`le format est ETAT: FINI`) reste ignorée. Rejeté : la casse tolérée est le choix de la passe 1.
+- **Nit**, low, revue : `lire_plan` referme le Brief sur toute ligne `#`/`##` ; une ligne de commentaire `# …` dans un bloc de code du Brief le refermerait, et des sprints titrés `### Sprint N` juste après le Brief seraient sautés (le modèle utilise `## Sprint N`). Rejeté : cas improbables, le modèle est respecté.
+- **Nit**, low, revue : `permissions.allow` de la doc : syntaxe `Bash(cmd:*)` valide ; `Bash(uv:*)` ouvre l'exécution de tout code et `Bash(gh:*)` toute opération GitHub. Corrigé : doc qui le dit et propose des `permissions.deny` (`git push --force`, `gh repo delete`).
+- Avertissements sur stderr seulement : la sortie standard (résumé final) reste propre, `--a-sec` n'en émet pas. Coût : nouvelle session remet le cumul à 0 avant le tour, donc un coût absent au premier tour donne bien 0.
+- Complexité : 0 constat.
