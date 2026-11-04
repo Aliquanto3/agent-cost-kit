@@ -111,12 +111,15 @@ def lire_plan(texte: str) -> dict:
         plan["parallelisme"] = int(m[1])
     sprint = ""
     bruts: dict[str, str] = {}
+    brief = False  # section `## Brief` (relanceur) : texte libre, un tableau de vagues y serait un doublon du plan
     for ligne in lignes:
         if ligne.startswith("#"):
             m = re.search(r"Sprint\s+(\d+)", ligne)
             sprint = m[0] if m else ""
+            if not ligne.startswith("###"):  # un sous-titre du Brief ne le referme pas
+                brief = ligne.strip("# ").lower().startswith("brief")
             continue
-        if not ligne.startswith("|"):
+        if brief or not ligne.startswith("|"):
             continue
         c = cellules(ligne)
         if len(c) >= 2 and "Hors run" in c[0]:

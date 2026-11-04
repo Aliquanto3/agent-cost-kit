@@ -16,7 +16,9 @@ uv run --no-project python -I <kit>/scripts/relancer_run.py --projet . [--seuil 
   [--modele claude-opus-5-5] [--effort medium] [--budget-tour 10] [--permission-mode acceptEdits] [--etat CHEMIN] [--a-sec]
 ```
 
-`--a-sec` affiche les commandes et la décision sans rien exécuter. Aucun délai d'expiration sur l'appel à `claude` : un tour peut durer des heures. Le prompt passe sur l'entrée standard. Un `--claude` qui finit par `.py` est lancé par l'interpréteur courant (tests). La racine des transcriptions se surcharge par `AGENT_COST_KIT_RACINE_TRANSCRIPTIONS` (tests).
+`--a-sec` affiche les commandes et la décision sans rien exécuter. Aucun délai d'expiration sur l'appel à `claude` : un tour peut durer des heures. Le prompt passe sur l'entrée standard. Un `--claude` qui finit par `.py` est lancé par l'interpréteur courant (tests). La racine des transcriptions est `$CLAUDE_CONFIG_DIR/projects` si cette variable est posée, sinon `~/.claude/projects` ; elle se surcharge par `AGENT_COST_KIT_RACINE_TRANSCRIPTIONS` (tests). Transcription introuvable : avertissement sur la sortie d'erreur, pic compté 0 (donc pas de relance).
+
+**Permissions** : en `claude -p`, rien ne peut être approuvé à la main. `--permission-mode acceptEdits` (défaut) n'autorise que les éditions de fichiers ; l'orchestrateur a besoin aussi de `git`, `gh`, `uv` et des agents. Avant le premier run, poser une liste `permissions.allow` dans `.claude/settings.json` du projet (par ex. `Bash(git:*)`, `Bash(gh:*)`, `Bash(uv:*)`, `Task`), ou choisir un autre mode en connaissance de cause. Vérifier d'abord sur un tour court avec `--max-tours 1`.
 
 Boucle : un tour est une nouvelle session (prompt de reprise, `--session-id` neuf) à la première fois ou si le pic du tour précédent atteint le seuil, sinon une reprise (`--resume`, prompt de suite). L'orchestrateur ne s'arrête qu'à un point calme (fin de vague, aucun agent en cours, journal à jour) et termine par une ligne `ETAT: CONTINUER|FINI|ATTENTE_HUMAINE|BLOQUE — <raison>`. Le pic est celui de la session principale (sous-agents exclus) : maximum de `input + cache_read + cache_creation` sur les appels postérieurs au début du tour.
 
@@ -32,7 +34,7 @@ Boucle : un tour est une nouvelle session (prompt de reprise, `--session-id` neu
 
 ## `relancer-run.jsonl`
 
-Une ligne JSON par tour, dans le dossier du fichier d'état (le script n'écrit rien d'autre ; l'orchestrateur reste seul à tenir `## Journal`) : `debut`, `fin` (heure locale ISO), `session`, `mode` (`nouvelle` ou `reprise`), `pic` (tokens), `cout_usd` (`total_cost_usd`, **cumulé par session** avec `--resume`), `cout_delta_usd` (coût du tour), `etat`, `raison`, `code` (code de retour de `claude`). Le coût total du résumé final est la somme des deltas.
+Une ligne JSON par tour, dans le dossier du fichier d'état (le script n'écrit rien d'autre ; l'orchestrateur reste seul à tenir `## Journal`) : `debut`, `fin` (heure locale ISO), `session`, `mode` (`nouvelle` ou `reprise`), `pic` (tokens), `cout_usd` (`total_cost_usd`, **supposé cumulé par session** avec `--resume`), `cout_delta_usd` (coût du tour), `etat`, `raison`, `code` (code de retour de `claude`). Le coût total du résumé final est la somme des deltas. Si `total_cost_usd` baisse d'un tour à l'autre de la même session, il est compté comme le coût du seul tour ; s'il manque (erreur sans JSON), le delta vaut 0. Hypothèse du cumul non vérifiée sur la CLI réelle : au premier run, comparer la somme des deltas au coût de `mesurer-couts` sur la même période.
 
 ## Limites
 

@@ -94,3 +94,21 @@ Un faux `claude` (script Python de fixture, appelé via `--claude`) qui lit un s
 - **Given** une ligne `ETAT: ATTENTE_HUMAINE — accord pour couper`, **When** le tour se termine, **Then** le relanceur s'arrête avec le code 2 et affiche la raison.
 - **Given** un fichier d'état contenant `## Brief`, **When** on lance `avancement_run.py`, **Then** la sortie est identique à celle du même fichier sans cette section.
 - Contrôles : `uv run pytest -q`, `uv run ruff check`, `uv run ruff format --check`.
+
+## Revue
+
+### Passe 1 (2026-11-04, SHA revu b70e31f)
+
+Base à jour (origin/master 20eae7f, pas de rebase). Second avis Haiku repris point par point.
+
+- **Important**, medium, second avis 1 : `MOTIF_ETAT` refusait `**ETAT: FINI** — ok`, `` `ETAT: …` ``, `ETAT : …`, `- ETAT: …`, `ETAT: FINI.`, `ETAT: FINI (3 vagues)` ; un CONTINUER en gras arrêtait le run (code 3) et un FINI mal reconnu laissait gagner une ligne antérieure. Corrigé : motif tolérant à la mise en forme Markdown et à la casse, tests paramétrés.
+- **Important**, medium, second avis 2 : erreur de la CLI sans JSON en reprise → `total_cost_usd` lu 0, delta négatif journalisé, coût total sous-estimé. Corrigé : coût absent → delta 0, cumul inchangé ; test.
+- **Important**, medium, second avis 3 : `## Brief` est placé avant `## Sprint 1` ; un plan restant écrit en tableau (`| V1 | … |`) était lu par `lire_plan` (vague écrasée). Corrigé : `lire_plan` saute la section `## Brief` (ses sous-titres `###` compris) ; test qui compare les plans avec et sans Brief (échoue sur l'ancien code).
+- **Important**, medium, second avis 4 : transcription absente → pic 0 silencieux ; `CLAUDE_CONFIG_DIR` ignoré. Corrigé : racine `$CLAUDE_CONFIG_DIR/projects` si posée, avertissement sur stderr si la transcription manque ou est illisible ; tests.
+- **Nit**, medium ramené à low, second avis 5 : sémantique de `total_cost_usd` en `--resume` (cumulée ou par appel) non vérifiable ici ; n'affecte que le compte rendu (le plafond par tour reste celui de la CLI). Corrigé en partie : une valeur en baisse compte comme coût du seul tour ; limite documentée. **Reporté** : au premier run réel, comparer la somme des `cout_delta_usd` au coût de `mesurer-couts` sur la période.
+- **Nit**, low, second avis 6 : `acceptEdits` n'autorise pas Bash en `-p`. Corrigé dans `docs/relancer-run.md` (liste `permissions.allow` : git, gh, uv, Task ; essai `--max-tours 1`).
+- **Nit**, low, second avis 7 : `OSError` au lancement ou sortie non UTF-8 → trace, tour non journalisé. Corrigé : `errors="replace"`, `OSError` → code 4 journalisé ; test.
+- **Nit**, low, Pyright : `str | None` (l. 139, 152) faux positifs (session toujours posée à ce point) ; `reconfigure` déjà gardé par `hasattr` ; `__doc__.splitlines()` cassait sous `python -OO` : description en dur. Corrigé pour `__doc__`, le reste rejeté (pas de défaut).
+- **Nit**, low, revue : `avancement_run.lire_plan` cherche « Au plus N stories » dans tout le texte, Brief compris ; non corrigé (phrase improbable dans un brief).
+- Complexité : 0 constat (journal en ajout ; transcription relue une fois par tour, un tour durant une vague).
+- Ruff non lancé (pas de config, CI sans ruff, erreurs préexistantes).

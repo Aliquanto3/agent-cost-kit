@@ -48,13 +48,14 @@ ligne = {
                 "usage": {"input_tokens": 10, "cache_read_input_tokens": pic - 30,
                           "cache_creation_input_tokens": 20, "output_tokens": 5}},
 }
-with open(dossier / f"{session}.jsonl", "a", encoding="utf-8") as f:
-    f.write(json.dumps(ligne) + "\n")
+if not tour.get("sans_transcription"):
+    with open(dossier / f"{session}.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(ligne) + "\n")
 if tour.get("sortie_invalide"):
     print("pas du json")
-    sys.exit(0)
+    sys.exit(1)
 print(json.dumps({"type": "result", "is_error": tour.get("is_error", False), "session_id": session,
-                  "result": tour.get("etat", ""), "total_cost_usd": etat["cumul"][session]}))
+                  "result": tour.get("etat", ""), "total_cost_usd": tour.get("total", etat["cumul"][session])}))
 '''
 
 
@@ -168,6 +169,63 @@ def test_derniere_ligne_etat_l_emporte(banc):
     assert banc.lancer([tour]) == 0
 
 
+@pytest.mark.parametrize(
+    "texte, attendu",
+    [
+        ("ETAT: FINI.", ("FINI", "")),
+        ("`ETAT: FINI — ok`", ("FINI", "ok")),
+        ("**ETAT: FINI** — ok", ("FINI", "ok")),
+        ("ETAT : CONTINUER — vague V3", ("CONTINUER", "vague V3")),
+        ("- ETAT: BLOQUE — CI rouge", ("BLOQUE", "CI rouge")),
+        ("> ETAT: ATTENTE_HUMAINE - accord", ("ATTENTE_HUMAINE", "accord")),
+        ("ETAT: FINI (3 vagues)", ("FINI", "(3 vagues)")),
+        ("État: fini — ok", ("FINI", "ok")),
+        ("ETAT: FINISSANT", (None, "")),
+        ("le format est ETAT: FINI", (None, "")),
+    ],
+)
+def test_lire_etat_tolere_la_mise_en_forme(texte, attendu):
+    assert rr.lire_etat(texte) == attendu
+
+
+def test_ligne_finale_en_gras_l_emporte_sur_un_continuer_anterieur():
+    assert rr.lire_etat("ETAT: CONTINUER — brouillon\n\n**ETAT: FINI** — tout est fusionné")[0] == "FINI"
+
+
+def test_erreur_sans_json_en_reprise_ne_rend_pas_le_cout_negatif(banc, capsys):
+    assert banc.lancer([continuer(60_000, cout=2.0), {"sortie_invalide": True}]) == 4
+    assert [x["cout_delta_usd"] for x in banc.lignes()] == [2.0, 0.0]
+    assert "coût : 2.00 $" in capsys.readouterr().out
+
+
+def test_cout_en_baisse_compte_comme_cout_du_seul_appel(banc, capsys):
+    # Si la CLI ne cumulait pas total_cost_usd en --resume, la valeur peut baisser : elle vaut alors le tour.
+    assert banc.lancer([continuer(60_000, cout=2.0), FINI | {"total": 0.5}]) == 0
+    assert [x["cout_delta_usd"] for x in banc.lignes()] == [2.0, 0.5]
+    assert "coût : 2.50 $" in capsys.readouterr().out
+
+
+def test_executable_introuvable_au_lancement_code_4_journalise(banc, tmp_path, capsys):
+    absent = str(tmp_path / "claude-absent.exe")
+    assert rr.principal(["--projet", str(banc.projet), "--claude", absent]) == 4
+    assert "lancement de claude impossible" in capsys.readouterr().out
+    assert [x["etat"] for x in banc.lignes()] == ["ERREUR"]
+
+
+def test_transcription_absente_avertit(banc, capsys):
+    assert banc.lancer([continuer(150_000) | {"sans_transcription": True}, FINI]) == 0
+    assert "transcription introuvable" in capsys.readouterr().err
+    assert [x["mode"] for x in banc.lignes()] == ["nouvelle", "reprise"]
+
+
+def test_racine_par_defaut_suit_claude_config_dir(monkeypatch, tmp_path):
+    monkeypatch.delenv(rr.ENV_RACINE, raising=False)
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path / "cfg"))
+    assert rr.racine_par_defaut() == tmp_path / "cfg" / "projects"
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR")
+    assert rr.racine_par_defaut() == Path.home() / ".claude" / "projects"
+
+
 def test_max_sessions_atteint(banc, capsys):
     assert banc.lancer([continuer(150_000)] * 5, "--max-sessions", "2") == 3
     assert len(banc.appels()) == 2
@@ -232,5 +290,24 @@ def test_avancement_run_ignore_la_section_brief(projet, capsys):  # noqa: F811
     )
     assert "## Journal" in texte
     fichier.write_text(texte.replace("## Journal", brief + "## Journal", 1), encoding="utf-8")
+    assert ar.main(args) == 0
+    assert capsys.readouterr().out == avant
+
+
+def test_avancement_run_ignore_un_tableau_de_vagues_dans_le_brief(projet, capsys):  # noqa: F811
+    # Gabarit : `## Brief` est placé avant `## Sprint 1` ; un plan restant écrit en tableau ne doit pas être lu.
+    args = [str(projet), "--maintenant", "2026-10-18 20:30"]
+    assert ar.main(args) == 0
+    avant = capsys.readouterr().out
+    fichier = projet / ar.DOSSIER / "run-autonome.md"
+    texte = fichier.read_text(encoding="utf-8")
+    brief = (
+        "## Brief\n\n### Plan des vagues restantes\n\n| Vague | Stories | Après |\n|---|---|---|\n"
+        "| V1 | 9.8 · 9.9 | — |\n| V7 | 9.7 ★ | 9.8 |\n\n"
+    )
+    assert "## Sprint 1" in texte
+    avec_brief = texte.replace("## Sprint 1", brief + "## Sprint 1", 1)
+    assert ar.lire_plan(avec_brief) == ar.lire_plan(texte)
+    fichier.write_text(avec_brief, encoding="utf-8")
     assert ar.main(args) == 0
     assert capsys.readouterr().out == avant

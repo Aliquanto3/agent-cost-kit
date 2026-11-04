@@ -25,7 +25,12 @@ import mesurer_couts as mc
 ETAT_DEFAUT = "_bmad-output/implementation-artifacts/run-autonome.md"
 ENV_RACINE = "AGENT_COST_KIT_RACINE_TRANSCRIPTIONS"  # surcharge de ~/.claude/projects (tests)
 CODES = {"FINI": 0, "ATTENTE_HUMAINE": 2, "BLOQUE": 3}
-MOTIF_ETAT = re.compile(r"^\s*ETAT:\s*(CONTINUER|FINI|ATTENTE_HUMAINE|BLOQUE)\b\s*(?:[—–-]+\s*(.*))?$")
+# Tolère la mise en forme Markdown courante (puce, citation, gras, code), « ETAT : » et « ETAT: FINI. » : un
+# CONTINUER mal reconnu arrêterait le run (code 3), un FINI mal reconnu laisserait gagner une ligne antérieure.
+MOTIF_ETAT = re.compile(
+    r"^[\s>*_`#-]*[EÉ]TAT\s*:\s*[*_`]*\s*(CONTINUER|FINI|ATTENTE_HUMAINE|BLOQUE)(?![A-Za-z0-9_])[\s*_`.,;:—–-]*(.*)$",
+    re.IGNORECASE,
+)
 
 REGLE_ARRET = (
     "Tu es lancé par scripts/relancer_run.py : ne t'arrête qu'en fin de vague, aucun agent en cours. "
@@ -49,7 +54,7 @@ def lire_etat(texte: str) -> tuple[str | None, str]:
     for ligne in texte.splitlines():
         m = MOTIF_ETAT.match(ligne)
         if m:
-            trouve = (m.group(1), (m.group(2) or "").strip())
+            trouve = (m.group(1).upper(), m.group(2).strip().strip("*_` ").strip())
     return trouve
 
 
@@ -67,13 +72,26 @@ def pic_du_tour(dossier: Path, session: str, debut: datetime) -> int:
     """Pic de contexte de la session principale sur les seuls appels postérieurs à ``debut``."""
     chemin = dossier / f"{session}.jsonl"
     if not chemin.is_file():
+        print(f"Avertissement : transcription introuvable ({chemin}) ; pic inconnu, compté 0 (pas de relance).", file=sys.stderr)
         return 0
-    pics = [a["entree"] + a["lu"] + a["ecrit_5m"] + a["ecrit_1h"] for a in mc.appels(chemin) if mc.instant(a["ts"]) >= debut]
+    try:
+        pics = [a["entree"] + a["lu"] + a["ecrit_5m"] + a["ecrit_1h"] for a in mc.appels(chemin) if mc.instant(a["ts"]) >= debut]
+    except (OSError, ValueError) as e:
+        print(f"Avertissement : transcription illisible ({chemin}) : {e} ; pic compté 0.", file=sys.stderr)
+        return 0
     return max(pics, default=0)
 
 
+def racine_par_defaut() -> Path:
+    """AGENT_COST_KIT_RACINE_TRANSCRIPTIONS, sinon $CLAUDE_CONFIG_DIR/projects, sinon ~/.claude/projects."""
+    if os.environ.get(ENV_RACINE):
+        return Path(os.environ[ENV_RACINE])
+    config = os.environ.get("CLAUDE_CONFIG_DIR")
+    return (Path(config) if config else Path.home() / ".claude") / "projects"
+
+
 def principal(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description="Relanceur d'un run autonome : nouvelle session au-delà d'un seuil de contexte.")
     ap.add_argument("--projet", type=Path, default=Path("."))
     ap.add_argument("--etat", type=Path, default=Path(ETAT_DEFAUT), help="fichier d'état (relatif au projet)")
     ap.add_argument("--seuil", type=int, default=100_000, help="pic de contexte (tokens) au-delà duquel on ouvre une nouvelle session")
@@ -100,7 +118,7 @@ def principal(argv: list[str] | None = None) -> int:
         print("Exécutable `claude` introuvable : passez --claude.", file=sys.stderr)
         return 1
     args.claude = args.claude or "claude"
-    racine = args.racine or Path(os.environ.get(ENV_RACINE) or Path.home() / ".claude" / "projects")
+    racine = args.racine or racine_par_defaut()
     dossier = mc.dossier_transcriptions(projet, racine)
     prompt_reprise = PROMPT_REPRISE.format(etat=etat)
 
@@ -135,19 +153,30 @@ def principal(argv: list[str] | None = None) -> int:
         tours += 1
         debut = datetime.now(UTC)
         debut_local = datetime.now().astimezone().isoformat(timespec="seconds")
-        proc = subprocess.run(  # aucun délai d'expiration : un tour peut durer des heures
-            commande(args, session, not nouvelle),
-            input=prompt_reprise if nouvelle else PROMPT_SUITE,
-            capture_output=True, text=True, encoding="utf-8", cwd=projet, check=False,
-        )
+        try:
+            proc = subprocess.run(  # aucun délai d'expiration : un tour peut durer des heures
+                commande(args, session, not nouvelle),
+                input=prompt_reprise if nouvelle else PROMPT_SUITE,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=projet, check=False,
+            )
+        except OSError as e:  # exécutable disparu, droits : erreur de la CLI (code 4), tour journalisé
+            proc = subprocess.CompletedProcess([], -1, "", f"lancement de claude impossible : {e}")
         sortie: dict = {}
         try:
             lu = json.loads(proc.stdout)
             sortie = lu if isinstance(lu, dict) else {}
         except ValueError:
             pass
-        cumule = float(sortie.get("total_cost_usd") or 0.0)
-        delta = cumule - cumul_session
+        # total_cost_usd : supposé cumulé par session en --resume (à vérifier, docs/relancer-run.md). Absent (erreur
+        # sans JSON) : coût inconnu, delta 0, cumul inchangé. En baisse : la CLI n'a compté que cet appel.
+        try:
+            cumule = float(sortie["total_cost_usd"])
+        except (KeyError, TypeError, ValueError):
+            cumule = None
+        if cumule is None:
+            cumule, delta = cumul_session, 0.0
+        else:
+            delta = cumule - cumul_session if cumule >= cumul_session else cumule
         cumul_session, cout = cumule, cout + delta
         pic_precedent = pic_du_tour(dossier, session, debut)
         erreur = proc.returncode != 0 or not sortie or bool(sortie.get("is_error")) or str(sortie.get("subtype", "")).startswith("error")
