@@ -105,7 +105,7 @@ def lire_plan(texte: str) -> dict:
     """Vagues, dépendances, types, pivots, parallélisme et epics hors run."""
     lignes = texte.splitlines()
     plan = {"vagues": {}, "ordre": [], "sprint": {}, "deps": {}, "pivot": set(), "type": {},
-            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}}
+            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}, "sprints_story": {}}
     m = re.search(r"Au plus\s+(\d+)\s+stories", texte)
     if m:
         plan["parallelisme"] = int(m[1])
@@ -118,7 +118,8 @@ def lire_plan(texte: str) -> dict:
             sprint = m[0] if m else ""
             mt = re.match(r"#+\s*(Sprint\s+\d+)\s*(?:[—–:-])\s*(\S.*)$", ligne)
             if mt:
-                plan["sprint_titres"][mt[1]] = mt[2].strip()
+                titre = re.sub(r"\s*\(epics?\s+\d+[^)]*\)\s*$", "", mt[2], flags=re.IGNORECASE).strip()
+                plan["sprint_titres"].setdefault(mt[1], titre)  # deux titres pour un sprint : le premier compte
             if not ligne.startswith("###"):  # un sous-titre du Brief ne le referme pas
                 brief = ligne.strip("# ").lower().startswith("brief")
             continue
@@ -141,6 +142,7 @@ def lire_plan(texte: str) -> dict:
                 t = re.search(r"\((mixte|humaine)\)", part)
                 plan["type"][sid] = t[1] if t else "dev"
                 plan["sprint"][sid] = sprint
+                plan["sprints_story"].setdefault(sid, {})[sprint] = True  # dict ordonné : sérialisable en JSON
             plan["vagues"][vague] = ids
             plan["ordre"].append(vague)
             bruts[vague] = c[2]
@@ -762,10 +764,11 @@ def lire_titres(projet: Path, statuts_bruts: dict[str, str], plan: dict | None =
     if plan:  # dernier repli : titre du sprint qui ne contient que les stories d'un seul epic, toutes
         tous: dict[int, set[str]] = {}
         par_sprint: dict[str, set[int]] = {}
-        for sid, sp in plan["sprint"].items():
+        for sid, sps_ in plan.get("sprints_story", {}).items():  # une story listée dans deux sprints compte deux fois
             e = int(sid.split(".")[0])
-            tous.setdefault(e, set()).add(sp)
-            par_sprint.setdefault(sp, set()).add(e)
+            for sp in sps_:
+                tous.setdefault(e, set()).add(sp)
+                par_sprint.setdefault(sp, set()).add(e)
         for e, sps in tous.items():
             sp = next(iter(sps))
             titre = plan.get("sprint_titres", {}).get(sp)
@@ -936,7 +939,7 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
         for ep in epics:
             liste = [s for s in S.values() if s["epic"] == ep]
             fe, ce, re_, pe = agregat(liste)
-            nom = court(N["epics"].get(ep, ""), 38)
+            nom = court(N["epics"].get(ep, ""), 38).replace("|", r"\|")  # un | dans le titre casserait le tableau
             L.append(f"| {ep} | {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
     if stories or not consolide:
         L += ["", "## Détail par story", "", "| Story | Titre | État | % | |", "|---|---|---|---|---|"]

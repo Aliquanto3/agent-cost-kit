@@ -213,6 +213,24 @@ def test_nom_epic_depuis_titre_de_sprint(tmp_path):
     assert n["epics"] == {1: "Fondations", 2: "Collaboration", 3: "Tableau de bord"}  # 4, 5, 6 : sprint partagé ou epic coupé
 
 
+def test_nom_epic_cas_limites_du_titre_de_sprint(tmp_path):
+    texte = "\n".join([
+        "## Sprint 1 — Socle (Epic 1)", "", "| V0 | 1.1 | |", "", "## Sprint 1 — Doublon", "",
+        "## Sprint 2 — Lecture", "", "| V1 | 2.1 | |", "", "## Sprint 3 — Autre", "", "| V2 | 2.1 · 3.1 | |", "",
+        "## Sprint 4 — A | B", "", "| V3 | 4.1 | |", ""])
+    (tmp_path / ar.DOSSIER).mkdir(parents=True)
+    n = ar.lire_titres(tmp_path, {}, ar.lire_plan(texte))
+    # 1 : parenthèse d'epic retirée, premier titre retenu ; 2 et 3 : story 2.1 listée dans deux sprints, pas de nom
+    assert n["epics"] == {1: "Socle", 4: "A | B"}
+
+
+def test_cellule_nom_echappe_le_pipe(projet):
+    a = ar.analyser(projet, ar.datetime(2026, 10, 18, 20, 30))
+    a["noms"]["epics"][1] = "A | B"
+    ligne = next(ln for ln in ar.rapport(a).splitlines() if ln.startswith("| 1 |"))
+    assert ligne.startswith(r"| 1 | A \| B | ") and ligne.replace(r"\|", "").count("|") == 8
+
+
 def test_epics_md_prioritaire_sur_titre_de_sprint(projet):
     plan = ar.lire_plan("## Sprint 0 — Autre nom\n\n| V0 | 3.1 | |\n")
     st = ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml")
