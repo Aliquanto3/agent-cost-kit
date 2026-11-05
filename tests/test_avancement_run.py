@@ -161,7 +161,8 @@ def test_rapport_synthese_dirigeant(projet, capsys):
     assert "**Fin estimée : 2026-10-" in md and "(entre " in md and "**Météo : 🟢 dans les temps**" in md
     puces = [ln for ln in lignes if ln.startswith("- ")]
     assert 3 <= len(puces) <= 5 and md.index("## Ce qu'il faut savoir") < md.index("## Par epic")
-    assert "| 1 · Installer, lancer et diagnostiquer… | ██████████ 100 % | 7 | 0 | 0 | ✅ |" in md
+    assert "| Epic | Nom | Avancement | ✅ | 🔄 | ⏳ | |" in md
+    assert "| 1 | Installer, lancer et diagnostiquer… | ██████████ 100 % | 7 | 0 | 0 | ✅ |" in md
     assert "<details>" not in md and "## Détail par story" not in md and "| 2.4 |" not in md
     assert "Détails de l'estimation" in md and "### Rythme" not in md
     assert max(len(ln) for ln in lignes) <= 120
@@ -198,6 +199,34 @@ def test_titres_depuis_epics_md_ou_slug(projet):
     (projet / "_bmad-output" / "planning-artifacts" / "epics.md").unlink()
     n = ar.lire_titres(projet, ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml"))
     assert n["epics"] == {} and n["stories"]["2.2"].startswith("faire passer chaque action")
+
+
+def test_nom_epic_depuis_titre_de_sprint(tmp_path):
+    texte = "\n".join([
+        "# Run", "", "## Sprint 0 — Fondations", "", "| Vague | Stories en parallèle | Après |", "|---|---|---|",
+        "| V0 | 1.1 · 1.2 | |", "", "## Sprint 1 – Collaboration", "", "| Vague | Stories en parallèle | Après |",
+        "|---|---|---|", "| V1 | 2.1 | |", "", "## Sprint 2 - Tableau de bord", "", "| V2 | 3.1 | |", "",
+        "## Sprint 3 : Mélangé", "", "| V3 | 4.1 · 5.1 | |", "", "## Sprint 4 — Coupé A", "", "| V4 | 6.1 | |", "",
+        "## Sprint 5 — Coupé B", "", "| V5 | 6.2 | |", ""])
+    (tmp_path / ar.DOSSIER).mkdir(parents=True)
+    n = ar.lire_titres(tmp_path, {}, ar.lire_plan(texte))
+    assert n["epics"] == {1: "Fondations", 2: "Collaboration", 3: "Tableau de bord"}  # 4, 5, 6 : sprint partagé ou epic coupé
+
+
+def test_epics_md_prioritaire_sur_titre_de_sprint(projet):
+    plan = ar.lire_plan("## Sprint 0 — Autre nom\n\n| V0 | 3.1 | |\n")
+    st = ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml")
+    assert ar.lire_titres(projet, st, plan)["epics"][3] == "Collaborer dans un GitHub simulé"
+
+
+def test_cellule_nom_vide_et_json(projet, capsys):
+    (projet / "_bmad-output" / "planning-artifacts" / "epics.md").unlink()
+    a = ar.analyser(projet, ar.datetime(2026, 10, 18, 20, 30))
+    md = ar.rapport(a)
+    ligne = next(ln for ln in md.splitlines() if ln.startswith("| 1 |"))
+    assert ligne.startswith("| 1 |  | ") and ligne.count("|") == 8
+    assert ar.main([str(projet), "--json", "--maintenant", "2026-10-18 20:30"]) == 0
+    assert "epics" in json.loads(capsys.readouterr().out)["noms"]
 
 
 def test_barre_court_et_emojis():

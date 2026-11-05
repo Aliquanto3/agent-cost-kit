@@ -105,7 +105,7 @@ def lire_plan(texte: str) -> dict:
     """Vagues, dépendances, types, pivots, parallélisme et epics hors run."""
     lignes = texte.splitlines()
     plan = {"vagues": {}, "ordre": [], "sprint": {}, "deps": {}, "pivot": set(), "type": {},
-            "parallelisme": 3, "hors_run": set()}
+            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}}
     m = re.search(r"Au plus\s+(\d+)\s+stories", texte)
     if m:
         plan["parallelisme"] = int(m[1])
@@ -116,6 +116,9 @@ def lire_plan(texte: str) -> dict:
         if ligne.startswith("#"):
             m = re.search(r"Sprint\s+(\d+)", ligne)
             sprint = m[0] if m else ""
+            mt = re.match(r"#+\s*(Sprint\s+\d+)\s*(?:[—–:-])\s*(\S.*)$", ligne)
+            if mt:
+                plan["sprint_titres"][mt[1]] = mt[2].strip()
             if not ligne.startswith("###"):  # un sous-titre du Brief ne le referme pas
                 brief = ligne.strip("# ").lower().startswith("brief")
             continue
@@ -478,7 +481,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     sources = {}
     for e in evts:
         sources[e["source"] or "inconnue"] = sources.get(e["source"] or "inconnue", 0) + 1
-    noms = lire_titres(projet, statuts_bruts)
+    noms = lire_titres(projet, statuts_bruts, plan)
     manquants = hors_suivi(evts, plan, statuts, maintenant)
     meteo_ = meteo(stories, estimation, manquants)
     menage = next((e for e in reversed(evts) if e["etape"] == "ménage"), None)
@@ -733,7 +736,7 @@ def rapport_detail(a: dict) -> str:
 
 # ----------------------------------------------------------------------------- synthèse
 
-def lire_titres(projet: Path, statuts_bruts: dict[str, str]) -> dict:
+def lire_titres(projet: Path, statuts_bruts: dict[str, str], plan: dict | None = None) -> dict:
     """Titres des epics et des stories depuis epics.md ; à défaut, le slug des clés de sprint-status."""
     epics: dict[int, str] = {}
     stories: dict[str, str] = {}
@@ -756,6 +759,18 @@ def lire_titres(projet: Path, statuts_bruts: dict[str, str]) -> dict:
         m = re.search(r"\s*\(?\bepic\s+(\d+)\)?\s*$", h1, re.IGNORECASE)
         if m and " : " in h1 and not epics.get(int(m[1])):
             epics[int(m[1])] = h1[:m.start()].split(" : ", 1)[1].strip()
+    if plan:  # dernier repli : titre du sprint qui ne contient que les stories d'un seul epic, toutes
+        tous: dict[int, set[str]] = {}
+        par_sprint: dict[str, set[int]] = {}
+        for sid, sp in plan["sprint"].items():
+            e = int(sid.split(".")[0])
+            tous.setdefault(e, set()).add(sp)
+            par_sprint.setdefault(sp, set()).add(e)
+        for e, sps in tous.items():
+            sp = next(iter(sps))
+            titre = plan.get("sprint_titres", {}).get(sp)
+            if len(sps) == 1 and par_sprint[sp] == {e} and titre and not epics.get(e):
+                epics[e] = titre
     return {"epics": epics, "stories": stories}
 
 
@@ -916,12 +931,13 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
     epics = sorted({s["epic"] for s in S.values()})
     consolide = len(epics) > 1  # sinon aucun niveau de consolidation : le détail par story tient lieu de tableau
     if consolide:
-        L += ["", "## Par epic", "", "| Epic | Avancement | ✅ | 🔄 | ⏳ | |", "|---|---|---|---|---|---|"]
+        L += ["", "## Par epic", "", "| Epic | Nom | Avancement | ✅ | 🔄 | ⏳ | |",
+              "|---|---|---|---|---|---|---|"]
         for ep in epics:
             liste = [s for s in S.values() if s["epic"] == ep]
             fe, ce, re_, pe = agregat(liste)
             nom = court(N["epics"].get(ep, ""), 38)
-            L.append(f"| {ep}{' · ' + nom if nom else ''} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
+            L.append(f"| {ep} | {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
     if stories or not consolide:
         L += ["", "## Détail par story", "", "| Story | Titre | État | % | |", "|---|---|---|---|---|"]
         for v in plan["ordre"]:
