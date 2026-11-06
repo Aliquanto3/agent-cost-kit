@@ -414,8 +414,8 @@
       "[\"🆕 Nicht gecachter Input\",TOTAL.cIn"
     ],
     [
-      "style=\"fill:var(--c-texte-attenue)\">équivalent API</text>",
-      "style=\"fill:var(--c-texte-attenue)\">API-Äquivalent</text>"
+      "style=\"fill:var(--texte-attenue)\">équivalent API</text>",
+      "style=\"fill:var(--texte-attenue)\">API-Äquivalent</text>"
     ],
     [
       "`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`",
@@ -605,6 +605,6 @@
     "--fusionner",
     "sans-serif",
     "var(--sans)",
-    "var(--c-sur-statut)"
+    "var(--sur-statut)"
   ]
 }

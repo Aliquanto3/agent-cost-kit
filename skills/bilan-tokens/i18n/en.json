@@ -394,16 +394,16 @@
       "\"estimated CO2e\"]"
     ],
     [
-      "const parts=[[\"♻️ Lecture cache\",TOTAL.cLu,\"var(--c-primaire)\"],[\"✍️ Écriture cache\",TOTAL.cEc,\"var(--c-cat-3)\"],[\"📤 Output\",TOTAL.cOut,\"var(--c-succes)\"],[\"🆕 Input non caché\",TOTAL.cIn,\"var(--c-cat-8)\"]];",
-      "const parts=[[\"♻️ Cache read\",TOTAL.cLu,\"var(--c-primaire)\"],[\"✍️ Cache write\",TOTAL.cEc,\"var(--c-cat-3)\"],[\"📤 Output\",TOTAL.cOut,\"var(--c-succes)\"],[\"🆕 Uncached input\",TOTAL.cIn,\"var(--c-cat-8)\"]];"
+      "const parts=[[\"♻️ Lecture cache\",TOTAL.cLu,\"var(--cat-1)\"],[\"✍️ Écriture cache\",TOTAL.cEc,\"var(--cat-2)\"],[\"📤 Output\",TOTAL.cOut,\"var(--cat-3)\"],[\"🆕 Input non caché\",TOTAL.cIn,\"var(--cat-4)\"]];",
+      "const parts=[[\"♻️ Cache read\",TOTAL.cLu,\"var(--cat-1)\"],[\"✍️ Cache write\",TOTAL.cEc,\"var(--cat-2)\"],[\"📤 Output\",TOTAL.cOut,\"var(--cat-3)\"],[\"🆕 Uncached input\",TOTAL.cIn,\"var(--cat-4)\"]];"
     ],
     [
-      "style=\"fill:var(--c-texte)\">${nf(TOTAL.cTot)} $</text>",
-      "style=\"fill:var(--c-texte)\">$${nf(TOTAL.cTot)}</text>"
+      "style=\"fill:var(--texte)\">${nf(TOTAL.cTot)} $</text>",
+      "style=\"fill:var(--texte)\">$${nf(TOTAL.cTot)}</text>"
     ],
     [
-      "style=\"fill:var(--c-texte-attenue)\">équivalent API</text>",
-      "style=\"fill:var(--c-texte-attenue)\">API equivalent</text>"
+      "style=\"fill:var(--texte-attenue)\">équivalent API</text>",
+      "style=\"fill:var(--texte-attenue)\">API equivalent</text>"
     ],
     [
       "`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`",
@@ -581,7 +581,7 @@
   "autorises": [
     "Français",
     "sans-serif",
-    "var(--sans)",
-    "var(--c-sur-statut)"
+    "var(--police-texte)",
+    "var(--sur-statut)"
   ]
 }
