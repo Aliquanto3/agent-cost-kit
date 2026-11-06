@@ -1,0 +1,49 @@
+name: CI
+
+# Ajoutée en 0.13.1 : la 0.13.0 a été fusionnée sans aucun contrôle. Le frontmatter cassé en
+# 0.10.0 (commands/avancement-run.md) n'aurait pas passé 'claude plugin validate', et le code
+# propre à Windows de scripts/mutation_story.py demande de tourner sur Linux et sur Windows.
+# 'master' est protégé : une PR ne fusionne que si 'tests (...)' et 'validation' sont verts.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      # cosmic-ray (test_mutation_story.py) est installé à la demande par 'uv run --with'.
+      - name: Suite complète
+        run: uv run --no-project --with pytest python -m pytest -q --tb=short
+
+  validation:
+    name: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Installer Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.280
+      - name: Valider le plugin (strict)
+        run: claude plugin validate . --strict

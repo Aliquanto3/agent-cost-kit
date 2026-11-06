@@ -293,5 +293,41 @@
       }
     },
     "mix_par_defaut": "USA"
+  },
+  "impact_methode_par_defaut": "impactia",
+  "impactia": {
+    "source": "https://github.com/mlco2/ecologits/pull/259",
+    "pr_sha": "4c552f64a1770514525914e2bbebc6368104374f",
+    "statut": "Méthode expérimentale : PR EcoLogits #259 (Impact'IA, https://github.com/SNCFdevelopers/ImpactIA) ouverte, non fusionnée ; voir docs/impact-input-impactia.md.",
+    "note": "Complète la section ecologits. Prefill (s) = coef_ref x (TTFT / ttft_ref) x tokens d'entrée + ordonnée, ajouté à la durée de génération (llm.py l. 22-25, 105-183). Réseau : 90 W x (0,0358 + 0,286 + 1,468) par serveur ; fabrication 333,8 x 0,0358 + 403 x 0,286 + 363 x 1,468 kgCO2e, durée de vie 5 ans (l. 42-62). Bâtiment : kgCO2e par kWh IT (l. 66). TTFT médian OpenRouter, EcoLogits 0.11.3 (commit d0b76e3, données du 2026-10-14) : plus long préfixe, sinon famille (modèle le plus récent), sinon famille par défaut d'ecologits.",
+    "prefill_coef_ref_s_par_token": 6.2e-05,
+    "prefill_ttft_ref_s": 0.44,
+    "prefill_ordonnee_s": 0.01788,
+    "reseau_puissance_w": 161.082,
+    "reseau_fabrication_kgco2e": 660.09204,
+    "reseau_duree_vie_s": 157680000,
+    "batiment_kgco2e_par_kwh": 0.01,
+    "ttft_s": {
+      "claude-fable-5-1": 3.89,
+      "claude-fable-5": 3.58,
+      "claude-opus-5-5": 2.68,
+      "claude-opus-5": 1.84,
+      "claude-opus-4-8": 0.87,
+      "claude-opus-4-7": 1.75,
+      "claude-opus-4-6": 1.95,
+      "claude-opus-4-5": 5.03,
+      "claude-sonnet-5-5": 2.21,
+      "claude-sonnet-5": 1.76,
+      "claude-sonnet-4-6": 1.15,
+      "claude-sonnet-4-5": 1.15,
+      "claude-haiku-5-5": 1.75,
+      "claude-haiku-4-5": 0.5
+    },
+    "ttft_famille_s": {
+      "opus": 2.68,
+      "sonnet": 2.21,
+      "haiku": 1.75,
+      "fable": 3.89
+    }
   }
 }

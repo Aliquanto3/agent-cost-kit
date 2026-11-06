@@ -1,5 +1,6 @@
 """Banc : le calcul d'impact de scripts/mesurer_couts.py reproduit-il la librairie EcoLogits ?
 
+Méthode ``ecologits`` du script (sortie seule ; la méthode impactia a son banc, impactia_ecart.py).
 Compare, pour chaque modèle et pour 1 000 et 100 000 tokens de sortie, l'énergie, le GWP,
 l'eau, l'énergie primaire et l'ADPe (min et max) calculés par le script et par ``ecologits``.
 Gratuit, aucun appel réseau (la librairie est téléchargée par uv).
@@ -59,7 +60,7 @@ print(f"{'modèle':18} {'tokens':>8} {'grandeur':11} {'script min-max':>26} {'li
 for modele in MODELES:
     t_min, t_max, a_min, a_max = script.parametres(modele)
     for sortie, zone in ((1_000, "USA"), (100_000, "USA"), (10_000, "FRA")):
-        mien = script.impact(modele, sortie, zone)
+        mien = script.impact(modele, sortie, zone, methode="ecologits")
         mix = electricity_mixes.find_electricity_mix(zone)
         lib = compute_llm_impacts(
             model_active_parameter_count=RangeValue(min=a_min, max=a_max) if a_min != a_max else a_min,

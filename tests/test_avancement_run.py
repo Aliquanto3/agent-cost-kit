@@ -123,6 +123,19 @@ def test_etape_story_et_bareme():
     assert ar.etape_story([]) is None
 
 
+def test_sans_cadrage_compte_comme_lance_et_fini():
+    """Aiguillage 0.14 : « lancé, sans cadrage » vaut « lancé », « fini, sans cadrage » vaut « fini »."""
+    avec = [evt(resultat="lancé, sans cadrage")]
+    assert ar.etape_story(avec) == ar.etape_story([evt(resultat="lancé")])
+    assert ar.etape_story(avec)[1:] == ("dev en cours", 30)
+    avec.append(evt(resultat="fini, sans cadrage, 14 tests verts"))
+    assert ar.etape_story(avec) == ar.etape_story([evt(resultat="lancé"), evt(resultat="fini, 14 tests verts")])
+    assert ar.etape_story(avec)[2] == 60
+    journal = "## Journal\n- 2026-10-25 10:00 · 3.2 · dev · lancé, sans cadrage · —\n"
+    e = ar.lire_journal(journal)[0]
+    assert e["etape"] == "dev" and e["resultat"] == "lancé, sans cadrage" and e["stories"] == ["3.2"]
+
+
 def test_analyse_de_l_exemple(projet):
     a = ar.analyser(projet, MAINTENANT)
     S = a["stories"]
@@ -148,7 +161,8 @@ def test_rapport_synthese_dirigeant(projet, capsys):
     assert "**Fin estimée : 2026-10-" in md and "(entre " in md and "**Météo : 🟢 dans les temps**" in md
     puces = [ln for ln in lignes if ln.startswith("- ")]
     assert 3 <= len(puces) <= 5 and md.index("## Ce qu'il faut savoir") < md.index("## Par epic")
-    assert "| 1 · Installer, lancer et diagnostiquer… | ██████████ 100 % | 7 | 0 | 0 | ✅ |" in md
+    assert "| Epic | Nom | Avancement | ✅ | 🔄 | ⏳ | |" in md
+    assert "| 1 | Installer, lancer et diagnostiquer… | ██████████ 100 % | 7 | 0 | 0 | ✅ |" in md
     assert "<details>" not in md and "## Détail par story" not in md and "| 2.4 |" not in md
     assert "Détails de l'estimation" in md and "### Rythme" not in md
     assert max(len(ln) for ln in lignes) <= 120
@@ -185,6 +199,52 @@ def test_titres_depuis_epics_md_ou_slug(projet):
     (projet / "_bmad-output" / "planning-artifacts" / "epics.md").unlink()
     n = ar.lire_titres(projet, ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml"))
     assert n["epics"] == {} and n["stories"]["2.2"].startswith("faire passer chaque action")
+
+
+def test_nom_epic_depuis_titre_de_sprint(tmp_path):
+    texte = "\n".join([
+        "# Run", "", "## Sprint 0 — Fondations", "", "| Vague | Stories en parallèle | Après |", "|---|---|---|",
+        "| V0 | 1.1 · 1.2 | |", "", "## Sprint 1 – Collaboration", "", "| Vague | Stories en parallèle | Après |",
+        "|---|---|---|", "| V1 | 2.1 | |", "", "## Sprint 2 - Tableau de bord", "", "| V2 | 3.1 | |", "",
+        "## Sprint 3 : Mélangé", "", "| V3 | 4.1 · 5.1 | |", "", "## Sprint 4 — Coupé A", "", "| V4 | 6.1 | |", "",
+        "## Sprint 5 — Coupé B", "", "| V5 | 6.2 | |", ""])
+    (tmp_path / ar.DOSSIER).mkdir(parents=True)
+    n = ar.lire_titres(tmp_path, {}, ar.lire_plan(texte))
+    assert n["epics"] == {1: "Fondations", 2: "Collaboration", 3: "Tableau de bord"}  # 4, 5, 6 : sprint partagé ou epic coupé
+
+
+def test_nom_epic_cas_limites_du_titre_de_sprint(tmp_path):
+    texte = "\n".join([
+        "## Sprint 1 — Socle (Epic 1)", "", "| V0 | 1.1 | |", "", "## Sprint 1 — Doublon", "",
+        "## Sprint 2 — Lecture", "", "| V1 | 2.1 | |", "", "## Sprint 3 — Autre", "", "| V2 | 2.1 · 3.1 | |", "",
+        "## Sprint 4 — A | B", "", "| V3 | 4.1 | |", ""])
+    (tmp_path / ar.DOSSIER).mkdir(parents=True)
+    n = ar.lire_titres(tmp_path, {}, ar.lire_plan(texte))
+    # 1 : parenthèse d'epic retirée, premier titre retenu ; 2 et 3 : story 2.1 listée dans deux sprints, pas de nom
+    assert n["epics"] == {1: "Socle", 4: "A | B"}
+
+
+def test_cellule_nom_echappe_le_pipe(projet):
+    a = ar.analyser(projet, ar.datetime(2026, 10, 18, 20, 30))
+    a["noms"]["epics"][1] = "A | B"
+    ligne = next(ln for ln in ar.rapport(a).splitlines() if ln.startswith("| 1 |"))
+    assert ligne.startswith(r"| 1 | A \| B | ") and ligne.replace(r"\|", "").count("|") == 8
+
+
+def test_epics_md_prioritaire_sur_titre_de_sprint(projet):
+    plan = ar.lire_plan("## Sprint 0 — Autre nom\n\n| V0 | 3.1 | |\n")
+    st = ar.lire_statuts(projet / ar.DOSSIER / "sprint-status.yaml")
+    assert ar.lire_titres(projet, st, plan)["epics"][3] == "Collaborer dans un GitHub simulé"
+
+
+def test_cellule_nom_vide_et_json(projet, capsys):
+    (projet / "_bmad-output" / "planning-artifacts" / "epics.md").unlink()
+    a = ar.analyser(projet, ar.datetime(2026, 10, 18, 20, 30))
+    md = ar.rapport(a)
+    ligne = next(ln for ln in md.splitlines() if ln.startswith("| 1 |"))
+    assert ligne.startswith("| 1 |  | ") and ligne.count("|") == 8
+    assert ar.main([str(projet), "--json", "--maintenant", "2026-10-18 20:30"]) == 0
+    assert "epics" in json.loads(capsys.readouterr().out)["noms"]
 
 
 def test_barre_court_et_emojis():
@@ -546,6 +606,114 @@ def test_dependante_d_une_reportee_sort_de_l_estimation(tmp_path, monkeypatch):
     r = ar.rapport(a, detail=True)
     assert "1.4 bloquée par 1.3 reportée (hors estimation)" in " ".join(r.split())
     assert "Hors estimation, en attente d'une story reportée : 1.4 (bloquée par 1.3 reportée)" in r
+
+
+# ----------------------------------------------------------------------------- 0.7.3 : suivi incomplet, lettres, titre d'epic
+
+def test_identifiants_a_suffixe_lettre():
+    assert ar.ID.findall("17.5a · 17.5b · 17.5 · 17.1b, v0.3.0 et 3.2.") == ["17.5a", "17.5b", "17.5", "17.1b", "3.2"]
+    assert ar.ids_statut({"17-5a-x": "done", "17-5-y": "backlog", "17-1b-z": "done"}) == {
+        "17.5a": "done", "17.5": "backlog", "17.1b": "done"}
+    assert sorted(["17.5b", "17.10", "17.5", "17.5a"], key=ar.cle_id) == ["17.5", "17.5a", "17.5b", "17.10"]
+    p = ar.lire_plan("| Vague | Stories en parallèle | Après |\n|---|---|---|\n| V0 | 17.1 ★ | |\n"
+                     "| V1 | 17.4 · 17.5a | 17.4 ← 17.1 |\n| V2 | 17.5b · 17.1b | 17.5b ← 17.4 ; 17.1b ← 17.4 |\n")
+    assert p["vagues"]["V2"] == ["17.5b", "17.1b"] and p["deps"]["17.5b"] == {"17.4"} and p["pivot"] == {"17.1"}
+    e = ar.lire_journal("## Journal\n\n- 2026-10-21 10:00 · 17.5b · fusion · squash · abc1234\n")
+    assert e[0]["stories"] == ["17.5b"]
+
+
+def run_lettres(tmp_path, monkeypatch, perimetre, journal_extra=(), statuts=None, titre="# Run : sujet (epic 17)"):
+    monkeypatch.setattr(ar, "commits_git", lambda _p: [])
+    monkeypatch.setattr(ar, "heures_commit_lignes", lambda _p, _f: {})
+    d = tmp_path / ar.DOSSIER
+    d.mkdir(parents=True)
+    statuts = statuts or {"17-1-a": "done", "17-1b-b": "done", "17-5a-c": "done", "17-5b-d": "done"}
+    (d / "sprint-status.yaml").write_text("last_updated: 10-21-2026 10:00\ndevelopment_status:\n" + "\n".join(
+        f"  {k}: {v}" for k, v in statuts.items()) + "\n", encoding="utf-8")
+    tab = "\n".join(f"| V{i} | {s} | |" for i, s in enumerate(perimetre))
+    lignes = [f"- 2026-10-21 {9 + i}:00 · {s} · fusion · squash · —" for i, s in enumerate(perimetre)]
+    (d / "run-autonome.md").write_text(
+        f"{titre}\n\n## Sprint 1\n\n| Vague | Stories en parallèle | Après |\n|---|---|---|\n{tab}\n\n## Journal\n\n"
+        + "\n".join(lignes + list(journal_extra)) + "\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_stories_a_lettre_comptees_une_par_une(tmp_path, monkeypatch):
+    p = run_lettres(tmp_path, monkeypatch, ["17.1", "17.1b", "17.5a", "17.5b"])
+    a = ar.analyser(p, datetime(2026, 10, 21, 20, 0))
+    assert list(a["stories"]) == ["17.1", "17.1b", "17.5a", "17.5b"]
+    assert all(s["etat"] == "fait" for s in a["stories"].values()) and a["hors_suivi"] == []
+    r = ar.rapport(a)
+    assert "4 / 4 stories" in r and "Tous les développements prévus sont terminés" in r and "🟢" in r
+
+
+def test_suivi_incomplet_journal_hors_perimetre(tmp_path, monkeypatch):
+    extra = ["- 2026-10-21 14:00 · 17.4 · dev · lancé · —", "- 2026-10-21 15:00 · 17.6 · dev · fini · —",
+             "- 2026-10-21 15:30 · 16.2 · dev · lancé · —"]
+    p = run_lettres(tmp_path, monkeypatch, ["17.1"], extra, {"17-1-a": "done"})
+    f = p / ar.DOSSIER / "run-autonome.md"
+    f.write_text(f.read_text(encoding="utf-8").replace("## Sprint 1", "| Hors run | Epics 16 à 16 | x |\n\n## Sprint 1"),
+                 encoding="utf-8")
+    a = ar.analyser(p, datetime(2026, 10, 21, 20, 0))
+    assert a["hors_suivi"] == ["17.4", "17.6"]  # 16.2 : epic déclaré hors run
+    r = " ".join(ar.rapport(a).split())
+    assert "le journal cite 17.4, 17.6 hors du périmètre et de sprint-status : périmètre ou sprint-status à mettre à jour" in r
+    assert "Tous les développements prévus sont terminés" not in r and a["meteo"]["emoji"] == "🟡"
+    # présentes dans sprint-status.yaml : le suivi est complet
+    p2 = run_lettres(tmp_path / "b", monkeypatch, ["17.1"], extra, {"17-1-a": "done", "17-4-b": "done", "17-6-c": "done", "16-2-d": "done"})
+    assert ar.analyser(p2, datetime(2026, 10, 21, 20, 0))["hors_suivi"] == []
+
+
+def test_vieilles_lignes_hors_perimetre_ignorees(tmp_path, monkeypatch):
+    extra = ["- 2026-10-10 14:00 · 5.4 · dev · lancé · —"]
+    p = run_lettres(tmp_path, monkeypatch, ["17.1"], ["- 2026-10-21 18:00 · 17.1 · CI · verte · —"] + extra,
+                    {"17-1-a": "done"})
+    assert ar.analyser(p, datetime(2026, 10, 21, 20, 0))["hors_suivi"] == []
+
+
+def test_titre_d_epic_absent_sans_parentheses(tmp_path, monkeypatch):
+    p = run_lettres(tmp_path, monkeypatch, ["17.1"], statuts={"17-1-a": "done"}, titre="# Run sans numéro d'epic")
+    r = ar.rapport(ar.analyser(p, datetime(2026, 10, 21, 20, 0)))
+    assert "terminé : epic 17." in " ".join(r.split()) and "()" not in r
+    p2 = run_lettres(tmp_path / "b", monkeypatch, ["17.1"], statuts={"17-1-a": "done"},
+                     titre="# Run autonome du 21 octobre : modèle distant et hybride (epic 17)")
+    r2 = " ".join(ar.rapport(ar.analyser(p2, datetime(2026, 10, 21, 20, 0))).split())
+    assert "terminé : epic 17 (modèle distant et hybride)." in r2
+
+
+def test_etape_menage_reconnue():
+    assert ar.normaliser_etape("ménage") == "ménage" and ar.normaliser_etape("Menage") == "ménage"
+    evts = ar.lire_journal("## Journal\n\n- 2026-10-27 12:00 · run · ménage · 3 worktrees retirés, 0 verrous levés · —\n")
+    assert len(evts) == 1 and evts[0]["etape"] == "ménage" and evts[0]["stories"] == []
+
+
+JOURNAL_FINI = ["- 2026-10-19 08:00 · 1.1 · dev · lancé · —", "- 2026-10-19 09:00 · 1.1 · fusion · ok · —"]
+MENAGE = "- 2026-10-19 21:00 · run · ménage · 2 worktrees retirés, 1 verrous levés, 4 branches locales, 0 distantes supprimées · —"
+
+
+def test_menage_sans_effet_sur_stories_et_estimation(tmp_path, monkeypatch):
+    sans = ar.analyser(mini(tmp_path / "a", monkeypatch, {"1.1": "done", "1.2": "backlog"}, JOURNAL_FINI), NOW)
+    avec = ar.analyser(mini(tmp_path / "b", monkeypatch, {"1.1": "done", "1.2": "backlog"}, JOURNAL_FINI + [MENAGE]), NOW)
+    assert list(avec["stories"]) == ["1.1", "1.2"] and avec["hors_suivi"] == []
+    assert avec["estimation"] == sans["estimation"] and avec["rythme"] == sans["rythme"]
+    assert {k: s["etat"] for k, s in avec["stories"].items()} == {"1.1": "fait", "1.2": "à faire"}
+
+
+def test_puce_menage_fait(tmp_path, monkeypatch):
+    a = ar.analyser(mini(tmp_path, monkeypatch, {"1.1": "done"}, JOURNAL_FINI + [MENAGE]), NOW)
+    r = " ".join(ar.rapport(a, detail=True).split())
+    assert ("Ménage de clôture fait le 2026-10-19 21:00 : 2 worktrees retirés, 1 verrous levés, 4 branches locales, "
+            "0 distantes supprimées.") in r
+    assert "Ménage de clôture à faire" not in r and "Ménage de clôture fait le 2026-10-19 21:00." in r
+
+
+def test_puce_menage_a_faire_seulement_quand_tout_est_termine(tmp_path, monkeypatch):
+    fini = " ".join(ar.rapport(ar.analyser(mini(tmp_path / "a", monkeypatch, {"1.1": "done"}, JOURNAL_FINI), NOW)).split())
+    assert "Tous les développements prévus sont terminés" in fini
+    assert "Ménage de clôture à faire : `scripts/menage_run.py` en simulation, puis `--appliquer`." in fini
+    enc = " ".join(ar.rapport(ar.analyser(mini(tmp_path / "b", monkeypatch, {"1.1": "done", "1.2": "backlog"},
+                                               JOURNAL_FINI), NOW)).split())
+    assert "Ménage de clôture" not in enc
 
 
 # ----------------------------------------------------------------------------- run hors epics

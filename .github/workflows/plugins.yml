@@ -1,0 +1,47 @@
+name: Valider les mods
+
+# Évite la régression qui a cassé couts-session sous Claude Code 2.1.280 (atom/read/update
+# retirés de 'claude-code' sans le signaler autrement qu'au chargement) : la CI valide et teste
+# chaque mod du dépôt à chaque changement sous plugins/**.
+on:
+  push:
+    paths:
+      - "plugins/**"
+      - ".github/workflows/plugins.yml"
+  pull_request:
+    paths:
+      - "plugins/**"
+      - ".github/workflows/plugins.yml"
+
+jobs:
+  valider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Installer Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.280
+      - name: Valider les mods (strict)
+        run: |
+          set -e
+          for plugin in plugins/*/; do
+            if [ -f "$plugin/hooks/hooks.json" ] || [ -f "$plugin/.claude-plugin/plugin.json" ]; then
+              echo "::group::validate $plugin"
+              claude plugin validate "$plugin" --strict
+              echo "::endgroup::"
+            fi
+          done
+      - name: Tester les mods
+        env:
+          CLAUDE_CODE_ENABLE_FUNCTION_HOOKS: "1"
+        run: |
+          set -e
+          for plugin in plugins/*/; do
+            if [ -d "$plugin/tests" ]; then
+              echo "::group::test $plugin"
+              claude plugin test "$plugin"
+              echo "::endgroup::"
+            fi
+          done

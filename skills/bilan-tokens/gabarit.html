@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Bilan tokens</title>
+<style>
+/* JETONS charte générique v2.1 : sombre d'abord, clair selon le système ou [data-theme], et toujours clair à l'impression. Copie de dist/charte.css (seul ajout : « print, » devant la requête du clair). */
+:root {
+  color-scheme: dark;
+  --fond: #0F1318;
+  --surface: #161B22;
+  --surface-alt: #1E242C;
+  --trait: #333B46;
+  --trait-fort: #67717E;
+  --texte: #E8ECF2;
+  --texte-attenue: #A3ADBA;
+  --neutre: #8792A0;
+  --primaire: #8DB0F7;
+  --primaire-vif: #B3CBFA;
+  --primaire-doux: #1A2742;
+  --sur-primaire: #0A1733;
+  --bouton: #E8ECF2;
+  --bouton-survol: #FFFFFF;
+  --sur-bouton: #0F1318;
+  --accent: #E3C26B;
+  --accent-texte: #E3C26B;
+  --accent-doux: #3A3112;
+  --accent-aplat: #E3C26B;
+  --succes: #8CC7A0;
+  --succes-doux: #15291D;
+  --alerte: #F0A35E;
+  --alerte-texte: #F0A35E;
+  --alerte-doux: #3A2614;
+  --erreur: #EE8C84;
+  --erreur-doux: #3B1C1A;
+  --focus: #9EC0FF;
+  --texte-sur-vif: #141A1F;
+  --sur-statut: #0F1318;
+  --encre-pleine: #1A2742;
+  --sur-encre: #FFFFFF;
+  --sur-encre-attenue: #C3CEDD;
+  --badge-etiquette: #646E7B;
+  --pictogramme-tuile: #3B6FD0;
+  --pictogramme-point: #F0D27A;
+  --voile: rgba(5, 8, 12, 0.6);
+  --cat-1: #8DB0F7;
+  --cat-2: #E3C26B;
+  --cat-3: #8CC7A0;
+  --cat-4: #E58FB8;
+  --cat-5: #F2A07B;
+  --cat-6: #6CCAD8;
+  --cat-7: #A9B4C6;
+  --cat-8: #9FAE4F;
+  --seq-1: #2E394D;
+  --seq-2: #465777;
+  --seq-3: #5D74A2;
+  --seq-4: #7592CC;
+  --seq-5: #8DB0F7;
+  --div-1: #8DB0F7;
+  --div-2: #566A92;
+  --div-3: #1E242C;
+  --div-4: #886254;
+  --div-5: #F2A07B;
+  --halo: 0 8px 24px rgba(232, 236, 242, 0.07);
+  --picto-tuile: var(--pictogramme-tuile);
+  --picto-barres: var(--sur-primaire);
+  --picto-point: var(--pictogramme-point);
+
+  --police-titres: Sora, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --police-texte: 'Atkinson Hyperlegible', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --police-code: 'JetBrains Mono', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  --graisse-titres: 600;
+  --taille-legende: 12px;
+  --taille-petit: 14px;
+  --taille-base: 16px;
+  --taille-grand: 18px;
+  --taille-titre-4: 22px;
+  --taille-titre-3: 28px;
+  --taille-titre-2: 36px;
+  --taille-titre-1: 48px;
+  --espacement-1: 4px;
+  --espacement-2: 8px;
+  --espacement-3: 12px;
+  --espacement-4: 16px;
+  --espacement-5: 24px;
+  --espacement-6: 32px;
+  --espacement-7: 48px;
+  --espacement-8: 64px;
+  --rayon-petit: 6px;
+  --rayon-moyen: 10px;
+  --rayon-grand: 14px;
+  --rayon-pilule: 999px;
+  --trait-largeur: 1px;
+  --focus-largeur: 2px;
+  --focus-decalage: 2px;
+}
+
+@media print, (prefers-color-scheme: light) {
+  :root:not([data-theme="sombre"]):not([data-theme="dark"]) {
+    color-scheme: light;
+    --fond: #F6F8FB;
+    --surface: #FFFFFF;
+    --surface-alt: #ECF0F5;
+    --trait: #CED5DF;
+    --trait-fort: #808A97;
+    --texte: #121821;
+    --texte-attenue: #4F5A68;
+    --neutre: #6E7886;
+    --primaire: #1D5BC2;
+    --primaire-vif: #164A9E;
+    --primaire-doux: #E1EAFA;
+    --sur-primaire: #FFFFFF;
+    --bouton: #121821;
+    --bouton-survol: #2A3442;
+    --sur-bouton: #FFFFFF;
+    --accent: #8F6300;
+    --accent-texte: #8A5F00;
+    --accent-doux: #FBF1D6;
+    --accent-aplat: #E0B54A;
+    --succes: #1B7043;
+    --succes-doux: #E2F1E8;
+    --alerte: #E8892A;
+    --alerte-texte: #9A4A00;
+    --alerte-doux: #FDEBDA;
+    --erreur: #B3261E;
+    --erreur-doux: #FCE4E1;
+    --focus: #1F5FD1;
+    --texte-sur-vif: #141A1F;
+    --sur-statut: #FFFFFF;
+    --encre-pleine: #121821;
+    --sur-encre: #FFFFFF;
+    --sur-encre-attenue: #C3CEDD;
+    --badge-etiquette: #646E7B;
+    --pictogramme-tuile: #1D5BC2;
+    --pictogramme-point: #E0B54A;
+    --voile: rgba(18, 24, 33, 0.32);
+    --cat-1: #1D5BC2;
+    --cat-2: #A87A00;
+    --cat-3: #1F8155;
+    --cat-4: #B83A75;
+    --cat-5: #C24D1B;
+    --cat-6: #0E7C8C;
+    --cat-7: #6F7378;
+    --cat-8: #8A5A2B;
+    --seq-1: #D2DEF3;
+    --seq-2: #A5BDE7;
+    --seq-3: #779DDA;
+    --seq-4: #4A7CCE;
+    --seq-5: #1D5BC2;
+    --div-1: #1D5BC2;
+    --div-2: #84A6DC;
+    --div-3: #ECF0F5;
+    --div-4: #D79E88;
+    --div-5: #C24D1B;
+    --halo: 0 8px 24px rgba(18, 24, 33, 0.08);
+    --picto-tuile: var(--pictogramme-tuile);
+    --picto-barres: var(--sur-primaire);
+    --picto-point: var(--pictogramme-point);
+  }
+}
+
+[data-theme="clair"],
+[data-theme="light"] {
+  color-scheme: light;
+  --fond: #F6F8FB;
+  --surface: #FFFFFF;
+  --surface-alt: #ECF0F5;
+  --trait: #CED5DF;
+  --trait-fort: #808A97;
+  --texte: #121821;
+  --texte-attenue: #4F5A68;
+  --neutre: #6E7886;
+  --primaire: #1D5BC2;
+  --primaire-vif: #164A9E;
+  --primaire-doux: #E1EAFA;
+  --sur-primaire: #FFFFFF;
+  --bouton: #121821;
+  --bouton-survol: #2A3442;
+  --sur-bouton: #FFFFFF;
+  --accent: #8F6300;
+  --accent-texte: #8A5F00;
+  --accent-doux: #FBF1D6;
+  --accent-aplat: #E0B54A;
+  --succes: #1B7043;
+  --succes-doux: #E2F1E8;
+  --alerte: #E8892A;
+  --alerte-texte: #9A4A00;
+  --alerte-doux: #FDEBDA;
+  --erreur: #B3261E;
+  --erreur-doux: #FCE4E1;
+  --focus: #1F5FD1;
+  --texte-sur-vif: #141A1F;
+  --sur-statut: #FFFFFF;
+  --encre-pleine: #121821;
+  --sur-encre: #FFFFFF;
+  --sur-encre-attenue: #C3CEDD;
+  --badge-etiquette: #646E7B;
+  --pictogramme-tuile: #1D5BC2;
+  --pictogramme-point: #E0B54A;
+  --voile: rgba(18, 24, 33, 0.32);
+  --cat-1: #1D5BC2;
+  --cat-2: #A87A00;
+  --cat-3: #1F8155;
+  --cat-4: #B83A75;
+  --cat-5: #C24D1B;
+  --cat-6: #0E7C8C;
+  --cat-7: #6F7378;
+  --cat-8: #8A5A2B;
+  --seq-1: #D2DEF3;
+  --seq-2: #A5BDE7;
+  --seq-3: #779DDA;
+  --seq-4: #4A7CCE;
+  --seq-5: #1D5BC2;
+  --div-1: #1D5BC2;
+  --div-2: #84A6DC;
+  --div-3: #ECF0F5;
+  --div-4: #D79E88;
+  --div-5: #C24D1B;
+  --halo: 0 8px 24px rgba(18, 24, 33, 0.08);
+  --picto-tuile: var(--pictogramme-tuile);
+  --picto-barres: var(--sur-primaire);
+  --picto-point: var(--pictogramme-point);
+}
+
+[data-theme="sombre"],
+[data-theme="dark"] {
+  color-scheme: dark;
+  --fond: #0F1318;
+  --surface: #161B22;
+  --surface-alt: #1E242C;
+  --trait: #333B46;
+  --trait-fort: #67717E;
+  --texte: #E8ECF2;
+  --texte-attenue: #A3ADBA;
+  --neutre: #8792A0;
+  --primaire: #8DB0F7;
+  --primaire-vif: #B3CBFA;
+  --primaire-doux: #1A2742;
+  --sur-primaire: #0A1733;
+  --bouton: #E8ECF2;
+  --bouton-survol: #FFFFFF;
+  --sur-bouton: #0F1318;
+  --accent: #E3C26B;
+  --accent-texte: #E3C26B;
+  --accent-doux: #3A3112;
+  --accent-aplat: #E3C26B;
+  --succes: #8CC7A0;
+  --succes-doux: #15291D;
+  --alerte: #F0A35E;
+  --alerte-texte: #F0A35E;
+  --alerte-doux: #3A2614;
+  --erreur: #EE8C84;
+  --erreur-doux: #3B1C1A;
+  --focus: #9EC0FF;
+  --texte-sur-vif: #141A1F;
+  --sur-statut: #0F1318;
+  --encre-pleine: #1A2742;
+  --sur-encre: #FFFFFF;
+  --sur-encre-attenue: #C3CEDD;
+  --badge-etiquette: #646E7B;
+  --pictogramme-tuile: #3B6FD0;
+  --pictogramme-point: #F0D27A;
+  --voile: rgba(5, 8, 12, 0.6);
+  --cat-1: #8DB0F7;
+  --cat-2: #E3C26B;
+  --cat-3: #8CC7A0;
+  --cat-4: #E58FB8;
+  --cat-5: #F2A07B;
+  --cat-6: #6CCAD8;
+  --cat-7: #A9B4C6;
+  --cat-8: #9FAE4F;
+  --seq-1: #2E394D;
+  --seq-2: #465777;
+  --seq-3: #5D74A2;
+  --seq-4: #7592CC;
+  --seq-5: #8DB0F7;
+  --div-1: #8DB0F7;
+  --div-2: #566A92;
+  --div-3: #1E242C;
+  --div-4: #886254;
+  --div-5: #F2A07B;
+  --halo: 0 8px 24px rgba(232, 236, 242, 0.07);
+  --picto-tuile: var(--pictogramme-tuile);
+  --picto-barres: var(--sur-primaire);
+  --picto-point: var(--pictogramme-point);
+}
+/* FIN JETONS */
+:root{--ease:cubic-bezier(0.16,1,0.3,1)}
+body{background:var(--fond);color:var(--texte);font:15px/1.55 var(--police-texte)}
+h1,h2,h3,.logo{font-family:var(--police-titres);font-weight:var(--graisse-titres)}
+a{text-decoration:underline;text-underline-offset:2px}
+.progress{position:fixed;top:0;left:0;height:2px;width:0;background:var(--accent);z-index:50}
+html{scroll-padding-top:76px}
+body{padding-top:61px}
+nav{position:fixed;top:0;left:0;right:0;padding-top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--trait)}
+.nav-in,.container{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,2rem)}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
+.logo{display:flex;align-items:center;gap:8px;color:var(--texte);text-decoration:none;font-size:16px}
+.logo-svg{height:28px;width:28px;display:block}
+.nav-right{display:flex;align-items:center;gap:10px}
+.lang{display:flex;gap:2px;padding:3px;border:1px solid var(--trait-fort);border-radius:999px;background:var(--surface);flex:none}
+.lang a{display:inline-flex;align-items:center;gap:5px;font:700 12px var(--police-code);letter-spacing:.04em;color:var(--texte-attenue);text-decoration:none;padding:5px 9px;border-radius:999px}
+.lang a:hover{color:var(--texte);background:var(--surface-alt)}
+.lang a[aria-current="page"]{background:var(--primaire-doux);color:var(--texte);box-shadow:inset 0 0 0 1px var(--primaire)}
+.lang a:focus-visible{outline:var(--focus-largeur) solid var(--focus);outline-offset:var(--focus-decalage)}
+.lang .flag{width:16px;height:11px;border-radius:2px;box-shadow:0 0 0 1px var(--trait-fort);flex:none}
+.nav-links{display:flex;gap:6px}
+.nav-links a{font:600 13px var(--police-code);color:var(--texte-attenue);text-decoration:none;padding:7px 12px;border-radius:999px}
+.nav-links a:hover{background:var(--primaire-doux);color:var(--texte)}
+.eyebrow{font:700 .78rem var(--police-code);letter-spacing:.14em;text-transform:uppercase;color:var(--primaire)}
+section{padding-block:clamp(2.5rem,6vw,4.5rem)}
+.hero{background:var(--fond)}
+.hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:clamp(24px,4vw,56px);align-items:center}
+h1{font-size:clamp(2rem,4.6vw,3.6rem);line-height:1.1;letter-spacing:-.02em;margin:.5rem 0 1rem;text-wrap:balance}
+h1::after{content:"";display:block;width:72px;height:3px;border-radius:2px;background:var(--accent);margin-top:1rem}
+h1 em{font-style:normal;color:var(--primaire-vif)}
+.sub{color:var(--texte-attenue);font-size:1.05rem;max-width:60ch;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.kpi{background:var(--surface);border:1px solid var(--trait);border-radius:var(--rayon-moyen);padding:14px 16px;display:grid;gap:2px}
+.kpi .ico{font-size:20px;line-height:1}
+.kpi b{font:800 1.45rem var(--police-code);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px;color:var(--texte-attenue)}
+.kpi.in b{color:var(--primaire)} .kpi.out b{color:var(--succes)} .kpi.cost b{color:var(--alerte-texte)} .kpi.co2 b{color:var(--erreur)}
+.donut-card{background:var(--surface);border:1px solid var(--trait);border-radius:var(--rayon-grand);padding:20px;display:grid;gap:14px}
+.donut-card h3{margin:0;font-size:15px;letter-spacing:-.01em}
+.donut-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.donut-wrap svg{width:150px;height:150px;flex:none}
+.legend{display:grid;gap:8px;font-size:13px}
+.legend div{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.legend i{width:12px;height:12px;border-radius:3px;display:block}
+.legend b{font:700 13px var(--police-code);font-variant-numeric:tabular-nums}
+.donut-card p{margin:0;font-size:12.5px;color:var(--texte-attenue)}
+h2{font-size:clamp(1.5rem,3vw,2.2rem);letter-spacing:-.02em;margin:.4rem 0 .6rem;text-wrap:balance}
+.intro{color:var(--texte-attenue);max-width:72ch;margin:0 0 22px}
+.guide{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.guide div{border-radius:var(--rayon-moyen);padding:12px 14px;font-size:13px;color:var(--texte-attenue);border:1px solid transparent}
+.guide b{display:block;color:var(--texte);font-size:14px;margin-bottom:2px}
+.g-in{background:var(--primaire-doux)} .g-out{background:var(--succes-doux)} .g-cost{background:var(--alerte-doux)} .g-imp{background:var(--erreur-doux)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.controls .label{font:700 12px var(--police-code);letter-spacing:.1em;text-transform:uppercase;color:var(--texte-attenue);margin-right:4px}
+button{font:600 13px var(--police-texte);color:var(--texte);background:transparent;border:1px solid var(--trait-fort);border-radius:999px;padding:7px 13px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;transition:all .2s var(--ease)}
+button:hover{background:var(--surface-alt);border-color:var(--texte)}
+button:focus-visible{outline:var(--focus-largeur) solid var(--focus);outline-offset:var(--focus-decalage)}
+button[aria-pressed="true"]{background:var(--primaire-doux);border-color:var(--primaire);color:var(--texte)}
+.chev{display:inline-block;font-size:11px;transition:transform .2s var(--ease)}
+[aria-expanded="true"] .chev,[aria-pressed="true"] .chev{transform:rotate(90deg)}
+.table-box{overflow-x:auto;border:1px solid var(--trait);border-radius:var(--rayon-grand);background:var(--surface)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--trait)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;z-index:1;background:var(--surface);border-right:1px solid var(--trait)}
+thead th{font-weight:600;font-size:12.5px;color:var(--texte);vertical-align:bottom}
+thead tr.groups th{padding-block:10px 8px;text-align:left}
+thead tr.groups th button{border:none;background:none;padding:0;font:800 13px var(--police-code);letter-spacing:.04em;color:inherit;border-radius:4px}
+.unit{font:500 11px var(--police-texte);color:var(--texte-attenue);display:block;margin-top:2px}
+.c-in{background:var(--primaire-doux)} .c-in.det{background:color-mix(in srgb,var(--primaire-doux) 45%,var(--surface))}
+.c-out{background:var(--succes-doux)} .c-out.det{background:color-mix(in srgb,var(--succes-doux) 45%,var(--surface))}
+.c-cost{background:var(--alerte-doux)} .c-cost.det{background:color-mix(in srgb,var(--alerte-doux) 45%,var(--surface))}
+.c-imp{background:var(--erreur-doux)} .c-imp.det{background:color-mix(in srgb,var(--erreur-doux) 45%,var(--surface))}
+tr.groups .c-in{color:var(--primaire)} tr.groups .c-out{color:var(--succes)} tr.groups .c-cost{color:var(--alerte-texte)} tr.groups .c-imp{color:var(--erreur)}
+th.g-start,td.g-start{border-left:2px solid var(--surface)}
+td{font:600 13.5px var(--police-code)}
+td.det{font-weight:500;color:var(--texte-attenue)}
+td.name{font:600 14px var(--police-texte)}
+tbody tr.total td{font-weight:800;font-size:14.5px;border-bottom:2px solid var(--trait)}
+tbody tr.total td.name button{font:800 14.5px var(--police-texte);border:none;background:none;padding:0}
+tbody tr.model td.name{padding-left:26px}
+tbody tr.machine td.name{padding-left:26px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
+.share{display:block;font:500 11px var(--police-texte);color:var(--texte-attenue)}
+.hint{font-size:12.5px;color:var(--texte-attenue);margin:10px 0 0}
+.explain{background:var(--surface-alt)}
+details{background:var(--surface);border:1px solid var(--trait);border-radius:var(--rayon-grand);margin-top:12px}
+details[open]{border-color:var(--primaire)}
+summary{cursor:pointer;list-style:none;padding:16px 20px;font-weight:700;font-size:15.5px;display:flex;gap:10px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";margin-left:auto;font:700 20px var(--police-code);color:var(--primaire);transition:transform .25s var(--ease)}
+details[open] summary::after{transform:rotate(45deg)}
+summary:focus-visible{outline:var(--focus-largeur) solid var(--focus);outline-offset:var(--focus-decalage);border-radius:var(--rayon-grand)}
+.body{padding:0 20px 20px;display:grid;gap:12px;color:var(--texte-attenue);max-width:82ch}
+.body p{margin:0}
+.body b{color:var(--texte)}
+.body code{font:12.5px var(--police-code);background:var(--surface-alt);padding:1px 5px;border-radius:4px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.step{border-radius:var(--rayon-moyen);padding:12px 14px;font-size:13.5px}
+.step b{display:block;margin-bottom:2px}
+.price{border-collapse:collapse;font-size:13px;width:auto}
+.price th,.price td{padding:6px 12px;border-bottom:1px solid var(--trait);font:500 13px var(--police-texte);position:static;border-right:none;background:none}
+.price th{font-weight:700}
+footer{padding-block:24px;border-top:1px solid var(--trait);font-size:12.5px;color:var(--texte-attenue)}
+footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media (max-width:900px){
+  .hero-grid{grid-template-columns:1fr}
+  .kpis,.guide{grid-template-columns:repeat(2,1fr)}
+  .steps{grid-template-columns:1fr}
+  .nav-links{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Impression : jetons clairs (bloc JETONS), pas de barre fixe, marques de graphique gardées, blocs entiers. */
+@media print{
+  nav,.progress{display:none}
+  body{padding-top:0}
+  .pile,.pile i,.parts i,.legende-etapes i,.legend i,.dot,.barre,.barre span,.etape .nom i,.duo .part,.duo .part i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .kpi,.donut-card,.reco,.etape,.duo>div,.guide div,.constat div,tr{break-inside:avoid}
+  .gain,.pill{border:1px solid currentColor;font-weight:700}
+}
+/* Sections 04 à 07 : mêmes jetons que le reste du gabarit ; une couleur par famille d'étapes. */
+.legende-etapes{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px;font-size:12.5px;color:var(--texte-attenue)}
+.legende-etapes span{display:inline-flex;align-items:center;gap:6px}
+.legende-etapes i{width:10px;height:10px;border-radius:2px;display:block}
+.pile{display:flex;height:12px;border-radius:3px;overflow:hidden;min-width:180px;background:var(--trait)}
+.pile i{display:block;height:100%}
+/* Trois groupes d'étapes (cat-1 à cat-3), chacun avec son motif : plein, hachure, hachure inverse. */
+.m1{background:var(--cat-1)}
+.m2{background:repeating-linear-gradient(135deg,var(--cat-2) 0 3px,var(--surface) 3px 5px)}
+.m3{background:repeating-linear-gradient(45deg,var(--cat-3) 0 2px,var(--surface) 2px 3px)}
+.parts{display:flex;gap:10px;margin-top:4px;font:500 11px var(--police-texte);color:var(--texte-attenue)}
+.parts span{display:inline-flex;align-items:center;gap:4px}
+.parts i,.legende-etapes i{box-shadow:0 0 0 1px var(--trait-fort)}
+.parts i{width:9px;height:9px;border-radius:2px;display:block}
+td.lien a{color:var(--texte);text-decoration:underline;text-decoration-color:var(--trait-fort);text-underline-offset:3px}
+td.lien a:hover{color:var(--primaire);text-decoration-color:var(--primaire)}
+.pill{display:inline-block;font:600 12px var(--police-texte);padding:2px 9px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--trait);color:var(--texte-attenue)}
+.ver{font:500 11.5px var(--police-code);color:var(--texte-attenue);margin-left:6px}
+tr.sous-total td{font-weight:800;background:var(--surface-alt)}
+tr.sous-total td:first-child{background:var(--surface-alt)}
+tr.hors td.name{padding-left:26px;color:var(--texte-attenue)}
+.intro a,.body a,.hint a,footer a{color:var(--primaire);text-decoration:underline}
+/* Étapes : une ligne par famille, barre de carbone bas – haut, détail repliable. */
+.etapes{display:grid;gap:8px}
+.etape{border:1px solid var(--trait);border-radius:var(--rayon-moyen);background:var(--surface)}
+.etape>button{width:100%;border:none;border-radius:var(--rayon-moyen);background:none;padding:12px 16px;display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(120px,2fr) 92px 120px 86px;gap:14px;align-items:center;text-align:left;color:var(--texte)}
+.etape>button:hover{color:var(--texte);background:var(--surface-alt);border-color:transparent}
+.etape .nom{font:700 14px var(--police-texte);display:flex;gap:8px;align-items:center;min-width:0}
+.etape .nom i{width:10px;height:10px;border-radius:2px;flex:none}
+.barre{position:relative;height:14px;background:var(--surface-alt);border-radius:3px;overflow:hidden}
+.barre .haut{position:absolute;inset:0 auto 0 0;opacity:.35}
+.barre .bas{position:absolute;inset:0 auto 0 0}
+.etape .chiffre{font:700 13.5px var(--police-code);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.etape .chiffre small{display:block;font:500 11px var(--police-texte);color:var(--texte-attenue)}
+.etape .detail{padding:0 16px 14px;overflow-x:auto}
+.etape .detail table{font-size:13px}
+.etape .detail td,.etape .detail th{padding:7px 10px}
+.etape .detail td:first-child,.etape .detail th:first-child{position:static;border-right:none}
+.entete-etapes{display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(120px,2fr) 92px 120px 86px;gap:14px;padding:0 17px 4px;font:600 11.5px var(--police-texte);color:var(--texte-attenue);text-transform:uppercase;letter-spacing:.06em}
+.entete-etapes span:nth-child(n+3){text-align:right}
+.constat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 20px}
+.constat div{background:var(--surface-alt);border-radius:var(--rayon-moyen);padding:14px 16px;font-size:13.5px;color:var(--texte-attenue)}
+.constat b{display:block;font:800 1.35rem var(--police-code);color:var(--texte);letter-spacing:-.02em}
+/* Orchestrateur et sous-agents. */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.duo>div{border:1px solid var(--trait);border-radius:var(--rayon-grand);padding:18px 20px;display:grid;gap:10px;background:var(--surface)}
+.duo h3{margin:0;font-size:16px}
+.duo dl{margin:0;display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px}
+.duo dt{font-size:12px;color:var(--texte-attenue)}
+.duo dd{margin:0;font:800 1.2rem var(--police-code);font-variant-numeric:tabular-nums}
+.duo .part{height:8px;border-radius:4px;background:var(--trait);overflow:hidden}
+.duo .part i{display:block;height:100%;background:var(--primaire)}
+tr.role td.name button{font:600 14px var(--police-texte);border:none;background:none;padding:0;text-align:left}
+tr.me td.name{padding-left:30px;color:var(--texte-attenue);font-weight:500}
+/* Recommandations : ordonnées par gain estimé. */
+.recos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;counter-reset:reco}
+.reco{border:1px solid var(--trait);border-radius:var(--rayon-grand);padding:18px 20px;display:grid;gap:8px;align-content:start;background:var(--surface);counter-increment:reco}
+.reco h3{margin:0;font-size:15.5px;line-height:1.3;display:flex;gap:10px}
+.reco h3::before{content:counter(reco);font:800 13px var(--police-code);color:var(--texte);background:var(--primaire-doux);box-shadow:inset 0 0 0 1px var(--primaire);border-radius:999px;min-width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
+.reco p{margin:0;font-size:13.5px;color:var(--texte-attenue)}
+.reco p b{color:var(--texte)}
+.gain{justify-self:start;font:700 12px var(--police-texte);padding:3px 10px;border-radius:999px;background:var(--succes-doux);color:var(--succes)}
+.gain.neutre{background:var(--primaire-doux);color:var(--primaire)}
+.bancs{margin-top:20px;background:var(--surface-alt);border-radius:var(--rayon-grand);padding:18px 20px}
+.bancs h3{margin:0 0 8px;font-size:15.5px}
+.bancs ul{margin:0;padding-left:18px;display:grid;gap:6px;font-size:13.5px;color:var(--texte-attenue)}
+.bancs b{color:var(--texte)}
+@media (max-width:900px){
+  .constat,.duo,.recos{grid-template-columns:1fr}
+  .etape>button,.entete-etapes{grid-template-columns:1fr 92px;row-gap:6px}
+  .etape .barre{grid-column:1/-1;order:5}
+  .etape .chiffre.part-orch,.etape .chiffre.co2,.entete-etapes span:nth-child(2),.entete-etapes span:nth-child(4),.entete-etapes span:nth-child(5){display:none}
+}
+</style>
+
+<div class="progress" id="progress"></div>
+<nav>
+  <div class="nav-in">
+    <a href="#top" class="logo">
+      <svg class="logo-svg" viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <rect width="32" height="32" rx="8" style="fill:var(--picto-tuile)"/>
+        <path d="M9 10h14M9 16h9M9 22h14" stroke-width="3" stroke-linecap="round" fill="none" style="stroke:var(--picto-barres)"/>
+        <circle cx="23" cy="16" r="2.5" style="fill:var(--picto-point)"/>
+      </svg>
+      <span>Bilan des tokens</span>
+    </a>
+    <div class="nav-right">
+      <div class="nav-links" id="nav-links">
+        <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+      </div>
+      <!--LANGUES-->
+    </div>
+  </div>
+</nav>
+
+<section class="hero" id="bilan">
+  <div class="container hero-grid">
+    <div>
+      <div class="eyebrow" id="eyebrow">01 — Bilan Claude Code</div>
+      <h1 id="h1">Ce mois-ci, <em id="h-in">—</em> de tokens lus pour <em id="h-out">—</em> écrits</h1>
+      <p class="sub" id="sub"></p>
+      <div class="kpis" id="kpis"></div>
+    </div>
+    <div class="donut-card">
+      <h3>💵 Où part l'argent ?</h3>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 42 42" role="img" aria-label="Répartition du coût API par poste" id="donut"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+      <p>La relecture du cache coûte plusieurs fois moins cher par token que l'input normal, mais elle en traite tellement qu'elle reste souvent le premier poste.</p>
+    </div>
+  </div>
+</section>
+
+<section id="tableau">
+  <div class="container">
+    <div class="eyebrow">02 — Le détail</div>
+    <h2>Tokens, coût et impact, du total au détail</h2>
+    <p class="intro">Le tableau affiche d'abord l'essentiel : une ligne de total et une colonne par famille. Cliquez sur un en-tête de couleur pour voir ce qu'il contient, ou sur <b>Total</b> pour obtenir une ligne par modèle.</p>
+    <div class="guide">
+      <div class="g-in"><b>📥 Input</b>Ce que le modèle lit à chaque appel : votre message, mais surtout tout l'historique de la conversation.</div>
+      <div class="g-out"><b>📤 Output</b>Ce que le modèle écrit : réponses, code, appels d'outils et réflexion.</div>
+      <div class="g-cost"><b>💵 Coût API</b>Ce que ces tokens auraient coûté au tarif public de l'API Anthropic.</div>
+      <div class="g-imp"><b>🌍 Impact</b>Estimation de l'empreinte de la génération : carbone, énergie, eau, ressources.</div>
+    </div>
+    <div class="controls">
+      <span class="label">Déplier</span>
+      <button type="button" id="t-rows" aria-pressed="false"><span class="chev">›</span>🤖 Modèles</button>
+      <button type="button" id="t-machines" aria-pressed="false" hidden><span class="chev">›</span>💻 PC</button>
+      <button type="button" data-group="input" aria-pressed="false"><span class="chev">›</span>📥 Input</button>
+      <button type="button" data-group="output" aria-pressed="false"><span class="chev">›</span>📤 Output</button>
+      <button type="button" data-group="cost" aria-pressed="false"><span class="chev">›</span>💵 Coût</button>
+      <button type="button" data-group="impact" aria-pressed="false"><span class="chev">›</span>🌍 Impact</button>
+      <button type="button" id="t-all">Tout déplier</button>
+    </div>
+    <div class="table-box"><table id="tbl"></table></div>
+    <p class="hint" id="p-hint-impact"></p>
+  </div>
+</section>
+
+<section class="explain" id="comprendre">
+  <div class="container">
+    <div class="eyebrow">03 — Comprendre</div>
+    <h2>Le cache et la méthode de calcul</h2>
+    <p class="intro">Deux explications, repliées par défaut, pour lire les chiffres sans contresens.</p>
+
+    <details>
+      <summary>♻️ À quoi sert le cache, et pourquoi l'input « non caché » est-il si petit ?</summary>
+      <div class="body" id="body-cache">
+        <p>Un modèle de langage n'a pas de mémoire entre deux appels. À chaque tour, Claude Code lui renvoie <b>tout le contexte</b> : prompt système, <code>CLAUDE.md</code>, historique de la conversation, résultats d'outils. Sur une longue session, cela fait des centaines de milliers de tokens à chaque appel.</p>
+        <p>Le <b>cache de prompt</b> évite de recalculer la partie du début qui n'a pas changé depuis l'appel précédent. Chaque token d'input tombe dans l'une de trois cases :</p>
+        <div class="steps">
+          <div class="step g-in"><b>♻️ Lecture cache</b>Le contexte déjà vu, relu depuis le cache. Plusieurs fois moins cher qu'un input normal.</div>
+          <div class="step g-in"><b>✍️ Écriture cache</b>Le contenu nouveau, mis en cache pour le prochain appel. 1,25 fois le prix normal (conservé 5 min), ou 2 fois (conservé 1 h).</div>
+          <div class="step g-in"><b>🆕 Non caché</b>Les quelques tokens après le dernier point de cache. Prix normal, mais volume minuscule.</div>
+        </div>
+        <p id="p-lire-chiffres"></p>
+        <p id="p-cache-rapporte"></p>
+        <p><b>Signal à surveiller.</b> Beaucoup d'écriture par rapport à la lecture veut dire que le cache se perd : une pause plus longue que sa durée de vie (5 min), ou beaucoup de sessions courtes. <code>/agent-cost-kit:mesurer-couts</code> détaille ces expirations par agent.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🧮 Méthode de calcul et limites</summary>
+      <div class="body" id="body-methode">
+        <p><b>📂 Source.</b> Les transcriptions locales de Claude Code (<code>~/.claude/projects</code>), y compris celles des sous-agents. <span id="p-perimetre-dossier"></span> Seuls les appels horodatés dans le mois sont retenus, un appel par identifiant de message (les doublons, y compris d'une session reprise, sont écartés).</p>
+        <p id="p-output-reestime"></p>
+        <p><b>💵 Coût.</b> Fonctions et table de prix de <code>agent-cost-kit</code> (<code>scripts/mesurer_couts.py</code>, <code>tarifs.json</code>). Prix publics par million de tokens :</p>
+        <div style="overflow-x:auto"><table class="price" id="tbl-prix"></table></div>
+        <p id="p-long-contexte"></p>
+        <p>Le résultat est un <b>équivalent API</b> : sous abonnement, la dépense réelle est différente.</p>
+        <p id="p-impact"></p>
+        <p><b>⚠️ Périmètre.</b> <span id="p-limite"></span></p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<div id="detail-mount"></div>
+<template id="tpl-detail">
+<section id="projets">
+  <div class="container">
+    <div class="eyebrow">04 — Par projet</div>
+    <h2 id="titre-projets">Ce qu'a consommé chaque projet du portfolio</h2>
+    <p class="intro" id="intro-projets"></p>
+    <div class="legende-etapes" id="legende-etapes"></div>
+    <div class="table-box"><table id="tbl-projets"></table></div>
+    <p class="hint">Coût en équivalent API. Carbone en kgCO2e, fourchette basse – haute de la méthode ImpactIA.</p>
+  </div>
+</section>
+
+<section class="explain" id="etapes">
+  <div class="container">
+    <div class="eyebrow">05 — Par étape</div>
+    <h2>Du besoin à la livraison, ce que coûte chaque étape</h2>
+    <p class="intro">Onze familles d'activités, de la plus en amont à la plus transverse. Cliquez sur une famille pour voir le détail par skill ou par type de sous-agent. La barre montre le carbone : la partie pleine est le bas de la fourchette, la partie claire va jusqu'au haut.</p>
+    <div class="constat" id="constat-etapes"></div>
+    <div class="entete-etapes"><span>Étape</span><span>Carbone (kgCO2e)</span><span>Coût API</span><span>Carbone</span><span>Orchestrateur</span></div>
+    <div class="etapes" id="liste-etapes"></div>
+    <details>
+      <summary>🧮 Comment chaque appel est rattaché à une étape</summary>
+      <div class="body">
+        <p><b>Sous-agents.</b> Le type de l'agent décide quand il est explicite : <code>dev-story</code> pour le développement ; <code>reviewer</code> et <code>second-avis</code> pour la relecture ; <code>lookup</code> et <code>Explore</code> pour la recherche. Pour un sous-agent généraliste, on prend le skill qu'il exécute à ce moment-là (plan, implémentation, tests et revue d'aidd-dev se suivent dans le même agent), sinon les mots de sa description (« review », « Implement story », « recherche »…), sinon le skill de la session qui l'a lancé.</p>
+        <p><b>Session principale.</b> Le dernier skill invoqué (<code>/bmad-prd</code>, <code>/bmad-architecture</code>…) vaut jusqu'au skill suivant ou au <code>/clear</code>. Sans skill actif, l'outil appelé décide : commande git ou gh de PR, de CI ou de release pour la livraison ; lancement d'agent pour le pilotage ; pytest ou ruff pour les tests ; édition de fichier pour le développement. Le reste (lecture, commandes, réponses) forme la famille « Échanges sans étape identifiée ».</p>
+        <p><b>Limite.</b> Un skill reste attribué tant qu'on ne change pas de tâche. Les suites de session après <code>/agent-cost-kit:avancement-run</code> comptent donc dans le pilotage, même quand l'orchestrateur y relance des stories. Les ordres de grandeur sont fiables ; à quelques pourcents près, la frontière entre deux familles voisines ne l'est pas.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="container">
+    <div class="eyebrow">06 — Par rôle</div>
+    <h2>Orchestrateur et sous-agents</h2>
+    <p class="intro">L'orchestrateur est la session principale, celle où l'on tape. Les sous-agents sont lancés par elle, chacun avec un contexte neuf. Cliquez sur un rôle pour voir le détail par modèle et par effort.</p>
+    <div class="duo" id="duo"></div>
+    <div class="controls"><span class="label">Déplier</span><button type="button" id="t-roles" aria-pressed="false"><span class="chev">›</span>🤖 Modèle et effort de chaque rôle</button></div>
+    <div class="table-box"><table id="tbl-roles"></table></div>
+    <p class="hint">« Coût médian par agent » : la moitié des agents de ce type ont coûté moins. Contexte moyen : tokens d'input relus à chaque appel.</p>
+  </div>
+</section>
+
+<section class="explain" id="recos">
+  <div class="container">
+    <div class="eyebrow">07 — Recommandations</div>
+    <h2>Ce que ces mesures recommandent</h2>
+    <p class="intro">Classées par gain estimé sur la période, à qualité égale. Les gains sont des ordres de grandeur, calculés sur les coûts médians mesurés ci-dessus. Ce que le kit en a tiré : <a href="https://github.com/Aliquanto3/agent-cost-kit/blob/master/docs/genese.md" target="_blank" rel="noopener">docs/genese.md</a>. Le carbone suit à peu près le coût, parce que les deux viennent surtout du contexte relu.</p>
+    <div class="recos" id="liste-recos"></div>
+    <div class="bancs">
+      <h3>🧪 Ce que disent les bancs d'essai du 13 octobre</h3>
+      <ul>
+        <li><b>À tâche égale, les trois modèles consomment à peu près autant de tokens.</b> L'écart de coût vient du prix du token et du nombre de tours : Sonnet a fait 33 appels contre 57 pour Opus sur la même implémentation.</li>
+        <li><b>Sonnet coûte de 17 à 55 % de moins qu'Opus à la tâche</b>, pas 50 % partout : la lecture du cache coûte le même prix chez les deux.</li>
+        <li><b>Opus reste devant en architecture, en spec transverse et en recherche web</b> qui fonde une décision. Notes en aveugle : 8,5 contre 7,5 pour Sonnet en architecture, 8,4 contre 7,8 en recherche web.</li>
+        <li><b>En revue, Haiku trouve des défauts réels pour quelques centimes.</b> La réunion des constats Sonnet et Haiku offre le meilleur rapport qualité-prix ; Opus juge mieux la gravité.</li>
+        <li><b>Le parallélisme accélère la dépense sans la grossir</b> : jusqu'à 11 agents simultanés n'ont pas augmenté le coût par tâche. Le mode économique (une seule passe de revue) a fait baisser de 40 % le coût par story.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</template>
+
+<footer><div class="container"><span id="footer-date">Bilan Claude Code</span><span id="footer-methode">Calcul : agent-cost-kit</span></div></footer>
+
+<script>
+const BILAN=/*__BILAN__*/null;
+
+// Échappement des textes venus du JSON (chemin, nom de machine, identifiant de modèle) avant innerHTML.
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);}
+// --- Dérivation du nom et de la couleur d'affichage depuis l'identifiant du modèle ---
+const COULEURS_FAMILLE={opus:"var(--cat-1)",sonnet:"var(--cat-3)",haiku:"var(--cat-2)",fable:"var(--cat-4)",mythos:"var(--cat-6)"};
+function nomAffiche(id){
+  const m=/claude-(opus|sonnet|haiku|fable|mythos)-(\d+)(?:-(\d+))?/.exec(id);
+  if(!m)return{nom:esc(id),fam:null,col:"var(--neutre)"};
+  const fam=m[1],maj=fam[0].toUpperCase()+fam.slice(1),ver=m[3]!=null?`${m[2]}.${m[3]}`:m[2];
+  return{nom:`${maj} ${ver}`,fam,col:COULEURS_FAMILLE[fam]};
+}
+
+const MOIS_FR=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+function moisTexte(aaaa_mm){const[a,m]=aaaa_mm.split("-");return`${MOIS_FR[+m-1]} ${a}`;}
+function jourMoisAnnee(iso){const d=new Date(iso);return{jour:d.getUTCDate(),mois:d.getUTCMonth(),annee:d.getUTCFullYear()};}
+
+const flat=d=>{const na=nomAffiche(d.modele);return{nom:na.nom,col:na.col,appels:d.appels,entree:d.entree,e5:d.ecrit_5m,e1:d.ecrit_1h,lu:d.lu,
+  inTot:d.entree+d.ecrit_5m+d.ecrit_1h+d.lu,outDecl:d.sortie_declaree,out:d.sortie,
+  cIn:d.cout.entree,cEc:d.cout.ecriture,cLu:d.cout.lecture,cOut:d.cout.sortie,
+  cTot:d.cout.entree+d.cout.ecriture+d.cout.lecture+d.cout.sortie,cSansCache:d.cout_sans_cache,
+  gwp:d.impact.gwp_gco2e,nrj:d.impact.energie_wh,eau:d.impact.eau_l,pe:d.impact.pe_mj,adpe:d.impact.adpe_mgsbe};};
+const sommer=lignes=>lignes.reduce((t,r)=>{for(const k in r){if(k==="nom"||k==="col")continue;
+  t[k]=Array.isArray(r[k])?(t[k]||[0,0]).map((v,i)=>v+r[k][i]):(t[k]||0)+r[k];}return t;},{nom:"Total"});
+
+const ROWS=BILAN.modeles.map(flat);
+const TOTAL=sommer(ROWS);
+const MACHINES=Array.isArray(BILAN.machines)?BILAN.machines:[BILAN.machine];
+const MULTI=MACHINES.length>1;
+const MACHINE_ROWS=MULTI&&Array.isArray(BILAN.par_machine)?BILAN.par_machine.map(m=>({nom:"💻 "+esc(m.machine),col:"var(--neutre)",appels:m.appels,entree:m.entree,e5:m.ecrit_5m,e1:m.ecrit_1h,lu:m.lu,
+  inTot:m.entree+m.ecrit_5m+m.ecrit_1h+m.lu,outDecl:m.sortie_declaree,out:m.sortie,
+  cIn:m.cout.entree,cEc:m.cout.ecriture,cLu:m.cout.lecture,cOut:m.cout.sortie,
+  cTot:m.cout.entree+m.cout.ecriture+m.cout.lecture+m.cout.sortie,cSansCache:m.cout_sans_cache,
+  gwp:m.impact.gwp_gco2e,nrj:m.impact.energie_wh,eau:m.impact.eau_l,pe:m.impact.pe_mj,adpe:m.impact.adpe_mgsbe})):[];
+
+const nf=(v,d=0)=>v.toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d});
+function tok(v){if(v>=1e9)return nf(v/1e9,2)+" Md";if(v>=1e6)return nf(v/1e6,v>=1e8?0:1)+" M";if(v>=1e4)return nf(v/1e3,0)+" k";return nf(v);}
+function usd(v){if(v===0)return "0 $";if(v<0.01)return "< 0,01 $";return nf(v,v>=100?0:2)+" $";}
+function sig(v){if(v===0)return "0";if(v>=100)return nf(v,0);if(v>=1)return nf(v,1);return v.toLocaleString("fr-FR",{maximumSignificantDigits:2});}
+const rng=(a,k=1)=>sig(a[0]/k)+" – "+sig(a[1]/k);
+const pct=(v,t)=>t?nf(100*v/t,v/t<0.01?1:0)+" %":"";
+
+const GROUPS=[
+  {id:"base",label:null,cls:"",cols:[{h:"📞 Appels",u:"requêtes au modèle",f:r=>nf(r.appels),sum:1}]},
+  {id:"input",label:"📥 INPUT",cls:"c-in",cols:[
+    {h:"📥 Input traité",u:"tokens lus au total",f:r=>tok(r.inTot),sum:1},
+    {h:"🆕 Non caché",u:"tokens, prix plein",f:r=>tok(r.entree)},
+    {h:"✍️ Écriture cache 5 min",u:"tokens, ×1,25",f:r=>tok(r.e5)},
+    {h:"✍️ Écriture cache 1 h",u:"tokens, ×2",f:r=>tok(r.e1)},
+    {h:"♻️ Lecture cache",u:"tokens · part",f:r=>tok(r.lu)+'<span class="share">'+pct(r.lu,r.inTot)+" de l'input</span>"}]},
+  {id:"output",label:"📤 OUTPUT",cls:"c-out",cols:[
+    {h:"📤 Output",u:"tokens écrits (réestimés)",f:r=>tok(r.out),sum:1},
+    {h:"🧾 Déclaré",u:"tokens dans les transcriptions",f:r=>tok(r.outDecl)},
+    {h:"🔍 Sous-déclaration",u:"réestimé vs déclaré",f:r=>r.outDecl?"+"+nf(100*(r.out/r.outDecl-1))+" %":"—"}]},
+  {id:"cost",label:"💵 COÛT API",cls:"c-cost",cols:[
+    {h:"💵 Coût",u:"$ · part du total",f:r=>usd(r.cTot)+(r.nom==="Total"?"":'<span class="share">'+pct(r.cTot,TOTAL.cTot)+"</span>"),sum:1},
+    {h:"🆕 Input",u:"$",f:r=>usd(r.cIn)},
+    {h:"✍️ Écriture cache",u:"$",f:r=>usd(r.cEc)},
+    {h:"♻️ Lecture cache",u:"$",f:r=>usd(r.cLu)},
+    {h:"📤 Output",u:"$",f:r=>usd(r.cOut)}]},
+  {id:"impact",label:"🌍 IMPACT",cls:"c-imp",cols:[
+    {h:"🌍 Carbone",u:"kgCO2e",f:r=>rng(r.gwp,1000),sum:1},
+    {h:"⚡ Énergie",u:"kWh",f:r=>rng(r.nrj,1000)},
+    {h:"💧 Eau",u:"litres",f:r=>rng(r.eau)},
+    {h:"🛢️ Énergie primaire",u:"MJ",f:r=>rng(r.pe)},
+    {h:"⛏️ Ressources minérales",u:"mgSbe (ADPe)",f:r=>rng(r.adpe)}]}
+];
+
+const CLE_STOCKAGE="bilan-tokens-"+BILAN.mois+(MULTI?"-consolide":"");
+const state={rows:false,machines:false,input:false,output:false,cost:false,impact:false};
+try{Object.assign(state,JSON.parse(localStorage.getItem(CLE_STOCKAGE)||"{}"));}catch(e){}
+const visible=g=>g.cols.filter(c=>c.sum||state[g.id]);
+function cells(r){
+  let h="";
+  for(const g of GROUPS)visible(g).forEach((c,i)=>{
+    h+=`<td class="${[g.cls,i===0&&g.label?"g-start":"",c.sum?"":"det"].join(" ").trim()}">${c.f(r)}</td>`;});
+  return h;
+}
+function render(){
+  let h='<thead><tr class="groups"><th rowspan="2" style="vertical-align:bottom">🤖 Modèle</th>';
+  for(const g of GROUPS){const n=visible(g).length;
+    if(!g.label){h+=`<th colspan="${n}"></th>`;continue;}
+    h+=`<th colspan="${n}" class="${g.cls} g-start"><button type="button" data-group="${g.id}" aria-expanded="${state[g.id]}" title="${state[g.id]?"Replier":"Déplier"} le détail"><span class="chev">›</span>${g.label}</button></th>`;}
+  h+="</tr><tr>";
+  for(const g of GROUPS)visible(g).forEach((c,i)=>{
+    h+=`<th class="${[g.cls,i===0&&g.label?"g-start":"",c.sum?"":"det"].join(" ").trim()}">${c.h}<span class="unit">${c.u}</span></th>`;});
+  h+="</tr></thead><tbody>";
+  h+=`<tr class="total"><td class="name"><button type="button" id="row-toggle" aria-expanded="${state.rows}" title="${state.rows?"Masquer":"Afficher"} les modèles"><span class="chev">›</span>Total</button></td>${cells(TOTAL)}</tr>`;
+  if(state.rows)for(const r of ROWS)h+=`<tr class="model"><td class="name"><span class="dot" style="background:${r.col}"></span>${r.nom}</td>${cells(r)}</tr>`;
+  if(state.machines)for(const r of MACHINE_ROWS)h+=`<tr class="machine"><td class="name"><span class="dot" style="background:${r.col}"></span>${r.nom}</td>${cells(r)}</tr>`;
+  document.getElementById("tbl").innerHTML=h+"</tbody>";
+  document.querySelectorAll(".controls [data-group]").forEach(b=>b.setAttribute("aria-pressed",state[b.dataset.group]));
+  document.getElementById("t-rows").setAttribute("aria-pressed",state.rows);
+  if(MULTI){const b=document.getElementById("t-machines");b.hidden=false;b.setAttribute("aria-pressed",state.machines);}
+  document.getElementById("t-all").textContent=Object.values(state).every(Boolean)?"Tout replier":"Tout déplier";
+  try{localStorage.setItem(CLE_STOCKAGE,JSON.stringify(state));}catch(e){}
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.group){state[b.dataset.group]=!state[b.dataset.group];render();}
+  else if(b.id==="t-rows"||b.id==="row-toggle"){state.rows=!state.rows;render();}
+  else if(b.id==="t-machines"){state.machines=!state.machines;render();}
+  else if(b.id==="t-all"){const v=!Object.values(state).every(Boolean);for(const k in state)state[k]=v;render();}
+});
+
+// --- Titre, bandeau, en-tête ---
+document.title=`Bilan tokens ${moisTexte(BILAN.mois)}`;
+const debut=jourMoisAnnee(BILAN.premier_appel),fin=jourMoisAnnee(BILAN.dernier_appel);
+const periode=(debut.jour===1?"1ᵉʳ":debut.jour)+" au "+fin.jour+" "+moisTexte(BILAN.mois);
+const lieu=BILAN.dossier?`<b>${esc(BILAN.dossier)}</b>`:"tous les projets";
+const machineTxt=MULTI?`${MACHINES.length} PC (${esc(MACHINES.join(", "))})`:`le PC <b>${esc(BILAN.machine)}</b>`;
+document.getElementById("eyebrow").textContent=`01 — Bilan Claude Code · ${moisTexte(BILAN.mois)}`;
+document.getElementById("h-in").textContent=tok(TOTAL.inTot);
+document.getElementById("h-out").textContent=tok(TOTAL.out);
+document.getElementById("sub").innerHTML=`Toutes les sessions Claude Code sur ${machineTxt}, dans ${lieu}, sous-agents compris, du ${periode}. Le modèle relit généralement bien plus qu'il n'écrit.`;
+document.getElementById("kpis").innerHTML=[
+  ["in","📥",tok(TOTAL.inTot),"tokens d'input traités"],
+  ["out","📤",tok(TOTAL.out),"tokens d'output"],
+  ["cost","💵",usd(TOTAL.cTot),"équivalent API"],
+  ["co2","🌍",rng(TOTAL.gwp,1000)+" kg","CO2e estimés"]
+].map(([c,i,v,l])=>`<div class="kpi ${c}"><span class="ico">${i}</span><b>${v}</b><span>${l}</span></div>`).join("");
+
+// Anneau de répartition du coût (r = 15,915 : circonférence de 100).
+const parts=[["♻️ Lecture cache",TOTAL.cLu,"var(--cat-1)"],["✍️ Écriture cache",TOTAL.cEc,"var(--cat-2)"],["📤 Output",TOTAL.cOut,"var(--cat-3)"],["🆕 Input non caché",TOTAL.cIn,"var(--cat-4)"]];
+let off=25,svg='<circle cx="21" cy="21" r="15.915" fill="none" stroke-width="6" style="stroke:var(--trait)"/>';
+for(const [,v,c] of parts){const p=TOTAL.cTot?100*v/TOTAL.cTot:0;if(p<0.05)continue;
+  svg+=`<circle cx="21" cy="21" r="15.915" fill="none" style="stroke:${c}" stroke-width="6" stroke-dasharray="${p} ${100-p}" stroke-dashoffset="${off}"/>`;off-=p;}
+svg+=`<text x="21" y="20.5" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="6" style="fill:var(--texte)">${nf(TOTAL.cTot)} $</text><text x="21" y="26" text-anchor="middle" font-family="system-ui,sans-serif" font-size="3" style="fill:var(--texte-attenue)">équivalent API</text>`;
+document.getElementById("donut").innerHTML=svg;
+document.getElementById("legend").innerHTML=parts.map(([l,v,c])=>`<div><i style="background:${c}"></i><span>${l}</span><b>${usd(v)}</b></div>`).join("");
+
+// --- Section « Comprendre » : tout calculé depuis BILAN, rien en dur ---
+const ctxMoyen=TOTAL.appels?Math.round(TOTAL.inTot/TOTAL.appels):0;
+document.getElementById("p-lire-chiffres").innerHTML=`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`;
+const coutReel=TOTAL.cIn+TOTAL.cEc+TOTAL.cLu;
+document.getElementById("p-cache-rapporte").innerHTML=TOTAL.cSansCache>coutReel
+  ?`<b>Ce que le cache rapporte.</b> Sans lui, cet input aurait coûté environ <b>${usd(TOTAL.cSansCache)}</b> au lieu d'environ ${usd(coutReel)}. Mais la relecture reste souvent le premier poste de dépense : plus une session est longue, plus chaque tour relit d'historique. D'où l'intérêt de <code>/clear</code> entre deux tâches et de sous-agents à contexte court.`
+  :`<b>Coût sans cache.</b> Input non caché, écriture et lecture valent ensemble environ ${usd(coutReel)}.`;
+document.getElementById("p-perimetre-dossier").innerHTML=BILAN.dossier?`Limité à <code>${esc(BILAN.dossier)}</code> et ses sous-dossiers.`:"Tous les projets du compte.";
+document.getElementById("p-output-reestime").innerHTML=`<b>📤 Output réestimé.</b> Les transcriptions sous-déclarent parfois l'output (réflexion et appels d'outils). Le calcul garde la plus grande de deux valeurs : l'output déclaré, ou le texte réellement produit divisé par 2,2 caractères par token. Cela fait passer l'output déclaré de ${tok(TOTAL.outDecl)} à ${tok(TOTAL.out)} tokens.`;
+const lignesPrix=Object.entries(BILAN.prix).map(([id,p])=>{const na=nomAffiche(id);
+  return`<tr><td>${na.nom}</td><td>${usd(p.entree)}</td><td>${usd(p.ecriture_5m)} / ${usd(p.ecriture_1h)}</td><td>${usd(p.lecture)}</td><td>${usd(p.sortie)}</td></tr>`;});
+document.getElementById("tbl-prix").innerHTML=`<tr><th>Modèle</th><th>Input</th><th>Écriture 5 min / 1 h</th><th>Lecture</th><th>Output</th></tr>${lignesPrix.join("")}`;
+const avecSeuil=Object.entries(BILAN.prix).filter(([,p])=>p.long_contexte);
+document.getElementById("p-long-contexte").innerHTML=avecSeuil.length
+  ?avecSeuil.map(([id,p])=>`Au-delà de ${tok(p.long_contexte.seuil_tokens)} tokens de contexte, <b>${nomAffiche(id).nom}</b> est facturé ×${p.long_contexte.facteur}.`).join(" ")
+  :"";
+// --- Méthode d'impact : un bilan sans champ « methode » (avant 0.9.0) a été calculé en EcoLogits ---
+const METHODE=BILAN.methode||"ecologits";
+const MIX_TXT=esc(BILAN.mix||"—");
+const ECOLOGITS_LIEN=`<a href="https://ecologits.ai/latest/methodology/llm_inference/">EcoLogits</a>`;
+if(METHODE==="impactia"){
+  document.getElementById("p-hint-impact").textContent="Les fourchettes d'impact (bas – haut) reflètent surtout le cache : la lecture du cache compte pour zéro en bas de fourchette et comme un input complet en haut ; s'y ajoutent l'incertitude sur la taille des modèles et l'efficacité des centres de données.";
+  document.getElementById("p-impact").innerHTML=`<b>🌍 Impact.</b> Méthode ImpactIA, <b>expérimentale</b> : d'après la <a href="https://github.com/mlco2/ecologits/pull/259">PR EcoLogits #259</a>, non fusionnée (méthode <a href="https://github.com/SNCFdevelopers/ImpactIA">Impact'IA</a> de SNCF, Wavestone et Resilio), sur les données ${ECOLOGITS_LIEN}. L'<b>input est compté</b> : sa durée de traitement (prefill) croît avec le nombre de tokens et s'ajoute à celle de la génération, pour le serveur, le réseau du centre de données et la fabrication du matériel ; l'énergie des GPU reste celle de la génération de l'output. Input non caché et écriture du cache : traitement complet. Lecture du cache : zéro en bas de fourchette (le cache n'est pas recalculé), traitement complet en haut. Mix électrique ${MIX_TXT}, fabrication du matériel, du réseau et du bâtiment incluse dans le carbone.`;
+  document.getElementById("footer-methode").textContent="Calcul : agent-cost-kit · impact : ImpactIA (expérimental, PR EcoLogits #259)";
+}else{
+  document.getElementById("p-hint-impact").textContent="Les fourchettes d'impact (bas – haut) reflètent l'incertitude d'EcoLogits sur la taille des modèles et l'efficacité des centres de données.";
+  document.getElementById("p-impact").innerHTML=`<b>🌍 Impact.</b> Méthode ${ECOLOGITS_LIEN} : énergie des GPU et du serveur selon la taille estimée du modèle, PUE et consommation d'eau des centres de données, mix électrique ${MIX_TXT}, fabrication du matériel incluse dans le carbone. Seule la <b>génération de l'output</b> est comptée, pas le traitement de l'input : c'est une borne basse, l'impact réel est plus élevé.`;
+  document.getElementById("footer-methode").textContent="Calcul : agent-cost-kit · impact : EcoLogits (output seul)";
+}
+document.getElementById("p-limite").innerHTML=MULTI
+  ?`Plusieurs PC consolidés : ${esc(MACHINES.join(", "))}.`
+  :`Ce PC uniquement (<b>${esc(BILAN.machine)}</b>) ; consolidez avec d'autres PC via <code>--fusionner</code>.`;
+
+// --- Pied de page ---
+const genere=new Date(BILAN.genere_le);
+document.getElementById("footer-date").textContent=`Bilan Claude Code · données au ${genere.getUTCDate()} ${MOIS_FR[genere.getUTCMonth()]} ${genere.getUTCFullYear()}, ${String(genere.getUTCHours()).padStart(2,"0")}:${String(genere.getUTCMinutes()).padStart(2,"0")}`;
+
+const bar=document.getElementById("progress");
+addEventListener("scroll",()=>{const m=document.documentElement.scrollHeight-innerHeight;bar.style.width=(m>0?100*scrollY/m:0)+"%";},{passive:true});
+render();
+</script>
+<script>
+// Sections 04 à 07 (BILAN.detail) : exécutées après le script principal, qui fournit esc, tok, usd, nf, rng et pct.
+addEventListener("DOMContentLoaded",function(){
+const D=BILAN.detail;
+if(!D)return;
+document.getElementById("detail-mount").innerHTML=document.getElementById("tpl-detail").innerHTML;
+document.getElementById("nav-links").insertAdjacentHTML("beforeend",'<a href="#projets">Projets</a><a href="#etapes">Étapes</a><a href="#agents">Rôles</a><a href="#recos">Pistes</a>');
+const ET=D.etapes, TOT=D.total.cout;
+// Trois groupes d'étapes (au plus quatre séries, charte v2.1) ; une étape inconnue va dans « le reste ».
+const IDS_GROUPES=[["besoin","specs","archi"],["dev","relecture"],["livraison","pilotage","recherche","outillage","contenus","libre"]];
+const groupeDe=id=>{const i=IDS_GROUPES.findIndex(l=>l.includes(id));return i<0?2:i;};
+const COL_GROUPES=["var(--cat-1)","var(--cat-2)","var(--cat-3)"], ETAPE_COL=id=>COL_GROUPES[groupeDe(id)];
+const parId=Object.fromEntries(ET.map(e=>[e.id,e]));
+const grp=ids=>ids.reduce((t,i)=>{const e=parId[i];if(e){t.c+=e.cout;t.g=[t.g[0]+e.gwp[0],t.g[1]+e.gwp[1]];}return t;},{c:0,g:[0,0]});
+const [amont,coeur,autour]=[0,1,2].map(g=>grp(ET.map(e=>e.id).filter(id=>groupeDe(id)===g)));
+const GROUPES=[
+  [amont,"Cadrage, spécifications et architecture"],[coeur,"Développement, relecture et tests"],[autour,"Livraison, pilotage, recherche et le reste"]
+];
+const kg=g=>rng(g,1000), kwh=e=>rng(e,1000);
+const ctxMoy=b=>tok(Math.round(b.inTot/Math.max(b.appels,1)));
+document.getElementById("legende-etapes").innerHTML=GROUPES.map(([,l],g)=>`<span><i class="m${g+1}"></i>${l}</span>`).join("");
+
+// --- 04 Projets ---
+const AVEC_PORTFOLIO=!!D.portfolio;
+document.getElementById("titre-projets").textContent=AVEC_PORTFOLIO?"Ce qu'a consommé chaque projet du portfolio":"Ce qu'a consommé chaque dépôt";
+const lienPortfolio=D.portfolio_url?`<a href="${esc(D.portfolio_url)}" target="_blank" rel="noopener">portfolio</a>`:"portfolio";
+document.getElementById("intro-projets").innerHTML=(AVEC_PORTFOLIO?`Les projets du ${lienPortfolio}, avec leur état publié sur GitHub. `:"Un dossier de travail par ligne. ")
+  +"Chaque appel est rattaché au dépôt de son dossier de travail, worktrees et anciens noms compris. La barre répartit le coût du projet entre les étapes de la section suivante.";
+const pile=p=>{const v=[0,0,0];for(const k in p.par_groupe)v[groupeDe(k)]+=p.par_groupe[k]||0;
+  return `<div class="pile" role="img" aria-label="Répartition du coût par étape">${v.map((x,g)=>x>0&&p.cout>0?`<i class="m${g+1}" style="width:${100*x/p.cout}%" title="${GROUPES[g][1]} : ${usd(x)}"></i>`:"").join("")}</div>`
+    +`<div class="parts">${v.map((x,g)=>x>0?`<span><i class="m${g+1}"></i>${pct(x,p.cout)}</span>`:"").join("")}</div>`;};
+const port=D.projets.filter(p=>p.portfolio), hors=AVEC_PORTFOLIO?D.projets.filter(p=>!p.portfolio):[];
+const somme=l=>l.reduce((t,p)=>{t.cout+=p.cout;t.gwp=[t.gwp[0]+p.gwp[0],t.gwp[1]+p.gwp[1]];t.nrj=[t.nrj[0]+p.nrj[0],t.nrj[1]+p.nrj[1]];t.appels+=p.appels;t.inTot+=p.inTot;
+  for(const k in p.par_groupe)t.par_groupe[k]=(t.par_groupe[k]||0)+p.par_groupe[k];return t;},{cout:0,gwp:[0,0],nrj:[0,0],appels:0,inTot:0,par_groupe:{}});
+let horsOuvert=false;
+function rendreProjets(){
+  const ligne=(p,cls,nom,etat)=>`<tr class="${cls}"><td class="name ${p.url?"lien":""}">${nom}</td>${AVEC_PORTFOLIO?`<td style="text-align:left">${etat}</td>`:""}<td>${usd(p.cout)}<span class="share">${pct(p.cout,TOT)} du total</span></td><td>${kg(p.gwp)}</td><td>${kwh(p.nrj)}</td><td>${tok(p.inTot)}</td><td style="text-align:left">${pile(p)}</td></tr>`;
+  let h=`<thead><tr><th>📁 ${AVEC_PORTFOLIO?"Projet":"Dépôt"}</th>${AVEC_PORTFOLIO?'<th style="text-align:left">État</th>':""}<th>💵 Coût<span class="unit">$ · part du total</span></th><th>🌍 Carbone<span class="unit">kgCO2e</span></th><th>⚡ Énergie<span class="unit">kWh</span></th><th>📥 Input<span class="unit">tokens traités</span></th><th style="text-align:left">Répartition par étape</th></tr></thead><tbody>`;
+  const sansPortfolio=!AVEC_PORTFOLIO;
+  for(const p of sansPortfolio?D.projets:port){
+    const nom=p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.nom)}</a>`:esc(p.nom);
+    h+=ligne(p,"",nom,`${p.statut?`<span class="pill">${esc(p.statut)}</span>`:""}${p.version?`<span class="ver">${esc(p.version)}</span>`:""}`);
+  }
+  if(AVEC_PORTFOLIO){
+    h+=ligne(somme(port),"sous-total",`Portfolio IA · ${port.length} projets`,"");
+    if(hors.length)h+=ligne(somme(hors),"sous-total",`<button type="button" id="t-hors" aria-expanded="${horsOuvert}" style="font:800 14px var(--police-texte);border:none;background:none;padding:0"><span class="chev">›</span>Hors portfolio · ${hors.length} dossiers</button>`,"");
+    if(horsOuvert&&hors.length)for(const p of hors)h+=ligne(p,"hors",esc(p.nom),"");
+  }
+  document.getElementById("tbl-projets").innerHTML=h+"</tbody>";
+}
+document.getElementById("tbl-projets").addEventListener("click",e=>{if(e.target.closest("#t-hors")){horsOuvert=!horsOuvert;rendreProjets();}});
+rendreProjets();
+
+// --- 05 Étapes ---
+document.getElementById("constat-etapes").innerHTML=GROUPES.map(([v,l])=>`<div><b>${pct(v.c,TOT)}</b>${l} : ${usd(v.c)}, ${kg(v.g)} kgCO2e</div>`).join("");
+const gmax=Math.max(1e-9,...ET.map(e=>e.gwp[1]));
+const ouverts=new Set();
+function rendreEtapes(){
+  document.getElementById("liste-etapes").innerHTML=ET.map(e=>{
+    const ouvert=ouverts.has(e.id);
+    const sous=ouvert?`<div class="detail"><table><thead><tr><th>Skill ou type de sous-agent</th><th>Appels</th><th>Contexte moyen</th><th>Coût</th><th>Carbone (kgCO2e)</th></tr></thead><tbody>${e.sous.map(s=>`<tr><td class="name">${esc(s.label)}</td><td>${nf(s.appels)}</td><td>${ctxMoy(s)}</td><td>${usd(s.cout)}<span class="share">${pct(s.cout,e.cout)} de l'étape</span></td><td>${kg(s.gwp)}</td></tr>`).join("")}</tbody></table></div>`:"";
+    return `<div class="etape"><button type="button" data-etape="${esc(e.id)}" aria-expanded="${ouvert}">
+      <span class="nom"><span class="chev">›</span><i class="m${groupeDe(e.id)+1}"></i>${esc(e.label)}</span>
+      <span class="barre" aria-hidden="true"><span class="haut" style="width:${100*e.gwp[1]/gmax}%;background:${ETAPE_COL(e.id)}"></span><span class="bas" style="width:${100*e.gwp[0]/gmax}%;background:${ETAPE_COL(e.id)}"></span></span>
+      <span class="chiffre">${usd(e.cout)}<small>${pct(e.cout,TOT)}</small></span>
+      <span class="chiffre co2">${kg(e.gwp)}<small>kgCO2e</small></span>
+      <span class="chiffre part-orch">${pct(e.cout_orch,e.cout)}<small>en session</small></span>
+    </button>${sous}</div>`;}).join("");
+}
+document.getElementById("liste-etapes").addEventListener("click",ev=>{const b=ev.target.closest("[data-etape]");if(!b)return;const id=b.dataset.etape;ouverts.has(id)?ouverts.delete(id):ouverts.add(id);rendreEtapes();});
+rendreEtapes();
+
+// --- 06 Orchestrateur et sous-agents ---
+const O=D.orch,S=D.sous;
+const nbAgents=D.roles.filter(r=>!r.orch).reduce((t,r)=>t+r.n_agents,0);
+document.getElementById("duo").innerHTML=[
+  ["🎛️ Orchestrateur (session principale)",O,`${nf(O.appels)} appels`],
+  ["🤖 Sous-agents",S,`${nf(nbAgents)} agents lancés, ${nf(S.appels)} appels`]
+].map(([t,b,sub])=>`<div><h3>${t}</h3><div class="part" aria-hidden="true"><i style="width:${TOT>0?100*b.cout/TOT:0}%"></i></div>
+  <dl><div><dt>Coût API</dt><dd>${usd(b.cout)}</dd></div><div><dt>Part du coût</dt><dd>${pct(b.cout,TOT)}</dd></div>
+  <div><dt>Carbone</dt><dd>${kg(b.gwp)} kg</dd></div><div><dt>Contexte moyen par appel</dt><dd>${ctxMoy(b)}</dd></div></dl>
+  <p class="hint" style="margin:0">${sub}</p></div>`).join("");
+let rolesOuverts=new Set();
+function rendreRoles(){
+  let h='<thead><tr><th>🤖 Rôle</th><th>Agents lancés</th><th>Coût médian<span class="unit">par agent</span></th><th>Appels</th><th>Contexte moyen<span class="unit">tokens par appel</span></th><th>💵 Coût<span class="unit">$ · part du total</span></th><th>🌍 Carbone<span class="unit">kgCO2e</span></th></tr></thead><tbody>';
+  for(const r of D.roles){
+    const id=r.label,o=rolesOuverts.has(id);
+    h+=`<tr class="role"><td class="name"><button type="button" data-role="${esc(id)}" aria-expanded="${o}"><span class="chev">›</span>${esc(r.orch?"Orchestrateur":r.label)}</button></td><td>${r.orch?"—":nf(r.n_agents)}</td><td>${r.orch?"—":usd(r.cout_median)}</td><td>${nf(r.appels)}</td><td>${ctxMoy(r)}</td><td>${usd(r.cout)}<span class="share">${pct(r.cout,TOT)}</span></td><td>${kg(r.gwp)}</td></tr>`;
+    if(o)for(const m of r.par_me)h+=`<tr class="me"><td class="name">${esc(m.label)}</td><td></td><td></td><td>${nf(m.appels)}</td><td>${ctxMoy(m)}</td><td>${usd(m.cout)}<span class="share">${pct(m.cout,r.cout)} du rôle</span></td><td>${kg(m.gwp)}</td></tr>`;
+  }
+  document.getElementById("tbl-roles").innerHTML=h+"</tbody>";
+  document.getElementById("t-roles").setAttribute("aria-pressed",rolesOuverts.size===D.roles.length);
+}
+document.getElementById("tbl-roles").addEventListener("click",ev=>{const b=ev.target.closest("[data-role]");if(!b)return;const id=b.dataset.role;rolesOuverts.has(id)?rolesOuverts.delete(id):rolesOuverts.add(id);rendreRoles();});
+document.getElementById("t-roles").addEventListener("click",()=>{rolesOuverts=rolesOuverts.size===D.roles.length?new Set():new Set(D.roles.map(r=>r.label));rendreRoles();});
+rendreRoles();
+
+// --- 07 Recommandations (textes calculés par le script ; mesure et pratique sont du HTML produit par lui) ---
+const arrondiGain=v=>v>=100?Math.round(v/10)*10:Math.round(v);
+const gainTxt=g=>g?`Gain estimé : ≈ ${nf(arrondiGain(g[0]))} à ${nf(arrondiGain(g[1]))} $ sur la période`:"Gain : neutre";
+document.getElementById("liste-recos").innerHTML=D.recos.length
+  ?D.recos.map(r=>`<article class="reco"><h3>${esc(r.titre)}</h3><p><b>Mesure.</b> ${r.mesure}</p><p><b>Pratique.</b> ${r.pratique}</p><span class="gain${r.gain?"":" neutre"}">${gainTxt(r.gain)}</span></article>`).join("")
+  :'<p class="hint">Aucune recommandation ne se déclenche sur cette période.</p>';
+});
+</script>
+<script>
+// Changer de langue garde la section affichée.
+document.querySelectorAll(".lang a").forEach(a=>a.addEventListener("click",e=>{if(location.hash){e.preventDefault();location.href=a.getAttribute("href")+location.hash;}}));
+</script>
+</html>

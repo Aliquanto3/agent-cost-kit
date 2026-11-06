@@ -1,5 +1,5 @@
 import type { Cumul, Niveau } from '../types'
-import { bilan, carbone, cout, dollars, impact, nomCourt, tokens, VIDE } from './calcul'
+import { bilan, carbone, cout, dollars, impact, METHODE, nomCourt, tokens, VIDE } from './calcul'
 import { TARIFS } from './tarifs'
 
 /** Ce que la bande sait du contexte au niveau 2 (estimation locale, `breakdown: 'summary'`). */
@@ -119,7 +119,10 @@ function tableau(entetes: string[], lignes: string[][]): string[] {
 }
 
 /** Aide sous le tableau complet. */
-export const AIDE = `${EMOJI.lus} relu à chaque tour (baisse avec /clear) · ${EMOJI.ecrits} généré (porte l’impact)`
+export const AIDE =
+  METHODE === 'impactia'
+    ? `${EMOJI.lus} relu à chaque tour (baisse avec /clear) · ${EMOJI.ecrits} généré · les deux portent l’impact`
+    : `${EMOJI.lus} relu à chaque tour (baisse avec /clear) · ${EMOJI.ecrits} généré (porte l’impact)`
 
 /** Tableau par modèle : complet s'il tient, sinon modèle, coût et carbone seuls. */
 export function parModele(cumul: Cumul | null, largeur: number): string[] {
@@ -131,7 +134,7 @@ export function parModele(cumul: Cumul | null, largeur: number): string[] {
     const usd = cout(m, c)
     return usd === undefined ? '?' : dollars(usd)
   }
-  const g = (m: string, c: typeof VIDE) => carbone(impact(m, c.output).gco2e).replace('CO₂e', '')
+  const g = (m: string, c: typeof VIDE) => carbone(impact(m, c).gco2e).replace('CO₂e', '')
   const complet = tableau(
     ['modèle', 'entrée', 'sortie', 'lu', 'écrit', `${EMOJI.cout} coût`, `${EMOJI.impact} gCO₂e`],
     modeles.map(([m, c]) => [
@@ -204,14 +207,22 @@ export function pied(coutMoteur: number | undefined, largeur: number, sessionId?
   const mix = TARIFS.ecologits.mix_par_defaut
   const moteur =
     coutMoteur === undefined ? '' : etroit ? ` · /cost ${dollars(coutMoteur)}` : ` · /cost du moteur : ${dollars(coutMoteur)}`
+  const methode =
+    METHODE === 'impactia'
+      ? etroit
+        ? `${EMOJI.impact} ImpactIA (expérimental), ${mix} : entrée comptée, cache lu 0 à 100 %`
+        : `${EMOJI.impact} Impact : ImpactIA expérimental (PR EcoLogits #259), mix ${mix}, entrée comptée, cache lu compté de 0 à 100 %`
+      : etroit
+        ? `${EMOJI.impact} EcoLogits, ${mix} : sortie seule, cache non compté`
+        : `${EMOJI.impact} Impact : EcoLogits (ecologits.ai), mix ${mix}, sortie seule, cache non compté`
   const lignes = etroit
     ? [
-        `${EMOJI.impact} EcoLogits, ${mix} : sortie seule, cache non compté`,
+        methode,
         `${EMOJI.cout} Prix API, cache 5 min${moteur}`,
         `${EMOJI.analyse} ${analyse(sessionId)}`,
       ]
     : [
-        `${EMOJI.impact} Impact : EcoLogits (ecologits.ai), mix ${mix}, sortie seule, cache non compté`,
+        methode,
         `${EMOJI.cout} Coût : prix API, écriture du cache au tarif 5 min${moteur}`,
         `${EMOJI.analyse} Analyse complète et pistes d’optimisation : ${analyse(sessionId)} (plugin agent-cost-kit)`,
       ]

@@ -161,18 +161,22 @@ describe('sous-agents en cours', () => {
   })
 
   test('rechargement : session.start relance le battement des en-cours survivants', async ($, on) => {
-    const m = monde(on)
+    // État tel qu'un rechargement le laisse : un en-cours dans $.store (persisté par `marquer`),
+    // aucun minuteur du module (aucun lancement vu par ce module). `synchroniser` le garde « en cours »
+    // puisque `$.agent.list()` le dit encore actif : un rechargement du mod, pas une reprise --resume.
+    const store: Record<string, unknown> = {
+      'session:S1': {
+        sessionId: 'S1',
+        startedAt: 1000,
+        tours: 0,
+        modeles: {},
+        agents: {},
+        enCours: { B7: { type: 'Explore', description: 'Cherche', debut: 0 } },
+      },
+    }
+    const m = monde(on, store)
     const horloge = mock.clock(on, { now: 0 })
-    // État tel qu'un rechargement le laisse : un en-cours dans $.state, aucun minuteur du module
-    // (aucun lancement vu par ce module). Le premier cumul écrit reçoit l'en-cours.
-    let injecte = false
-    on('state.set', { plugin: PLUGIN, key: 'cumul' }, (_$, e, next) => {
-      if (injecte || !e.value) return next(e)
-      injecte = true
-      const v = e.value as Cumul
-      return next({ ...e, value: { ...v, enCours: { B7: { type: 'Explore', description: 'Cherche', debut: 0 } } } })
-    })
-    await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+    m.agents = [{ id: 'B7', description: 'Cherche', type: 'Explore', status: 'running' }]
     await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
     const ui = await monter($)
     expect(await enTete(ui)).toContain('⏳ 1 en cours')

@@ -117,6 +117,16 @@ describe('cumuls', () => {
     expect(store['sessions']).toEqual(['S1'])
   })
 
+  test('un champ d’usage absent compte 0, sans NaN dans le cumul', async ($, on) => {
+    const store: Record<string, unknown> = {}
+    monde(on, store)
+    const t = tour('claude-opus-5-5', 500)
+    const { cache_read_input_tokens: _l, input_tokens: _e, ...partiel } = t.usage
+    await $.turn.complete({ ...t, usage: partiel as typeof t.usage })
+    const value = store['session:S1'] as Cumul | undefined
+    expect(value?.modeles['claude-opus-5-5']).toEqual({ input: 0, output: 500, cacheRead: 0, cacheWrite: 100_000 })
+  })
+
   test('un tour sans usage (interrompu) ne compte pas', async ($, on) => {
     const store: Record<string, unknown> = {}
     monde(on, store)
@@ -174,7 +184,7 @@ describe('bande', () => {
       expect(lignes.some(l => l.startsWith('modèle') && l.includes('écrit') && l.includes('🌱 gCO₂e'))).toBe(true)
       expect(lignes.some(l => l.startsWith('opus-5-5'))).toBe(true)
       expect(lignes.some(l => l.startsWith('· reviewer · ') && l.endsWith('sonnet-5-5 « Relit la story »'))).toBe(true)
-      expect(lignes.some(l => l.includes('EcoLogits') && l.includes('sortie seule'))).toBe(true)
+      expect(lignes.some(l => l.includes('ImpactIA') && l.includes('entrée comptée'))).toBe(true)
       expect(lignes.some(l => l.includes('/cost du moteur : 1,50 $'))).toBe(true)
       expect(lignes.some(l => l.includes('🔍') && l.includes('/agent-cost-kit:mesurer-couts --session S1'))).toBe(true)
       expect(lignes.some(l => l.includes('Contexte'))).toBe(false)

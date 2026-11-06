@@ -28,10 +28,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 DOSSIER = Path("_bmad-output") / "implementation-artifacts"
-# Identifiant de story : « 3.2 » (epics) ou « C1 », « O4a », « E1b » (run hors epics). La forme alphanumérique
-# n'est lue que dans la colonne story du journal et les cellules des vagues, hors « v14 », « #12 », « a1b2c3d ».
-ID = re.compile(r"\d+\.\d+|(?<![\w.#/-])[A-Z]{1,3}\d+[a-z]?(?!\w)")
-ID_NUM = re.compile(r"\d+\.\d+")
+# Identifiant de story « 17.5 » ou à suffixe lettre « 17.5b » ; ni « v0.3.0 » ni « 17.5bis » ne sont des identifiants.
+# Run hors epics : « C1 », « O4a », « E1b » (hors « v14 », « #12 », « a1b2c3d »).
+ID_NUM = re.compile(r"(?<![\w.])\d+\.\d+[a-z]?(?!\w|\.\d)")
+ID = re.compile(ID_NUM.pattern + r"|(?<![\w.#/-])[A-Z]{1,3}\d+[a-z]?(?!\w)")
+HORS_EPIC = -1  # epic des stories hors epics (l'Epic 0 existe)
+FENETRE_SUIVI_H = 12.0  # lignes du journal « récentes » pour le contrôle de suivi incomplet
 FENETRE_H = 3.0
 
 # Barème : dernière étape journalisée -> étape en cours, pourcentage.
@@ -87,9 +89,9 @@ def ids_statut(statuts: dict[str, str]) -> dict[str, str]:
     """Clés ``N-M-slug`` -> statut par identifiant ``N.M`` (``c1-slug`` -> ``C1`` hors epics)."""
     sortie = {}
     for cle, val in statuts.items():
-        m = re.match(r"(\d+)-(\d+)-", cle)
+        m = re.match(r"(\d+)-(\d+)([a-z]?)-", cle)
         if m:
-            sortie[f"{m[1]}.{m[2]}"] = val
+            sortie[f"{m[1]}.{m[2]}{m[3]}"] = val
         elif m := re.match(r"([A-Za-z]{1,3})(\d+)([a-z]?)-", cle):
             sortie[f"{m[1].upper()}{m[2]}{m[3]}"] = val
     return sortie
@@ -138,19 +140,27 @@ def lire_plan(texte: str) -> dict:
     """Vagues, dépendances, types, pivots, parallélisme et epics hors run."""
     lignes = texte.splitlines()
     plan = {"vagues": {}, "ordre": [], "sprint": {}, "deps": {}, "pivot": set(), "type": {},
-            "parallelisme": 3, "hors_run": set(), "titres": {}, "perimetre": []}
+            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}, "sprints_story": {}, "titres": {},
+            "perimetre": []}
     m = re.search(r"Au plus\s+(\d+)\s+stories", texte)
     if m:
         plan["parallelisme"] = int(m[1])
     sprint = ""
     bruts: dict[str, str] = {}
+    brief = False  # section `## Brief` (relanceur) : texte libre, un tableau de vagues y serait un doublon du plan
     for ligne in lignes:
         if ligne.startswith("#"):
             m = re.search(r"Sprint\s+(\d+)", ligne)
             sprint = m[0] if m else ""
+            mt = re.match(r"#+\s*(Sprint\s+\d+)\s*(?:[—–:-])\s*(\S.*)$", ligne)
+            if mt:
+                titre = re.sub(r"\s*\(epics?\s+\d+[^)]*\)\s*$", "", mt[2], flags=re.IGNORECASE).strip()
+                plan["sprint_titres"].setdefault(mt[1], titre)  # deux titres pour un sprint : le premier compte
+            if not ligne.startswith("###"):  # un sous-titre du Brief ne le referme pas
+                brief = ligne.strip("# ").lower().startswith("brief")
             continue
-        if not ligne.startswith("|"):
-            m = re.match(r"-\s+([A-Z]{1,3}\d+[a-z]?)\s*:\s*(.+)", ligne)
+        if brief or not ligne.startswith("|"):
+            m = None if brief else re.match(r"-\s+([A-Z]{1,3}\d+[a-z]?)\s*:\s*(.+)", ligne)
             if m:  # liste de titres sous la table des vagues : « - C1 : titre »
                 plan["titres"][m[1]] = m[2].strip()
             continue
@@ -174,6 +184,7 @@ def lire_plan(texte: str) -> dict:
                 t = re.search(r"\((mixte|humaine)\)", part)
                 plan["type"][sid] = t[1] if t else "dev"
                 plan["sprint"][sid] = sprint
+                plan["sprints_story"].setdefault(sid, {})[sprint] = True  # dict ordonné : sérialisable en JSON
             plan["vagues"][vague] = ids
             plan["ordre"].append(vague)
             bruts[vague] = c[2]
@@ -252,6 +263,8 @@ def normaliser_etape(brut: str) -> str:
     e = brut.strip().lower()
     if re.match(r"pr(?![a-zà-ÿ])", e):
         return "pr"
+    if e.startswith(("ménage", "menage")):
+        return "ménage"  # étape de clôture, colonne story « run » : aucune story
     for cle in ("second-avis", "review", "fusion", "ci", "blocked", "attente humaine", "report",
                 "décision", "dev"):
         if e.startswith(cle):
@@ -497,7 +510,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                           + (" (reportée après le run)" if "reportée" in drapeaux else ""))
             if "reportée" in drapeaux:
                 suite = suite_pour_anael(dernier["resultat"])
-            stories[sid] = {"vague": vague, "epic": int(sid.split(".")[0]) if est_numerique(sid) else 0, "statut": st, "etat": etat,
+            stories[sid] = {"vague": vague, "epic": int(sid.split(".")[0]) if est_numerique(sid) else HORS_EPIC, "statut": st, "etat": etat,
                             "pct": pct, "etape": etape, "type": plan["type"].get(sid, "dev"),
                             "pivot": sid in plan["pivot"], "deps": sorted(plan["deps"][sid], key=cle_id), "raison": raison,
                             "suite": suite, "prise": bool(dernier) and dernier["etape"] == "décision",
@@ -527,13 +540,16 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     sources = {}
     for e in evts:
         sources[e["source"] or "inconnue"] = sources.get(e["source"] or "inconnue", 0) + 1
-    noms = lire_titres(projet, statuts_bruts)
+    noms = lire_titres(projet, statuts_bruts, plan)
     for sid in stories:
         if not est_numerique(sid):
             noms["stories"].setdefault(sid, plan["titres"].get(sid, sid))
-    meteo_ = meteo(stories, estimation)
+    manquants = hors_suivi(evts, plan, statuts, maintenant)
+    meteo_ = meteo(stories, estimation, manquants)
+    menage = next((e for e in reversed(evts) if e["etape"] == "ménage"), None)
     return {"projet": projet.name, "maintenant": maintenant, "plan": plan, "stories": stories,
-            "noms": noms, "meteo": meteo_,
+            "menage": {"t": menage["t"], "resultat": menage["resultat"]} if menage else None,
+            "noms": noms, "meteo": meteo_, "hors_suivi": manquants,
             "ecarts": [k for k, s in stories.items() if "journal en avance" in s["drapeaux"]],
             "maj_lisible": maj is not None,
             "futures": [{"t": e["t"], "stories": e["stories"], "etape": e["brut"],
@@ -544,12 +560,27 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
             else sorted(plan["hors_run"])}
 
 
-def cle_id(sid: str) -> tuple[int, int, str, int, str]:
+def hors_suivi(evts: list[dict], plan: dict, statuts: dict[str, str], maintenant: datetime) -> list[str]:
+    """Identifiants cités par des lignes récentes du journal, absents du périmètre et de sprint-status.
+
+    « Récentes » : postérieures à la dernière ligne sur une story du plan, ou dans les ``FENETRE_SUIVI_H`` dernières
+    heures. Les epics déclarés « Hors run » sont ignorés."""
+    connus = {s for v in plan["vagues"].values() for s in v}
+    dans = [e["t"] for e in evts if e["t"] and any(s in connus for s in e["stories"])]
+    seuil = min(max(dans), maintenant - timedelta(hours=FENETRE_SUIVI_H)) if dans else maintenant - timedelta(hours=FENETRE_SUIVI_H)
+    trouves = {s for e in evts if e["t"] and e["t"] >= seuil for s in e["stories"]
+               if s not in connus and s not in statuts and s not in plan["hors_run"]
+               and not (est_numerique(s) and int(s.split(".")[0]) in plan["hors_run"])}
+    return sorted(trouves, key=cle_id)
+
+
+def cle_id(sid: str) -> tuple[int, int, str, str, int, str]:
     if est_numerique(sid):
         a, b = sid.split(".")
-        return int(a), int(b), "", 0, ""
+        n, lettre = re.fullmatch(r"(\d+)([a-z]?)", b).groups()
+        return int(a), int(n), lettre, "", 0, ""
     m = re.fullmatch(r"([A-Z]+)(\d+)([a-z]?)", sid)
-    return (10**6, 0, m[1], int(m[2]), m[3]) if m else (10**6, 0, sid, 0, "")
+    return (10**6, 0, "", m[1], int(m[2]), m[3]) if m else (10**6, 0, "", sid, 0, "")
 
 
 def rythme_observe(stories: dict, maintenant: datetime, evts: list[dict]) -> dict:
@@ -741,6 +772,8 @@ def rapport_detail(a: dict) -> str:
     if att_fus:
         L.append(f"- Développées mais pas fusionnées : {', '.join(att_fus)}"
                  + (f" (PR ouvertes : {', '.join(pr_ouv)})" if pr_ouv else "") + ".")
+    if a.get("menage"):
+        L.append(f"- Ménage de clôture fait le {fmt_t(a['menage']['t'])}.")
     if a["ecarts"]:
         L.append(f"- sprint-status en retard sur le journal : {', '.join(a['ecarts'])}.")
     if not a.get("maj_lisible", True):
@@ -771,14 +804,14 @@ def rapport_detail(a: dict) -> str:
 
 # ----------------------------------------------------------------------------- synthèse
 
-def lire_titres(projet: Path, statuts_bruts: dict[str, str]) -> dict:
+def lire_titres(projet: Path, statuts_bruts: dict[str, str], plan: dict | None = None) -> dict:
     """Titres des epics et des stories depuis epics.md ; à défaut, le slug des clés de sprint-status."""
     epics: dict[int, str] = {}
     stories: dict[str, str] = {}
     for cle in statuts_bruts:
-        m = re.match(r"(\d+)-(\d+)-(.+)", cle)
+        m = re.match(r"(\d+)-(\d+)([a-z]?)-(.+)", cle)
         if m:
-            stories[f"{m[1]}.{m[2]}"] = m[3].replace("-", " ")
+            stories[f"{m[1]}.{m[2]}{m[3]}"] = m[4].replace("-", " ")
         elif m := re.match(r"([A-Za-z]{1,3})(\d+)([a-z]?)-(.+)", cle):
             stories[f"{m[1].upper()}{m[2]}{m[3]}"] = m[4].replace("-", " ")
     fichier = projet / "_bmad-output" / "planning-artifacts" / "epics.md"
@@ -787,9 +820,30 @@ def lire_titres(projet: Path, statuts_bruts: dict[str, str]) -> dict:
             m = re.match(r"##\s+Epic\s+(\d+)\s*:\s*(.+)", ligne)
             if m:
                 epics[int(m[1])] = m[2].strip()
-            m = re.match(r"###\s+Story\s+(\d+\.\d+)\s*:\s*(.+)", ligne)
+            m = re.match(r"###\s+Story\s+(\d+\.\d+[a-z]?)\s*:\s*(.+)", ligne)
             if m:
                 stories[m[1]] = m[2].strip()
+    plan_md = projet / DOSSIER / "run-autonome.md"
+    if plan_md.exists():  # titre du run « Run … : sujet (epic 17) » : repli quand epics.md ne décrit pas l'epic
+        h1 = next((l for l in plan_md.read_text(encoding="utf-8").splitlines() if l.startswith("# ")), "")
+        m = re.search(r"\s*\(?\bepic\s+(\d+)\)?\s*$", h1, re.IGNORECASE)
+        if m and " : " in h1 and not epics.get(int(m[1])):
+            epics[int(m[1])] = h1[:m.start()].split(" : ", 1)[1].strip()
+    if plan:  # dernier repli : titre du sprint qui ne contient que les stories d'un seul epic, toutes
+        tous: dict[int, set[str]] = {}
+        par_sprint: dict[str, set[int]] = {}
+        for sid, sps_ in plan.get("sprints_story", {}).items():  # une story listée dans deux sprints compte deux fois
+            if not est_numerique(sid):  # story hors epics : pas d'epic à nommer
+                continue
+            e = int(sid.split(".")[0])
+            for sp in sps_:
+                tous.setdefault(e, set()).add(sp)
+                par_sprint.setdefault(sp, set()).add(e)
+        for e, sps in tous.items():
+            sp = next(iter(sps))
+            titre = plan.get("sprint_titres", {}).get(sp)
+            if len(sps) == 1 and par_sprint[sp] == {e} and titre and not epics.get(e):
+                epics[e] = titre
     return {"epics": epics, "stories": stories}
 
 
@@ -824,15 +878,18 @@ def emoji_story(s: dict) -> str:
     return "🔍" if s["pct"] <= 60 else "🧪"
 
 
-def meteo(stories: dict, estimation: dict) -> dict:
+def meteo(stories: dict, estimation: dict, hors_suivi: list[str] | None = None) -> dict:
     """Règles : rouge si une story est bloquée ou si une attente humaine est sur le chemin critique ;
-    jaune si un contrôle automatique est rouge ou si une story a été reprise ; sinon vert."""
+    jaune si un contrôle automatique est rouge, si une story a été reprise ou si le journal cite des stories absentes
+    du périmètre et de sprint-status (suivi incomplet) ; sinon vert."""
     chemin = set(estimation.get("chemin") or [])
     rouge = [f"story {k} bloquée" for k, s in stories.items() if "bloquée" in s["drapeaux"]]
     rouge += [f"story {k} en attente humaine sur le chemin critique" for k, s in stories.items()
               if "attente humaine" in s["drapeaux"] and k in chemin]
     jaune = [f"contrôle automatique rouge sur {k}" for k, s in stories.items() if "CI rouge" in s["drapeaux"]]
     jaune += [f"story {k} reprise" for k, s in stories.items() if "reprise" in s["drapeaux"]]
+    if hors_suivi:
+        jaune.append("suivi incomplet : journal hors périmètre")
     if rouge:
         return {"emoji": "🔴", "mot": "bloqué", "raisons": rouge + jaune}
     if jaune:
@@ -856,16 +913,20 @@ def puces(a: dict) -> list[str]:
     S, N, es = a["stories"], a["noms"], a["estimation"]
     fait = [k for k, s in S.items() if s["etat"] == "fait"]
     out = []
-    epics_finis = [ep for ep in sorted({s["epic"] for s in S.values()} - {0})
+    epics_finis = [ep for ep in sorted({s["epic"] for s in S.values()} - {HORS_EPIC})
                    if all(s["etat"] == "fait" for s in S.values() if s["epic"] == ep)]
     fm = f"{len(fait)} stories sur {len(S)} sont livrées"
     if epics_finis:
-        fm += " ; terminé : " + ", ".join(f"epic {e} ({court(N['epics'].get(e, ''), 40)})" for e in epics_finis)
+        fm += " ; terminé : " + ", ".join(f"epic {e}" + (f" ({court(N['epics'][e], 40)})" if N["epics"].get(e) else "")
+                                         for e in epics_finis)
     fm += "."
     pr_att = [k for k, s in S.items() if "PR ouverte" in s["drapeaux"] or "fusion attendue" in s["drapeaux"]]
     if pr_att:
         fm += f" {len(pr_att)} en attente de fusion (PR ouverte ou revue faite) : {', '.join(pr_att)}."
     out.append(fm)
+    if a.get("hors_suivi"):
+        out.append(f"le journal cite {', '.join(a['hors_suivi'])} hors du périmètre et de sprint-status : "
+                   "périmètre ou sprint-status à mettre à jour.")
     cours = [(k, s) for k, s in S.items() if s["etat"] == "en cours"]
     if cours:
         rel = [k for k, s in cours if s["pct"] > 30]
@@ -885,7 +946,7 @@ def puces(a: dict) -> list[str]:
     elig = [k for k, s in S.items() if s["eligible"]]
     if elig:
         att.append(f"prête mais pas lancée : {', '.join(elig)}")
-    att += a["meteo"]["raisons"]
+    att += [r for r in a["meteo"]["raisons"] if not r.startswith("suivi incomplet")]
     n_pr = sum(1 for s in S.values() if "PR ouverte" in s["drapeaux"])
     if n_pr > 3:
         att.append(f"goulot CI / fusion : {n_pr} PR attendent")
@@ -910,11 +971,15 @@ def puces(a: dict) -> list[str]:
     if mixtes:
         parts.append(f"étapes humaines à venir pour {', '.join(mixtes)}")
     out.append("Attendu d'Anaël : " + ("; ".join(parts) if parts else "rien pour l'instant") + ".")
+    if a.get("menage"):
+        out.append(f"Ménage de clôture fait le {fmt_t(a['menage']['t'])} : {a['menage']['resultat'] or 'sans détail'}.")
+    elif es["reste"] == 0 and not a["hors_suivi"]:
+        out.append("Ménage de clôture à faire : `scripts/menage_run.py` en simulation, puis `--appliquer`.")
     src = a["sources_heures"]
     if es.get("fin") and src.get("interpolé", 0) * 2 > sum(src.values()):
         out.append("L'heure de fin est approximative : la plupart des lignes du journal n'ont pas d'heure "
                    "(ajouter AAAA-MM-JJ HH:MM à chaque ligne l'affine).")
-    return out[:5]
+    return out[:7]
 
 
 def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
@@ -923,7 +988,9 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
     m = a["meteo"]
     L = [f"# {a['projet']} : avancement du run au {fmt_t(a['maintenant'])}", "",
          f"**{barre(pct)} {pct:.0f} %** · {f} / {len(S)} stories terminées ({c} en cours, {r} à faire)", ""]
-    if es["reste"] == 0:
+    if es["reste"] == 0 and a["hors_suivi"]:
+        L.append("**Développements du périmètre terminés, mais le suivi est incomplet (voir ci-dessous).**")
+    elif es["reste"] == 0:
         L.append("**Tous les développements prévus sont terminés.**")
     elif es.get("fin"):
         fin = es["fin"]
@@ -937,12 +1004,14 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
     epics = sorted({s["epic"] for s in S.values()})
     consolide = len(epics) > 1  # sinon aucun niveau de consolidation : le détail par story tient lieu de tableau
     if consolide:
-        L += ["", "## Par epic", "", "| Epic | Avancement | ✅ | 🔄 | ⏳ | |", "|---|---|---|---|---|---|"]
+        L += ["", "## Par epic", "", "| Epic | Nom | Avancement | ✅ | 🔄 | ⏳ | |",
+              "|---|---|---|---|---|---|---|"]
         for ep in epics:
             liste = [s for s in S.values() if s["epic"] == ep]
             fe, ce, re_, pe = agregat(liste)
-            nom = court(N["epics"].get(ep, "Hors epic" if ep == 0 else ""), 38)
-            L.append(f"| {ep} · {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
+            nom = court(N["epics"].get(ep, "Hors epic" if ep == HORS_EPIC else ""), 38).replace("|", r"\|")
+            L.append(f"| {'—' if ep == HORS_EPIC else ep} | {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} "
+                     f"| {statut_epic(liste)} |")
     if stories or not consolide:
         L += ["", "## Détail par story", "", "| Story | Titre | État | % | |", "|---|---|---|---|---|"]
         for v in plan["ordre"]:
@@ -953,7 +1022,7 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
     L += ["", textwrap.fill("✅ terminé · 🧪 en relecture · 🔍 second avis · 🛠️ développement · 🔄 en cours · "
                             "⏳ à faire · ⛔ bloqué · 👤 attente humaine · ✂️ coupée · ★ story pivot", width=110), ""]
     L += [textwrap.fill("Météo : 🔴 si une story est bloquée ou si une attente humaine est sur le chemin critique ; "
-                        "🟡 si un contrôle automatique est rouge ou si une story est reprise ; sinon 🟢.", width=110), ""]
+                        "🟡 si un contrôle automatique est rouge, si une story est reprise ou si le suivi est incomplet ; sinon 🟢.", width=110), ""]
     if detail:
         L += [rapport_detail(a)]
     else:
