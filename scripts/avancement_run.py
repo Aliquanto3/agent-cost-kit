@@ -102,8 +102,9 @@ def est_numerique(sid: str) -> bool:
 
 
 def ids_perimetre(texte: str) -> list[str]:
-    """Stories d'une cellule « Stories C1 à C9, O1, O4a » (plages de même préfixe développées)."""
-    texte = re.sub(r"\([^)]*\)", " ", texte)  # les notes entre parenthèses ne sont pas des stories
+    """Stories d'une cellule « Stories C1 à C9, O1, O4a (sauf C2) » (plages de même préfixe développées)."""
+    exclus = {i for n in re.findall(r"\(([^)]*)\)", texte) for s in re.findall(r"\bsauf\b(.*)", n) for i in ID.findall(s)}
+    texte = re.sub(r"\([^)]*\)", " ", texte)  # les autres notes entre parenthèses ne sont pas des stories
     mot = re.search(r"\bStories?\b", texte)
     if mot:
         texte = texte[mot.end():]
@@ -119,7 +120,7 @@ def ids_perimetre(texte: str) -> list[str]:
             ids |= {f"{pre}{n1}{chr(c)}" for c in range(ord(s1), ord(s2) + 1)}
         else:
             print(f"avertissement : plage « {m[0]} » non développée (suffixes), extrémités seules", file=sys.stderr)
-    return sorted(ids, key=cle_id)
+    return sorted(ids - exclus, key=cle_id)
 
 
 def ids_deps(texte: str, connus: set[str]) -> set[str]:
@@ -168,8 +169,7 @@ def lire_plan(texte: str) -> dict:
         if len(c) >= 2 and "Dans le run" in c[0] and re.search(r"\bStories?\b", c[1]):
             plan["perimetre"] = ids_perimetre(c[1])
         if len(c) >= 2 and "Hors run" in c[0]:
-            plan["hors_run"] = plage_epics(c[1]) or set(ids_perimetre(c[1]) if re.search(r"\bStories?\b", c[1]) else []) \
-                or plan["hors_run"]
+            plan["hors_run"] = plage_epics(c[1]) or set(ids_perimetre(c[1])) or plan["hors_run"]  # « C5 à C7 » aussi
         if len(c) >= 3 and re.fullmatch(r"[VW]\d+[a-z]?", c[0]):
             vague = c[0]
             ids = []
@@ -457,7 +457,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
             rouverte = i_fin is not None and any(e["etape"] == "dev" and "lanc" in e["resultat"].lower()
                                                  for e in hist[i_fin + 1:])
             fusionnee = i_fin is not None and not rouverte
-            if sid not in statuts and not est_numerique(sid):  # hors epics : suivie depuis le journal seul
+            if sid not in statuts:  # absente de sprint-status (hors epics surtout) : suivie depuis le journal seul
                 if fusionnee:
                     st = "done"
                 elif info:  # `blocked` ou `attente humaine` seuls : reste « à faire », comme en epics

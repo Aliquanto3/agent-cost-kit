@@ -24,3 +24,20 @@ Surface : `scripts/avancement_run.py`, ses tests et sa fixture `tests/fixtures/a
 ## Reports
 
 - Aucun.
+
+## Revue
+
+### Passe 1 (2026-11-06, SHA revu 190721d)
+
+Merge de master 0.21.0 (#43) fait avant de juger : version renumérotée 0.21.1, spec renommée, ajouts de #43 gardés dans `modeles/run-autonome.md`.
+
+- Important, medium, second avis 1 : une story `N.M` du périmètre absente de sprint-status ignorait le journal (`2.1 · fusion` restait « à faire »). Corrigé : toute story absente de sprint-status suit le journal seul ; doc alignée ; test `test_story_numerique_absente_de_sprint_status_suit_le_journal`.
+- Important, medium, second avis 2 : « Stories C1 à C3 (sauf C2) » comptait C2. Corrigé : `(sauf …)` exclut, les autres parenthèses restent des notes ; doc et test.
+- Nit, low, second avis 3 : `commands/avancement-run.md` disait « n'est terminée que fusionnée ou close » puis comptait le repli. Corrigé (reformulé, idem `docs/avancement-run.md`).
+- Nit, low, second avis 4 : `dater` ne date par le commit « suivi du run … fusionnée » que les `fusion`. Rejeté : ce commit date une fusion ; une `clôture` sans heure prend l'heure du commit cité, puis l'interpolation.
+- Nit, low, second avis 5 : « dernière étape » = dernière ligne du fichier. Gardé (journal en ajout seul, même convention que le reste du rapport) ; documenté.
+- Nit, low, second avis 6 : `V3`, `ADR2` captés dans les sujets de commit par `dater`. Rejeté : ces entrées ne sont lues que pour les stories de la colonne story du journal, sans effet observable.
+- Nit, low, second avis 7 : `| Hors run | C5 à C7 |` sans « Stories » ignoré. Corrigé, test.
+- Nit, low, second avis 8 : la clé `e2e-tests` donne une entrée `E2e`. Rejeté : entrée jamais lue (aucune story `E2e` au plan ni au journal) ; la syntaxe ne la distingue pas d'une clé `o4a-slug` légitime.
+- Nit, low, second avis 9 : tests faibles ou manquants. Corrigé : ordre de `cle_id` testé par un tri, tests `clôture` puis `dev lancé`, CI rouge ou PR ouverte en dernier pour le repli, story `N.M` absente de sprint-status, plage avec `(sauf …)`.
+- Complexité : 0 constat (la recherche de `i_fin` et de reprise reste linéaire par story).
