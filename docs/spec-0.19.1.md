@@ -43,3 +43,8 @@ Base `origin/master` bfa5fe2 à jour, pas de rebase. Aucune des PR ouvertes (#16
 - Complexité : 0 constat (gabarit rendu une fois, `groupeDe` en O(11) par étape).
 
 Recette : bilan réel de novembre 2026 sur ce PC, captures Edge sans tête en sombre, clair (différentes) et impression émulée, plus un PDF imprimé (8 pages), dans `_bmad-output/implementation-artifacts/recette-3.9/`.
+
+### Passe 2 (2026-11-06, SHA revu e73ebe2)
+- Nit · low · revue : si un hôte pose `data-theme="dark"` sur `<html>` (la page ne le fait jamais), l'impression reste sombre car le bloc `print` exclut ce cas ; non corrigé, car cela obligerait à dupliquer les jetons clairs. Le choix sombre par le système imprime bien en clair.
+- Nit · low · revue : `test_au_plus_quatre_series_avec_motif` est un test par chaînes sur le gabarit, aucun test n'exécute le regroupement (étape inconnue). Lecture du code : `groupeDe` renvoie 2 (« le reste », motif `m3` hachure inverse), les onze familles de `bilan_detail.py` sont dans les trois listes, les parts sont calculées sur la même somme (pile à segment unique correcte).
+- Vérifié : mutation (hachure 135° retirée) fait échouer le test, restaurée ; 230 tests verts ; `claude plugin validate . --strict` passe ; catalogues EN et DE à jour (test i18n vert).
