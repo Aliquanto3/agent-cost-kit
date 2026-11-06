@@ -1,11 +1,11 @@
 ---
-title: "agent-cost-kit 0.20.2 : avancement-run, runs hors epics et stories terminées sans fusion"
+title: "agent-cost-kit 0.21.1 : avancement-run, runs hors epics et stories terminées sans fusion"
 status: review
 date: 2026-11-06
 source: "PR #17 (slmsp, 2026-10-20) ; run où l'Epic 0 n'apparaissait pas terminée (story 0.0 poussée sur main, 3.6 close sans fusion)"
 ---
 
-# agent-cost-kit 0.20.2 : avancement-run, runs hors epics et stories terminées sans fusion
+# agent-cost-kit 0.21.1 : avancement-run, runs hors epics et stories terminées sans fusion
 
 Surface : `scripts/avancement_run.py`, ses tests et sa fixture `tests/fixtures/avancement-hors-epics/`, `commands/avancement-run.md`, `docs/avancement-run.md`, `modeles/run-autonome.md`.
 

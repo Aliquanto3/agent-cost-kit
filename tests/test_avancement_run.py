@@ -365,7 +365,7 @@ def test_normaliser_etape_pr():
 
 
 def test_done_sans_fusion_n_est_pas_terminee(tmp_path, monkeypatch):
-    # 0.20.2 : « review · finie » sans fusion relève désormais du repli « terminée sans fusion journalisée »
+    # 0.21.1 : « review · finie » sans fusion relève désormais du repli « terminée sans fusion journalisée »
     # (test_done_sans_fusion_repli_avec_alerte) ; une étape lancée en dernier (1.1) ou une PR ouverte (1.2) restent en cours.
     p = mini(tmp_path, monkeypatch, {"1.1": "done", "1.2": "done", "1.3": "done", "1.4": "done"}, [
         "- 2026-10-19 09:00 · 1.1 · dev · lancé · —",
@@ -811,7 +811,7 @@ def test_decision_ne_marque_pas_reprise_et_sortie_apres_dev_lance(tmp_path, monk
     assert "reportée" in S["C1"]["drapeaux"]
 
 
-# ----------------------------------------------------------------------------- 0.20.2 : clôture, done sans fusion
+# ----------------------------------------------------------------------------- 0.21.1 : clôture, done sans fusion
 
 def test_cloture_compte_comme_terminee(tmp_path, monkeypatch):
     assert ar.normaliser_etape("clôture") == "clôture" and ar.normaliser_etape("Cloture") == "clôture"
