@@ -25,6 +25,8 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 
 La variable d'environnement `AGENT_COST_KIT_GABARIT_BILAN` désigne un autre fichier de gabarit (chemin vers un `.html`) ; `scripts/bilan_tokens.py` l'utilise à la place de `skills/bilan-tokens/gabarit.html`. `~` est développé ; un chemin relatif se résout depuis le dossier courant au lancement du script : préférer un chemin absolu ou en `~/`. Le fichier doit être en UTF-8 et contenir le point d'injection `const BILAN=/*__BILAN__*/null;` tel quel. Sinon (fichier introuvable, dossier, autre encodage, point d'injection absent), le script s'arrête avec un message avant d'écrire le JSON ou la page. Marche à suivre : copier `gabarit.html`, y changer les jetons `--c-*` (et le logo), puis définir la variable dans l'environnement du shell ou dans la clé `env` de `~/.claude/settings.json`. Sans la variable, le gabarit du plugin est utilisé.
 
+Avec un gabarit personnalisé, seule la page française est écrite, quel que soit `--langues` (le script l'annonce) : les catalogues de traduction suivent le texte du gabarit du plugin, pas celui de la copie. Les pages `.en.html` et `.de.html` d'une génération précédente ne sont pas supprimées.
+
 Garder le bilan à la charte Wavestone : la version Wavestone de `skills/bilan-tokens/gabarit.html` est dans la copie privée `Aliquanto3/agent-cost-kit-wavestone`. La copier hors du plugin, par exemple dans `~/.claude/cost-kit/gabarit-wavestone.html` (une mise à jour du plugin écraserait une copie placée dans son dossier), puis définir la variable, par exemple dans `~/.claude/settings.json` :
 
 ```json

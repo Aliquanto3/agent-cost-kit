@@ -40,7 +40,7 @@ def test_scripts_de_la_page_valides(langue, tmp_path):
     for n, code in enumerate(scripts):
         fichier = tmp_path / f"s{n}.js"
         fichier.write_text(code, encoding="utf-8")
-        resultat = subprocess.run(["node", "--check", str(fichier)], capture_output=True, text=True)
+        resultat = subprocess.run(["node", "--check", str(fichier)], capture_output=True, text=True, encoding="utf-8")
         assert resultat.returncode == 0, resultat.stderr
 
 

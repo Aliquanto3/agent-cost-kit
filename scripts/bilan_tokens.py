@@ -277,6 +277,12 @@ def lire_gabarit() -> str:
 def ecrire_html(bilan: dict, chemin: Path, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, str] | None = None,
                 gabarit: str | None = None) -> None:
     """Page du bilan dans ``langue`` ; ``liens`` {langue: nom de fichier} ajoute le sélecteur de langue."""
+    chemin.write_text(page_html(bilan, langue, liens, gabarit), encoding="utf-8")
+
+
+def page_html(bilan: dict, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, str] | None = None,
+              gabarit: str | None = None) -> str:
+    """Texte de la page du bilan ; catalogue obsolète : arrêt avec le message qui cite le texte disparu."""
     if gabarit is None:
         gabarit = lire_gabarit()
     try:
@@ -287,7 +293,7 @@ def ecrire_html(bilan: dict, chemin: Path, langue: str = i18n.LANGUE_SOURCE, lie
     recos = bd.recommandations(detail["brut"], detail, langue) if detail and langue != i18n.LANGUE_SOURCE else None
     donnees = i18n.traduire_donnees(bilan, langue, recos)
     injection = json.dumps(donnees, ensure_ascii=False).replace("</", "<\\/")
-    chemin.write_text(page.replace(PLACEHOLDER, f"const BILAN={injection};"), encoding="utf-8")
+    return page.replace(PLACEHOLDER, f"const BILAN={injection};")
 
 
 def noms_pages(base: str, langues: tuple[str, ...]) -> dict[str, str]:
@@ -359,18 +365,20 @@ def commande_collecte(options) -> int:
 
 def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str, langues: tuple[str, ...] = i18n.LANGUES) -> None:
     """Écrit ``<periode>-<suffixe>.json``, ``.html`` (français) et ``.<langue>.html`` par autre langue dans ``out``."""
-    gabarit = lire_gabarit()  # gabarit invalide : arrêt avant toute écriture
+    gabarit = lire_gabarit()  # gabarit invalide : arrêt avant toute écriture (catalogue obsolète : plus bas, avant d'écrire aussi)
     if chemin_gabarit().resolve() != GABARIT.resolve() and langues != (i18n.LANGUE_SOURCE,):
         # Les catalogues de traduction suivent le gabarit du plugin, pas un gabarit personnalisé.
         print("Gabarit personnalisé : seule la page française est écrite (les catalogues suivent le gabarit du plugin).")
         langues = (i18n.LANGUE_SOURCE,)
-    out.mkdir(parents=True, exist_ok=True)
     base = f"{periode}-{suffixe}"
+    pages = noms_pages(base, langues)
+    # Toutes les pages sont construites avant d'écrire : un catalogue obsolète arrête sans sortie partielle.
+    textes = {nom: page_html(bilan, langue, pages if len(pages) > 1 else None, gabarit) for langue, nom in pages.items()}
+    out.mkdir(parents=True, exist_ok=True)
     chemin_json = out / f"{base}.json"
     chemin_json.write_text(json.dumps(bilan, ensure_ascii=False, indent=2), encoding="utf-8")
-    pages = noms_pages(base, langues)
-    for langue, nom in pages.items():
-        ecrire_html(bilan, out / nom, langue, pages if len(pages) > 1 else None, gabarit)
+    for nom, texte in textes.items():
+        (out / nom).write_text(texte, encoding="utf-8")
     print(f"\nÉcrit : {chemin_json}" + "".join(f"\n        {out / nom}" for nom in pages.values()))
 
 
