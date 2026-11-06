@@ -19,7 +19,19 @@ python scripts/bilan_tokens.py --mois 2026-10 --dossier C:/chemin/du/depot
 - `--dossier` limite aux dossiers de projet sous `--racine` (défaut `~/.claude/projects`) dont le nom encodé commence par celui du chemin donné (même encodage que `mesurer_couts.dossier_transcriptions`) : il couvre donc ce dossier et ses sous-dossiers, pas un dossier frère au nom plus long (`GitHub2` pour `GitHub`). Sans l'option, tous les projets du compte sont comptés.
 - Les `*.jsonl` sont parcourus récursivement (sous-agents compris), un appel par `message.id` dédoublonné sur l'ensemble des fichiers retenus (première occurrence chronologique gardée), les messages synthétiques (`id == "<synthetic>"`) écartés.
 
-Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis les pages HTML correspondantes (une par langue, voir « Langues »), à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte Wavestone, un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+Écrit `<mois>-<machine>.json` (schéma documenté dans le script, aucun contenu de transcription) puis les pages HTML correspondantes (une par langue, voir « Langues »), à partir du gabarit `skills/bilan-tokens/gabarit.html` : charte générique (jetons CSS `--c-*`, polices système, sans appel réseau), un seul point d'injection (`const BILAN=…`), aucun chiffre ni chemin codé en dur dans la page — tout est calculé en JavaScript depuis le JSON.
+
+### Page à votre propre charte
+
+La variable d'environnement `AGENT_COST_KIT_GABARIT_BILAN` désigne un autre fichier de gabarit (chemin vers un `.html`) ; `scripts/bilan_tokens.py` l'utilise à la place de `skills/bilan-tokens/gabarit.html`. `~` est développé ; un chemin relatif se résout depuis le dossier courant au lancement du script : préférer un chemin absolu ou en `~/`. Le fichier doit être en UTF-8 et contenir le point d'injection `const BILAN=/*__BILAN__*/null;` tel quel. Sinon (fichier introuvable, dossier, autre encodage, point d'injection absent), le script s'arrête avec un message avant d'écrire le JSON ou la page. Marche à suivre : copier `gabarit.html`, y changer les jetons `--c-*` (et le logo), puis définir la variable dans l'environnement du shell ou dans la clé `env` de `~/.claude/settings.json`. Sans la variable, le gabarit du plugin est utilisé.
+
+Garder le bilan à la charte Wavestone : la version Wavestone de `skills/bilan-tokens/gabarit.html` est dans la copie privée `Aliquanto3/agent-cost-kit-wavestone`. La copier hors du plugin, par exemple dans `~/.claude/cost-kit/gabarit-wavestone.html` (une mise à jour du plugin écraserait une copie placée dans son dossier), puis définir la variable, par exemple dans `~/.claude/settings.json` :
+
+```json
+{ "env": { "AGENT_COST_KIT_GABARIT_BILAN": "~/.claude/cost-kit/gabarit-wavestone.html" } }
+```
+
+Le gabarit privé doit garder le point d'injection `const BILAN=/*__BILAN__*/null;`. Quand une version du kit ajoute une section au gabarit du plugin, la reporter dans la copie privée : sinon la page à l'ancienne charte ne l'affiche pas.
 
 ## Langues
 

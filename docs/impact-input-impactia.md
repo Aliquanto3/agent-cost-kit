@@ -72,7 +72,7 @@ La PR passe au traceur Anthropic `usage.input_tokens`, qui exclut lectures et é
 
 `uv run --no-project --with "ecologits @ git+https://github.com/mlco2/ecologits@4c552f64a1770514525914e2bbebc6368104374f" python bancs/impactia_ecart.py` : la librairie de la PR s'installe. Opus, Sonnet et Haiku 5.5, contextes 10 k / 100 k / 500 k, sorties 100 / 2 000, cinq grandeurs, min et max : écart relatif maximal 4,5e-16 hors cache, de même pour la lecture du cache en borne haute (librairie avec `input_token_count = contexte`) et en borne basse (librairie avec 0). Cible de 5 % tenue. `bancs/ecologits_ecart.py` (méthode `ecologits` contre ecologits 0.11.3) : 3,6e-16.
 
-Bilan d'octobre 2026 (`bilan_tokens.py --mois 2026-10 --dossier C:/Users/anael.yahi/Documents/GitHub`, 4,66 Md tokens d'entrée, 15,2 M de sortie, mix USA) :
+Bilan d'octobre 2026 (`bilan_tokens.py --mois 2026-10 --dossier <dossier-des-projets>`, 4,66 Md tokens d'entrée, 15,2 M de sortie, mix USA) :
 
 | Méthode | GWP | Énergie | Eau |
 |---|---|---|---|

@@ -2,6 +2,10 @@
   "langue": "de",
   "remplacements": [
     [
+      "<span>Bilan des tokens</span>",
+      "<span>Token-Bilanz</span>"
+    ],
+    [
       "<title>Bilan tokens</title>",
       "<title>Token-Bilanz</title>"
     ],
@@ -410,8 +414,8 @@
       "[\"🆕 Nicht gecachter Input\",TOTAL.cIn"
     ],
     [
-      "fill=\"#4a4a5e\">équivalent API</text>",
-      "fill=\"#4a4a5e\">API-Äquivalent</text>"
+      "style=\"fill:var(--c-texte-attenue)\">équivalent API</text>",
+      "style=\"fill:var(--c-texte-attenue)\">API-Äquivalent</text>"
     ],
     [
       "`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`",
@@ -600,6 +604,7 @@
     "tarifs.json",
     "--fusionner",
     "sans-serif",
-    "var(--sans)"
+    "var(--sans)",
+    "var(--c-sur-statut)"
   ]
 }

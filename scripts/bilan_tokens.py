@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import sys
 from datetime import datetime, timezone
@@ -51,6 +52,7 @@ import mesurer_couts as mc
 UTC = timezone.utc  # noqa: UP017 - datetime.UTC n'existe qu'à partir de Python 3.11
 SCHEMA = 1
 GABARIT = Path(__file__).resolve().parent.parent / "skills" / "bilan-tokens" / "gabarit.html"
+ENV_GABARIT = "AGENT_COST_KIT_GABARIT_BILAN"  # chemin d'un gabarit de remplacement (page à votre propre charte)
 PLACEHOLDER = "const BILAN=/*__BILAN__*/null;"
 RACINE_DEFAUT = Path.home() / ".claude" / "projects"
 
@@ -242,11 +244,41 @@ def totaux_machine(modeles: list[dict]) -> dict:
     return t
 
 
-def ecrire_html(bilan: dict, chemin: Path, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, str] | None = None) -> None:
-    """Page du bilan dans ``langue`` ; ``liens`` {langue: nom de fichier} ajoute le sélecteur de langue."""
-    gabarit = GABARIT.read_text(encoding="utf-8")
+def chemin_gabarit() -> Path:
+    """Gabarit du plugin, ou le fichier désigné par la variable d'environnement ``AGENT_COST_KIT_GABARIT_BILAN``.
+
+    ``~`` est développé ; un chemin relatif se résout depuis le dossier courant.
+    """
+    voulu = os.environ.get(ENV_GABARIT)
+    if not voulu:
+        return GABARIT
+    chemin = Path(voulu).expanduser().absolute()
+    if chemin.is_dir():
+        sys.exit(f"{ENV_GABARIT} : {chemin} est un dossier ; donner le chemin d'un fichier .html.")
+    if not chemin.is_file():
+        sys.exit(f"{ENV_GABARIT} : fichier introuvable : {chemin}")
+    return chemin
+
+
+def lire_gabarit() -> str:
+    """Texte du gabarit, validé (UTF-8, point d'injection présent) ; à appeler avant d'écrire la moindre sortie."""
+    source = chemin_gabarit()
+    try:
+        gabarit = source.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        sys.exit(f"Gabarit illisible : {source} n'est pas encodé en UTF-8.")
+    except OSError as erreur:
+        sys.exit(f"Gabarit illisible : {source} ({erreur})")
     if PLACEHOLDER not in gabarit:
-        sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {GABARIT}")
+        sys.exit(f"Gabarit sans point d'injection attendu ({PLACEHOLDER!r}) : {source}")
+    return gabarit
+
+
+def ecrire_html(bilan: dict, chemin: Path, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, str] | None = None,
+                gabarit: str | None = None) -> None:
+    """Page du bilan dans ``langue`` ; ``liens`` {langue: nom de fichier} ajoute le sélecteur de langue."""
+    if gabarit is None:
+        gabarit = lire_gabarit()
     try:
         page = i18n.traduire_page(gabarit, langue, liens)
     except i18n.CatalogueObsolete as erreur:
@@ -327,13 +359,18 @@ def commande_collecte(options) -> int:
 
 def ecrire_bilan(bilan: dict, out: Path, periode: str, suffixe: str, langues: tuple[str, ...] = i18n.LANGUES) -> None:
     """Écrit ``<periode>-<suffixe>.json``, ``.html`` (français) et ``.<langue>.html`` par autre langue dans ``out``."""
+    gabarit = lire_gabarit()  # gabarit invalide : arrêt avant toute écriture
+    if chemin_gabarit().resolve() != GABARIT.resolve() and langues != (i18n.LANGUE_SOURCE,):
+        # Les catalogues de traduction suivent le gabarit du plugin, pas un gabarit personnalisé.
+        print("Gabarit personnalisé : seule la page française est écrite (les catalogues suivent le gabarit du plugin).")
+        langues = (i18n.LANGUE_SOURCE,)
     out.mkdir(parents=True, exist_ok=True)
     base = f"{periode}-{suffixe}"
     chemin_json = out / f"{base}.json"
     chemin_json.write_text(json.dumps(bilan, ensure_ascii=False, indent=2), encoding="utf-8")
     pages = noms_pages(base, langues)
     for langue, nom in pages.items():
-        ecrire_html(bilan, out / nom, langue, pages if len(pages) > 1 else None)
+        ecrire_html(bilan, out / nom, langue, pages if len(pages) > 1 else None, gabarit)
     print(f"\nÉcrit : {chemin_json}" + "".join(f"\n        {out / nom}" for nom in pages.values()))
 
 

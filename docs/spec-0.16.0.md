@@ -13,12 +13,12 @@ Une story, branche `feat/0.16-bilan-detail`. Le bilan mensuel (`bilan-tokens`) n
 
 Écrite et utilisée pour le bilan d'octobre, hors dépôt. À lire avant de coder ; à porter proprement, pas à recopier tel quel (rien de propre à Anaël en dur, sauf les valeurs par défaut documentées ci-dessous) :
 
-- `C:/Users/UTILIS~1/AppData/Local/Temp/claude/C--Users-Utilisateur-Documents-GitHub/3ee2a2fe-610f-485a-9451-784448f335bb/scratchpad/extraire.py` et `extraire2.py` : collecte des appels avec métadonnées (deux passes à fusionner en une) ;
+- `<scratchpad de la session>/extraire.py` et `extraire2.py` : collecte des appels avec métadonnées (deux passes à fusionner en une) ;
 - `.../scratchpad/classer.py` : classement par projet, étape et rôle, agrégation, indicateurs des recommandations ;
 - `.../scratchpad/sections.html` : CSS et JS des sections 04 à 07 (à intégrer au gabarit) ;
 - `.../scratchpad/bilan_periode.py` : filtre par période.
 
-Résultat attendu sur les données réelles (ordre de grandeur, pour se repérer) : 7 949 $ au total, dont 32 % pour l'orchestrateur ; développement 46 %, relecture et tests 25 % ; WaveStack 2 140 $.
+Résultat attendu sur les données réelles (ordre de grandeur, pour se repérer) : 7 949 $ au total, dont 32 % pour l'orchestrateur ; développement 46 %, relecture et tests 25 % ; HarnessLab 2 140 $.
 
 ## Ce que les transcriptions fournissent
 

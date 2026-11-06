@@ -2,6 +2,10 @@
   "langue": "en",
   "remplacements": [
     [
+      "<span>Bilan des tokens</span>",
+      "<span>Token report</span>"
+    ],
+    [
       "<title>Bilan tokens</title>",
       "<title>Token report</title>"
     ],
@@ -390,16 +394,16 @@
       "\"estimated CO2e\"]"
     ],
     [
-      "const parts=[[\"♻️ Lecture cache\",TOTAL.cLu,\"#451DC7\"],[\"✍️ Écriture cache\",TOTAL.cEc,\"#9d86ec\"],[\"📤 Output\",TOTAL.cOut,\"#04F06A\"],[\"🆕 Input non caché\",TOTAL.cIn,\"#FFCA4A\"]];",
-      "const parts=[[\"♻️ Cache read\",TOTAL.cLu,\"#451DC7\"],[\"✍️ Cache write\",TOTAL.cEc,\"#9d86ec\"],[\"📤 Output\",TOTAL.cOut,\"#04F06A\"],[\"🆕 Uncached input\",TOTAL.cIn,\"#FFCA4A\"]];"
+      "const parts=[[\"♻️ Lecture cache\",TOTAL.cLu,\"var(--c-primaire)\"],[\"✍️ Écriture cache\",TOTAL.cEc,\"var(--c-cat-3)\"],[\"📤 Output\",TOTAL.cOut,\"var(--c-succes)\"],[\"🆕 Input non caché\",TOTAL.cIn,\"var(--c-cat-8)\"]];",
+      "const parts=[[\"♻️ Cache read\",TOTAL.cLu,\"var(--c-primaire)\"],[\"✍️ Cache write\",TOTAL.cEc,\"var(--c-cat-3)\"],[\"📤 Output\",TOTAL.cOut,\"var(--c-succes)\"],[\"🆕 Uncached input\",TOTAL.cIn,\"var(--c-cat-8)\"]];"
     ],
     [
-      "fill=\"#0a0a14\">${nf(TOTAL.cTot)} $</text>",
-      "fill=\"#0a0a14\">$${nf(TOTAL.cTot)}</text>"
+      "style=\"fill:var(--c-texte)\">${nf(TOTAL.cTot)} $</text>",
+      "style=\"fill:var(--c-texte)\">$${nf(TOTAL.cTot)}</text>"
     ],
     [
-      "fill=\"#4a4a5e\">équivalent API</text>",
-      "fill=\"#4a4a5e\">API equivalent</text>"
+      "style=\"fill:var(--c-texte-attenue)\">équivalent API</text>",
+      "style=\"fill:var(--c-texte-attenue)\">API equivalent</text>"
     ],
     [
       "`<b>Comment lire les chiffres.</b> L'input réellement traité est la <b>somme des trois cases</b>, soit environ ${tok(TOTAL.inTot)} tokens sur la période. Rapporté aux ${nf(TOTAL.appels)} appels, cela donne un contexte moyen d'environ <b>${tok(ctxMoyen)} tokens par appel</b>.`",
@@ -577,6 +581,7 @@
   "autorises": [
     "Français",
     "sans-serif",
-    "var(--sans)"
+    "var(--sans)",
+    "var(--c-sur-statut)"
   ]
 }

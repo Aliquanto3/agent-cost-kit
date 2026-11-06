@@ -105,6 +105,16 @@ Commits et licences relevés le 2026-10-25. Un nouveau commit n'est pas essayé 
 - **Sortie** : après au moins 10 stories aiguillées, stable si elles n'ont pas plus de constats Important ni de reprises que les stories cadrées comparables ; sinon règle retirée ou restreinte.
 - **Veille** : [T13](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13-story-legere) : voie légère à −46 % de coût mais 10 points de moins, écartée ; [T13 bis](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T13bis-sans-cadrage) : sans cadrage, −0,6 point (IC [−8,4 ; +7,4]) pour 73 % de moins, non-infériorité à 10 points seulement.
 
+## relanceur de run autonome
+
+- **Dépôt** : script du kit (`scripts/relancer_run.py`, `docs/relancer-run.md`), pas d'outil tiers · **Commit** : n/a · **Licence** : MIT (celle du kit)
+- **Problème visé** : l'orchestrateur d'un run de nuit grossit sans `/clear` (jusqu'à 803 k), et relancer à chaque story coûte +95 % quand le contexte reste petit.
+- **Quand** : un run autonome long (plusieurs vagues), lancé dès le départ par le relanceur. Demande Anaël : lancer le script, répondre à `ATTENTE_HUMAINE`.
+- **Protocole** : 1. ajouter `## Brief` et la règle d'arrêt (modèle `modeles/run-autonome.md`) au fichier d'état ; 2. `--a-sec` pour vérifier les commandes ; 3. lancer le run par le script ; 4. relire `relancer-run.jsonl` et `mesurer-couts`.
+- **Observer** : pics par tour, nombre de relances, coût de l'orchestrateur par story, pertes de contexte après relance.
+- **Sortie** : après un run réel, stable si le coût de l'orchestrateur par story baisse sans story reprise pour perte de contexte ; retiré sinon.
+- **Veille** : [T16](https://github.com/Aliquanto3/veille-agents-code/tree/main/tests-pratiques/T16-compaction-brief) : relance à chaque story +95 %, 4 reprises sur 4 sans perte avec un brief de 40 lignes ; arXiv 2611.05306.
+
 ## Écartés après essai
 
 Retirés du catalogue quand la veille a tranché contre eux. Ils ne s'essaient plus sans nouveau motif.

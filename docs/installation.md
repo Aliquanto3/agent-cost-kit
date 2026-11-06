@@ -14,7 +14,7 @@ Ou, pour l'essayer sans installer : `claude --plugin-dir ./agent-cost-kit`.
 Sur un nouveau PC, ces deux commandes et un `/cost-kit-install` suffisent : les réglages globaux ne sont pas synchronisés d'une machine à l'autre, le script les réapplique. Après une mise à jour du kit, relancez-le (`uv run --no-project python scripts/installer_global.py`) : il ne remplace que le bloc du kit dans `~/.claude/CLAUDE.md`.
 
 Puis, dans votre projet : `/cost-kit-install`. Le skill :
-- une fois par PC, applique avec votre accord les réglages utilisateur (`~/.claude/settings.json`) et les consignes de coût globales (`~/.claude/CLAUDE.md`), par `scripts/installer_global.py` : aperçu d'abord, sauvegarde, rien d'autre n'est touché ; il propose aussi le plugin `pyright-lsp` pour les projets Python et le blocage des connecteurs claude.ai inutiles ;
+- une fois par PC, applique avec votre accord les réglages utilisateur (`~/.claude/settings.json`) et les consignes de coût globales (`~/.claude/CLAUDE.md`), par `scripts/installer_global.py` : aperçu d'abord, sauvegarde, rien d'autre n'est touché ; il propose aussi le plugin `pyright-lsp` pour les projets Python le blocage des connecteurs claude.ai inutiles et, en option, la coupure des résumés d'avancement des sous-agents (`CLAUDE_CODE_DISABLE_AGENT_PROGRESS_SUMMARIES=1`, variable non documentée, à revérifier à chaque version) ;
 - propose les réglages du projet (un plugin ne peut pas les imposer) ;
 - copie le modèle de contrôle rapide ;
 - explique l'enchaînement des agents ;
