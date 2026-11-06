@@ -37,7 +37,7 @@ def _zone_jetons() -> str:
 def _themes() -> dict[str, dict[str, str]]:
     zone = _zone_jetons()
     sombre = _jetons(_bloc_apres(zone, ":root {"))
-    clair_systeme = _jetons(_bloc_apres(_bloc_apres(zone, "@media (prefers-color-scheme: light)"), ":root:not("))
+    clair_systeme = _jetons(_bloc_apres(_bloc_apres(zone, "@media print, (prefers-color-scheme: light)"), ":root:not("))
     clair_force = _jetons(_bloc_apres(zone, '[data-theme="clair"]'))
     sombre_force = _jetons(_bloc_apres(zone, '\n[data-theme="sombre"]'))
     assert clair_systeme == clair_force, "le clair système et le clair forcé diffèrent"
@@ -70,10 +70,10 @@ TEXTE = [
     ("succes", "surface"), ("succes", "succes-doux"), ("texte-attenue", "succes-doux"),
     ("alerte-texte", "surface"), ("alerte-texte", "alerte-doux"), ("texte-attenue", "alerte-doux"),
     ("erreur", "surface"), ("erreur", "erreur-doux"), ("texte-attenue", "erreur-doux"),
-    ("sur-bouton", "bouton"),  # numéro des recommandations
+    ("texte", "primaire-doux"),  # numéro des recommandations
 ]
-# Le filet or (accent-aplat) est décoratif : il ne porte aucune information, hors de ces seuils.
 MARQUES = [
+    ("accent", "fond"), ("accent", "surface"),  # filet or sous le titre, barre de progression
     ("trait-fort", "surface"), ("trait-fort", "fond"),  # contour des boutons et du sélecteur de langue
     ("focus", "fond"), ("focus", "surface"), ("focus", "surface-alt"),
     ("primaire", "primaire-doux"),  # liseré de l'état enfoncé
@@ -104,7 +104,7 @@ def test_contraste_marques_3(nom, premier, fond):
 def test_sombre_d_abord_et_clair_selon_le_systeme():
     zone = _zone_jetons()
     assert "color-scheme: dark" in _bloc_apres(zone, ":root {")
-    clair = _bloc_apres(zone, "@media (prefers-color-scheme: light)")
+    clair = _bloc_apres(zone, "@media print, (prefers-color-scheme: light)")
     assert "color-scheme: light" in clair
     assert 'not([data-theme="dark"])' in clair
     assert set(_themes()["sombre"]) == set(_themes()["clair"])
@@ -168,7 +168,9 @@ def test_liens_soulignes_et_pas_de_theme_force():
 
 def test_filet_or_et_pictogramme_de_la_charte():
     page = _page()
-    assert "h1::after" in page and "background:var(--accent-aplat)" in page
+    # marque fine : accent (jamais accent-aplat, 1,93:1 sur blanc en clair) ; contraste dans MARQUES
+    assert "background:var(--accent)" in _bloc_apres(page, "h1::after")
+    assert "accent-aplat)" not in page.replace(_zone_jetons(), "")
     for jeton in ("picto-tuile", "picto-barres", "picto-point"):
         assert f"var(--{jeton})" in page and f"--{jeton}: var(" in page
 
@@ -177,3 +179,34 @@ def test_polices_de_la_charte_sans_cdn():
     page = _page()
     assert "--police-titres: Sora" in page and "'Atkinson Hyperlegible'" in page and "'JetBrains Mono'" in page
     assert "fonts.googleapis" not in page and "@import" not in page
+
+
+def test_impression_en_clair_et_marques_gardees():
+    """Page sombre par défaut : l'impression prend les jetons clairs (texte foncé sur papier blanc)."""
+    zone = _zone_jetons()
+    imprime = _jetons(_bloc_apres(_bloc_apres(zone, "@media print, (prefers-color-scheme: light)"), ":root:not("))
+    for premier, fond in (("texte", "fond"), ("texte", "surface"), ("texte-attenue", "surface")):
+        assert contraste(imprime[premier], "#FFFFFF") >= 4.5, premier
+        assert contraste(imprime[premier], imprime[fond]) >= 4.5, (premier, fond)
+    page = _page()
+    regle = _bloc_apres(page.replace(zone, ""), "@media print{")
+    assert "nav,.progress{display:none}" in regle
+    assert "print-color-adjust:exact" in regle and ".pile i" in regle
+    assert "break-inside:avoid" in regle
+
+
+def test_au_plus_quatre_series_avec_motif():
+    """Graphiques : séries cat-1 à cat-4 seulement, un motif par groupe d'étapes, parts écrites à côté de la barre."""
+    page = _page()
+    script = "\n".join(re.findall(r"<script>(.*?)</script>", page, re.S))
+    # graphiques à plusieurs séries : anneau de coût (const parts) et piles d'étapes (COL_GROUPES)
+    graphiques = [ligne for ligne in script.splitlines() if ligne.startswith(("const parts=", "const COL_GROUPES="))]
+    assert len(graphiques) == 2
+    couleurs = set(re.findall(r"var\(--([a-z0-9-]+)\)\"", "\n".join(graphiques)))
+    assert couleurs <= {"cat-1", "cat-2", "cat-3", "cat-4"}, couleurs
+    assert "IDS_GROUPES" in script and len(re.findall(r"\[\"[a-z]+\"(?:,\"[a-z]+\")*\]", script.split("IDS_GROUPES=")[1].split(";")[0])) == 3
+    css = page.replace(_zone_jetons(), "")
+    for n in (1, 2, 3):
+        assert f".m{n}{{background:" in css
+    assert "repeating-linear-gradient(135deg" in css and "repeating-linear-gradient(45deg" in css
+    assert 'class="parts"' in page

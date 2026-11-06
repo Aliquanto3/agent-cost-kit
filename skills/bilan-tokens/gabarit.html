@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="dark light">
 <title>Bilan tokens</title>
 <style>
-/* JETONS charte générique v2.1 : sombre d'abord, clair selon le système ou [data-theme]. Copie de dist/charte.css. */
+/* JETONS charte générique v2.1 : sombre d'abord, clair selon le système ou [data-theme], et toujours clair à l'impression. Copie de dist/charte.css (seul ajout : « print, » devant la requête du clair). */
 :root {
   color-scheme: dark;
   --fond: #0F1318;
@@ -96,7 +96,7 @@
   --focus-decalage: 2px;
 }
 
-@media (prefers-color-scheme: light) {
+@media print, (prefers-color-scheme: light) {
   :root:not([data-theme="sombre"]):not([data-theme="dark"]) {
     color-scheme: light;
     --fond: #F6F8FB;
@@ -313,7 +313,7 @@ section{padding-block:clamp(2.5rem,6vw,4.5rem)}
 .hero{background:var(--fond)}
 .hero-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:clamp(24px,4vw,56px);align-items:center}
 h1{font-size:clamp(2rem,4.6vw,3.6rem);line-height:1.1;letter-spacing:-.02em;margin:.5rem 0 1rem;text-wrap:balance}
-h1::after{content:"";display:block;width:72px;height:3px;border-radius:2px;background:var(--accent-aplat);margin-top:1rem}
+h1::after{content:"";display:block;width:72px;height:3px;border-radius:2px;background:var(--accent);margin-top:1rem}
 h1 em{font-style:normal;color:var(--primaire-vif)}
 .sub{color:var(--texte-attenue);font-size:1.05rem;max-width:60ch;margin:0}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
@@ -396,12 +396,28 @@ footer .container{display:flex;justify-content:space-between;gap:12px;flex-wrap:
   .nav-links{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Impression : jetons clairs (bloc JETONS), pas de barre fixe, marques de graphique gardées, blocs entiers. */
+@media print{
+  nav,.progress{display:none}
+  body{padding-top:0}
+  .pile,.pile i,.parts i,.legende-etapes i,.legend i,.dot,.barre,.barre span,.etape .nom i,.duo .part,.duo .part i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .kpi,.donut-card,.reco,.etape,.duo>div,.guide div,.constat div,tr{break-inside:avoid}
+  .gain,.pill{border:1px solid currentColor;font-weight:700}
+}
 /* Sections 04 à 07 : mêmes jetons que le reste du gabarit ; une couleur par famille d'étapes. */
 .legende-etapes{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 14px;font-size:12.5px;color:var(--texte-attenue)}
 .legende-etapes span{display:inline-flex;align-items:center;gap:6px}
 .legende-etapes i{width:10px;height:10px;border-radius:2px;display:block}
 .pile{display:flex;height:12px;border-radius:3px;overflow:hidden;min-width:180px;background:var(--trait)}
 .pile i{display:block;height:100%}
+/* Trois groupes d'étapes (cat-1 à cat-3), chacun avec son motif : plein, hachure, hachure inverse. */
+.m1{background:var(--cat-1)}
+.m2{background:repeating-linear-gradient(135deg,var(--cat-2) 0 3px,var(--surface) 3px 5px)}
+.m3{background:repeating-linear-gradient(45deg,var(--cat-3) 0 2px,var(--surface) 2px 3px)}
+.parts{display:flex;gap:10px;margin-top:4px;font:500 11px var(--police-texte);color:var(--texte-attenue)}
+.parts span{display:inline-flex;align-items:center;gap:4px}
+.parts i,.legende-etapes i{box-shadow:0 0 0 1px var(--trait-fort)}
+.parts i{width:9px;height:9px;border-radius:2px;display:block}
 td.lien a{color:var(--texte);text-decoration:underline;text-decoration-color:var(--trait-fort);text-underline-offset:3px}
 td.lien a:hover{color:var(--primaire);text-decoration-color:var(--primaire)}
 .pill{display:inline-block;font:600 12px var(--police-texte);padding:2px 9px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--trait);color:var(--texte-attenue)}
@@ -446,7 +462,7 @@ tr.me td.name{padding-left:30px;color:var(--texte-attenue);font-weight:500}
 .recos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;counter-reset:reco}
 .reco{border:1px solid var(--trait);border-radius:var(--rayon-grand);padding:18px 20px;display:grid;gap:8px;align-content:start;background:var(--surface);counter-increment:reco}
 .reco h3{margin:0;font-size:15.5px;line-height:1.3;display:flex;gap:10px}
-.reco h3::before{content:counter(reco);font:800 13px var(--police-code);color:var(--sur-bouton);background:var(--bouton);border-radius:999px;min-width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
+.reco h3::before{content:counter(reco);font:800 13px var(--police-code);color:var(--texte);background:var(--primaire-doux);box-shadow:inset 0 0 0 1px var(--primaire);border-radius:999px;min-width:24px;height:24px;display:inline-grid;place-items:center;flex:none}
 .reco p{margin:0;font-size:13.5px;color:var(--texte-attenue)}
 .reco p b{color:var(--texte)}
 .gain{justify-self:start;font:700 12px var(--police-texte);padding:3px 10px;border-radius:999px;background:var(--succes-doux);color:var(--succes)}
@@ -812,11 +828,20 @@ const D=BILAN.detail;
 if(!D)return;
 document.getElementById("detail-mount").innerHTML=document.getElementById("tpl-detail").innerHTML;
 document.getElementById("nav-links").insertAdjacentHTML("beforeend",'<a href="#projets">Projets</a><a href="#etapes">Étapes</a><a href="#agents">Rôles</a><a href="#recos">Pistes</a>');
-const ETAPE_COL={besoin:"var(--cat-2)",specs:"var(--cat-7)",archi:"var(--cat-1)",dev:"var(--cat-6)",relecture:"var(--cat-8)",livraison:"var(--cat-5)",pilotage:"var(--cat-4)",recherche:"var(--cat-3)",outillage:"var(--neutre)",contenus:"var(--primaire-vif)",libre:"var(--trait-fort)"};
 const ET=D.etapes, TOT=D.total.cout;
+// Trois groupes d'étapes (au plus quatre séries, charte v2.1) ; une étape inconnue va dans « le reste ».
+const IDS_GROUPES=[["besoin","specs","archi"],["dev","relecture"],["livraison","pilotage","recherche","outillage","contenus","libre"]];
+const groupeDe=id=>{const i=IDS_GROUPES.findIndex(l=>l.includes(id));return i<0?2:i;};
+const COL_GROUPES=["var(--cat-1)","var(--cat-2)","var(--cat-3)"], ETAPE_COL=id=>COL_GROUPES[groupeDe(id)];
+const parId=Object.fromEntries(ET.map(e=>[e.id,e]));
+const grp=ids=>ids.reduce((t,i)=>{const e=parId[i];if(e){t.c+=e.cout;t.g=[t.g[0]+e.gwp[0],t.g[1]+e.gwp[1]];}return t;},{c:0,g:[0,0]});
+const [amont,coeur,autour]=[0,1,2].map(g=>grp(ET.map(e=>e.id).filter(id=>groupeDe(id)===g)));
+const GROUPES=[
+  [amont,"Cadrage, spécifications et architecture"],[coeur,"Développement, relecture et tests"],[autour,"Livraison, pilotage, recherche et le reste"]
+];
 const kg=g=>rng(g,1000), kwh=e=>rng(e,1000);
 const ctxMoy=b=>tok(Math.round(b.inTot/Math.max(b.appels,1)));
-document.getElementById("legende-etapes").innerHTML=ET.map(e=>`<span><i style="background:${ETAPE_COL[e.id]}"></i>${esc(e.label.replace(/^\S+\s/,""))}</span>`).join("");
+document.getElementById("legende-etapes").innerHTML=GROUPES.map(([,l],g)=>`<span><i class="m${g+1}"></i>${l}</span>`).join("");
 
 // --- 04 Projets ---
 const AVEC_PORTFOLIO=!!D.portfolio;
@@ -824,7 +849,9 @@ document.getElementById("titre-projets").textContent=AVEC_PORTFOLIO?"Ce qu'a con
 const lienPortfolio=D.portfolio_url?`<a href="${esc(D.portfolio_url)}" target="_blank" rel="noopener">portfolio</a>`:"portfolio";
 document.getElementById("intro-projets").innerHTML=(AVEC_PORTFOLIO?`Les projets du ${lienPortfolio}, avec leur état publié sur GitHub. `:"Un dossier de travail par ligne. ")
   +"Chaque appel est rattaché au dépôt de son dossier de travail, worktrees et anciens noms compris. La barre répartit le coût du projet entre les étapes de la section suivante.";
-const pile=p=>`<div class="pile" role="img" aria-label="Répartition du coût par étape">${ET.map(e=>{const v=p.par_groupe[e.id]||0;return v>0&&p.cout>0?`<i style="width:${100*v/p.cout}%;background:${ETAPE_COL[e.id]}" title="${esc(e.label)} : ${usd(v)}"></i>`:""}).join("")}</div>`;
+const pile=p=>{const v=[0,0,0];for(const k in p.par_groupe)v[groupeDe(k)]+=p.par_groupe[k]||0;
+  return `<div class="pile" role="img" aria-label="Répartition du coût par étape">${v.map((x,g)=>x>0&&p.cout>0?`<i class="m${g+1}" style="width:${100*x/p.cout}%" title="${GROUPES[g][1]} : ${usd(x)}"></i>`:"").join("")}</div>`
+    +`<div class="parts">${v.map((x,g)=>x>0?`<span><i class="m${g+1}"></i>${pct(x,p.cout)}</span>`:"").join("")}</div>`;};
 const port=D.projets.filter(p=>p.portfolio), hors=AVEC_PORTFOLIO?D.projets.filter(p=>!p.portfolio):[];
 const somme=l=>l.reduce((t,p)=>{t.cout+=p.cout;t.gwp=[t.gwp[0]+p.gwp[0],t.gwp[1]+p.gwp[1]];t.nrj=[t.nrj[0]+p.nrj[0],t.nrj[1]+p.nrj[1]];t.appels+=p.appels;t.inTot+=p.inTot;
   for(const k in p.par_groupe)t.par_groupe[k]=(t.par_groupe[k]||0)+p.par_groupe[k];return t;},{cout:0,gwp:[0,0],nrj:[0,0],appels:0,inTot:0,par_groupe:{}});
@@ -848,12 +875,7 @@ document.getElementById("tbl-projets").addEventListener("click",e=>{if(e.target.
 rendreProjets();
 
 // --- 05 Étapes ---
-const parId=Object.fromEntries(ET.map(e=>[e.id,e]));
-const grp=ids=>ids.reduce((t,i)=>{const e=parId[i];if(e){t.c+=e.cout;t.g=[t.g[0]+e.gwp[0],t.g[1]+e.gwp[1]];}return t;},{c:0,g:[0,0]});
-const amont=grp(["besoin","specs","archi"]),coeur=grp(["dev","relecture"]),autour=grp(["livraison","pilotage","recherche","outillage","contenus","libre"]);
-document.getElementById("constat-etapes").innerHTML=[
-  [amont,"Cadrage, spécifications et architecture"],[coeur,"Développement, relecture et tests"],[autour,"Livraison, pilotage, recherche et le reste"]
-].map(([v,l])=>`<div><b>${pct(v.c,TOT)}</b>${l} : ${usd(v.c)}, ${kg(v.g)} kgCO2e</div>`).join("");
+document.getElementById("constat-etapes").innerHTML=GROUPES.map(([v,l])=>`<div><b>${pct(v.c,TOT)}</b>${l} : ${usd(v.c)}, ${kg(v.g)} kgCO2e</div>`).join("");
 const gmax=Math.max(1e-9,...ET.map(e=>e.gwp[1]));
 const ouverts=new Set();
 function rendreEtapes(){
@@ -861,8 +883,8 @@ function rendreEtapes(){
     const ouvert=ouverts.has(e.id);
     const sous=ouvert?`<div class="detail"><table><thead><tr><th>Skill ou type de sous-agent</th><th>Appels</th><th>Contexte moyen</th><th>Coût</th><th>Carbone (kgCO2e)</th></tr></thead><tbody>${e.sous.map(s=>`<tr><td class="name">${esc(s.label)}</td><td>${nf(s.appels)}</td><td>${ctxMoy(s)}</td><td>${usd(s.cout)}<span class="share">${pct(s.cout,e.cout)} de l'étape</span></td><td>${kg(s.gwp)}</td></tr>`).join("")}</tbody></table></div>`:"";
     return `<div class="etape"><button type="button" data-etape="${esc(e.id)}" aria-expanded="${ouvert}">
-      <span class="nom"><span class="chev">›</span><i style="background:${ETAPE_COL[e.id]}"></i>${esc(e.label)}</span>
-      <span class="barre" aria-hidden="true"><span class="haut" style="width:${100*e.gwp[1]/gmax}%;background:${ETAPE_COL[e.id]}"></span><span class="bas" style="width:${100*e.gwp[0]/gmax}%;background:${ETAPE_COL[e.id]}"></span></span>
+      <span class="nom"><span class="chev">›</span><i class="m${groupeDe(e.id)+1}"></i>${esc(e.label)}</span>
+      <span class="barre" aria-hidden="true"><span class="haut" style="width:${100*e.gwp[1]/gmax}%;background:${ETAPE_COL(e.id)}"></span><span class="bas" style="width:${100*e.gwp[0]/gmax}%;background:${ETAPE_COL(e.id)}"></span></span>
       <span class="chiffre">${usd(e.cout)}<small>${pct(e.cout,TOT)}</small></span>
       <span class="chiffre co2">${kg(e.gwp)}<small>kgCO2e</small></span>
       <span class="chiffre part-orch">${pct(e.cout_orch,e.cout)}<small>en session</small></span>

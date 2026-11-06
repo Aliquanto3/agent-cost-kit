@@ -490,8 +490,8 @@
       "aria-label=\"Cost breakdown by step\""
     ],
     [
-      "title=\"${esc(e.label)} : ${usd(v)}\"",
-      "title=\"${esc(e.label)}: ${usd(v)}\""
+      "title=\"${GROUPES[g][1]} : ${usd(x)}\"",
+      "title=\"${GROUPES[g][1]}: ${usd(x)}\""
     ],
     [
       "${pct(p.cout,TOT)} du total</span>",

@@ -506,8 +506,8 @@
       "aria-label=\"Kostenaufteilung nach Phase\""
     ],
     [
-      "title=\"${esc(e.label)} : ${usd(v)}\"",
-      "title=\"${esc(e.label)}: ${usd(v)}\""
+      "title=\"${GROUPES[g][1]} : ${usd(x)}\"",
+      "title=\"${GROUPES[g][1]}: ${usd(x)}\""
     ],
     [
       "${pct(p.cout,TOT)} du total</span>",
@@ -604,7 +604,7 @@
     "tarifs.json",
     "--fusionner",
     "sans-serif",
-    "var(--sans)",
+    "var(--police-texte)",
     "var(--sur-statut)"
   ]
 }
