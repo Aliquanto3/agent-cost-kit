@@ -1,11 +1,11 @@
 ---
-title: "agent-cost-kit 0.19.1 : gabarit du bilan des tokens à la charte générique v2.1"
+title: "agent-cost-kit 0.20.1 : gabarit du bilan des tokens à la charte générique v2.1"
 status: done
 date: 2026-11-06
 source: "story 3.9 de la migration 3.x ; brief-3.x-migrations.md"
 ---
 
-# agent-cost-kit 0.19.1 : gabarit du bilan des tokens à la charte générique v2.1
+# agent-cost-kit 0.20.1 : gabarit du bilan des tokens à la charte générique v2.1
 
 Surface : `skills/bilan-tokens/gabarit.html` seulement (plus les catalogues `i18n/en.json` et `de.json` pour les couleurs de l'anneau). Les pages déjà publiées ne changent pas.
 
