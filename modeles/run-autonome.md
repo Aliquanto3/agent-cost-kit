@@ -60,7 +60,7 @@ Reprise d'une nouvelle session (`scripts/relancer_run.py`, `/clear`) : 40 lignes
 
 ## Journal
 
-Une ligne par étape : `- AAAA-MM-JJ HH:MM · story · étape · résultat · commit`. Étapes : `dev` (« lancé », puis « fini »), `second-avis`, `review`, `PR`, `fusion` (MERGED vérifié), `CI` (« rouge » si échec), `blocked`, `attente humaine`, `décision`, `report`, `ménage` (clôture, colonne story `run`). Une story est terminée quand sa PR est fusionnée.
+Une ligne par étape : `- AAAA-MM-JJ HH:MM · story · étape · résultat · commit`. Étapes : `dev` (« lancé », puis « fini »), `second-avis`, `review`, `PR`, `fusion` (MERGED vérifié), `CI` (« rouge » si échec), `blocked`, `attente humaine`, `décision`, `report`, `clôture` (story terminée sans PR, par exemple poussée sur main : `- 2026-11-06 18:00 · 3.6 · clôture · terminée sans PR (raison) · abc1234`), `ménage` (ménage de fin de run, colonne story `run`). Une story est terminée quand sa PR est fusionnée, ou à sa ligne `clôture`.
 
 - 2026-10-19 09:00 · 1.1 · dev · lancé (dev-story Opus, worktree) · —
 - 2026-10-19 09:40 · 1.1 · dev · fini, 61 tests verts · abc1234

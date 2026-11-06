@@ -365,15 +365,17 @@ def test_normaliser_etape_pr():
 
 
 def test_done_sans_fusion_n_est_pas_terminee(tmp_path, monkeypatch):
+    # 0.20.2 : « review · finie » sans fusion relève désormais du repli « terminée sans fusion journalisée »
+    # (test_done_sans_fusion_repli_avec_alerte) ; une étape lancée en dernier (1.1) ou une PR ouverte (1.2) restent en cours.
     p = mini(tmp_path, monkeypatch, {"1.1": "done", "1.2": "done", "1.3": "done", "1.4": "done"}, [
         "- 2026-10-19 09:00 · 1.1 · dev · lancé · —",
-        "- 2026-10-19 09:30 · 1.1 · review · finie · —",
+        "- 2026-10-19 09:30 · 1.1 · review · lancée · —",
         "- 2026-10-19 09:00 · 1.2 · dev · lancé · —",
         "- 2026-10-19 09:40 · 1.2 · PR · #12 ouverte · abc1234",
         "- 2026-10-19 09:00 · 1.3 · dev · lancé · —",
         "- 2026-10-19 09:50 · 1.3 · fusion · PR #13 fusionnée · abc1235"])  # 1.4 : aucune ligne
     S = ar.analyser(p, NOW)["stories"]
-    assert (S["1.1"]["etat"], S["1.1"]["etape"], S["1.1"]["pct"]) == ("en cours", "revue faite", 90)
+    assert (S["1.1"]["etat"], S["1.1"]["etape"], S["1.1"]["pct"]) == ("en cours", "review en cours", 75)
     assert (S["1.2"]["etat"], S["1.2"]["etape"], S["1.2"]["pct"]) == ("en cours", "fusion en attente", 93)
     assert "PR ouverte" in S["1.2"]["drapeaux"] and "fusion attendue" in S["1.1"]["drapeaux"]
     assert S["1.3"]["etat"] == "fait" and S["1.3"]["pct"] == 100
@@ -807,3 +809,84 @@ def test_decision_ne_marque_pas_reprise_et_sortie_apres_dev_lance(tmp_path, monk
         "- 2026-10-20 09:40 · C2 · décision · Anaël tranche le choix · abc1234"])
     assert "reprise" not in S["C1"]["drapeaux"] and "reprise" not in S["C2"]["drapeaux"]
     assert "reportée" in S["C1"]["drapeaux"]
+
+
+# ----------------------------------------------------------------------------- 0.20.2 : clôture, done sans fusion
+
+def test_cloture_compte_comme_terminee(tmp_path, monkeypatch):
+    assert ar.normaliser_etape("clôture") == "clôture" and ar.normaliser_etape("Cloture") == "clôture"
+    p = mini(tmp_path, monkeypatch, {"0.0": "done", "1.1": "done"}, [
+        "- 2026-10-19 08:00 · 0.0 · clôture · poussée sur main à la création du dépôt · abc1234",
+        "- 2026-10-19 09:00 · 1.1 · dev · lancé · —",
+        "- 2026-10-19 10:00 · 1.1 · clôture · terminée sans PR (doublon) · abc1235"])
+    a = ar.analyser(p, NOW)
+    S = a["stories"]
+    assert (S["0.0"]["etat"], S["0.0"]["pct"]) == ("fait", 100) and S["0.0"]["drapeaux"] == []
+    assert S["1.1"]["etat"] == "fait" and S["1.1"]["fini"] == datetime(2026, 10, 19, 10, 0)
+    r = " ".join(ar.rapport(a).split())
+    assert "2 / 2 stories" in r and "sans fusion journalisée" not in r and "🟢" in r
+
+
+def test_cloture_suit_une_story_hors_epics_absente_de_sprint_status(tmp_path, monkeypatch):
+    S = _journal(tmp_path, monkeypatch, ["- 2026-10-20 09:00 · C1 · dev · lancé · —",
+                                         "- 2026-10-20 09:30 · C1 · clôture · terminée sans PR · abc1234"])
+    assert S["C1"]["etat"] == "fait" and S["C2"]["etat"] == "à faire"
+
+
+def test_done_sans_fusion_repli_avec_alerte(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"0.0": "done", "3.6": "done", "3.7": "backlog"}, [
+        "- 2026-10-19 08:00 · 0.0 · dev · fini · poussée sur main · abc1234",
+        "- 2026-10-19 09:00 · 3.6 · dev · lancé · —",
+        "- 2026-10-19 10:00 · 3.6 · review · finie · —"])
+    a = ar.analyser(p, NOW)
+    S = a["stories"]
+    assert [S[k]["etat"] for k in ("0.0", "3.6", "3.7")] == ["fait", "fait", "à faire"]
+    assert "sans fusion journalisée" in S["3.6"]["drapeaux"] and "fusion attendue" not in S["3.6"]["drapeaux"]
+    assert a["estimation"]["reste"] == 1 and a["meteo"]["emoji"] == "🟢"
+    r = " ".join(ar.rapport(a).split())
+    assert ("0.0, 3.6 terminées sans fusion journalisée (`done` dans sprint-status) : ajouter au journal une ligne "
+            "`fusion` ou `clôture`.") in r
+    assert "2 / 3 stories terminées" in r and "en attente de fusion" not in r
+
+
+def test_done_sans_fusion_singulier(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"3.6": "done"}, ["- 2026-10-19 10:00 · 3.6 · review · finie · —"])
+    r = " ".join(ar.rapport(ar.analyser(p, NOW)).split())
+    assert "3.6 terminée sans fusion journalisée (`done` dans sprint-status)" in r and "terminées sans" not in r
+
+
+def test_pas_d_alerte_avec_une_fusion(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"3.6": "done"}, ["- 2026-10-19 09:00 · 3.6 · review · finie · —",
+                                                      "- 2026-10-19 10:00 · 3.6 · fusion · PR #12 fusionnée · abc1234"])
+    a = ar.analyser(p, NOW)
+    assert a["stories"]["3.6"]["drapeaux"] == [] and "sans fusion journalisée" not in ar.rapport(a)
+
+
+def test_done_bloquee_en_dernier_reste_en_cours(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"3.6": "done"}, ["- 2026-10-19 09:00 · 3.6 · review · finie · —",
+                                                      "- 2026-10-19 10:00 · 3.6 · blocked · CI cassée · —"])
+    a = ar.analyser(p, NOW)
+    s = a["stories"]["3.6"]
+    assert s["etat"] == "en cours" and "bloquée" in s["drapeaux"] and "sans fusion journalisée" not in s["drapeaux"]
+    assert a["meteo"]["emoji"] == "🔴"
+
+
+def test_epic_dont_la_seule_non_fusionnee_est_done_est_terminee(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"0.0": "done", "0.1": "done", "1.1": "backlog"}, [
+        "- 2026-10-19 08:00 · 0.0 · dev · fini · poussée sur main · —",
+        "- 2026-10-19 09:00 · 0.1 · fusion · PR #2 fusionnée · abc1234"])
+    a = ar.analyser(p, NOW)
+    r = ar.rapport(a)
+    assert "terminé : epic 0." in " ".join(r.split())
+    ligne = next(l for l in r.splitlines() if l.startswith("| 0 |"))
+    assert ligne.endswith("| 2 | 0 | 0 | ✅ |") and "100 %" in ligne
+
+
+def test_derniere_etape_fait_foi_fusion_puis_dev_lance(tmp_path, monkeypatch):
+    p = mini(tmp_path, monkeypatch, {"2.1": "done"}, [
+        "- 2026-10-19 09:00 · 2.1 · fusion · PR #5 fusionnée · abc1234",
+        "- 2026-10-19 11:00 · 2.1 · dev · lancé · correctif après fusion · —"])
+    a = ar.analyser(p, NOW)
+    s = a["stories"]["2.1"]
+    assert (s["etat"], s["etape"], s["pct"]) == ("en cours", "dev en cours", 30) and "reprise" in s["drapeaux"]
+    assert a["meteo"]["emoji"] == "🟡"

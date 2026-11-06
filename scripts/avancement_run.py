@@ -265,6 +265,8 @@ def normaliser_etape(brut: str) -> str:
         return "pr"
     if e.startswith(("ménage", "menage")):
         return "ménage"  # étape de clôture, colonne story « run » : aucune story
+    if e.startswith(("clôture", "cloture")):
+        return "clôture"  # story terminée sans PR (poussée sur main, close sans fusion) : vaut une fusion
     for cle in ("second-avis", "review", "fusion", "ci", "blocked", "attente humaine", "report",
                 "décision", "dev"):
         if e.startswith(cle):
@@ -382,7 +384,7 @@ def etape_story(evts: list[dict]) -> tuple[str, str, int] | None:
             jalon = "dev fini" if lance else "second-avis fini"
         elif et == "review":
             jalon = "second-avis fini" if lance else "review finie"
-        elif et == "fusion":
+        elif et in TERMINE:
             jalon = "fusion faite"
         elif et == "ci" and "rouge" in r:
             avant_rouge = jalon if jalon != "CI rouge" else avant_rouge
@@ -420,6 +422,9 @@ def suite_pour_anael(texte: str) -> str:
     return ""
 
 
+TERMINE = ("fusion", "clôture")  # étapes qui terminent une story
+
+
 def hors_run(s: dict) -> bool:
     """Story sortie de l'estimation : reportée hors du run, ou en attente (en chaîne) d'une story reportée."""
     return "reportée" in s["drapeaux"] or "bloquée par une reportée" in s["drapeaux"]
@@ -447,16 +452,27 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
             hist = par_story.get(sid, [])
             info = etape_story(hist)
             dernier = hist[-1] if hist else None
+            # la dernière étape fait foi : une `fusion` (ou `clôture`) suivie d'un `dev · lancé` est une reprise
+            i_fin = max((i for i, e in enumerate(hist) if e["etape"] in TERMINE), default=None)
+            rouverte = i_fin is not None and any(e["etape"] == "dev" and "lanc" in e["resultat"].lower()
+                                                 for e in hist[i_fin + 1:])
+            fusionnee = i_fin is not None and not rouverte
             if sid not in statuts and not est_numerique(sid):  # hors epics : suivie depuis le journal seul
-                if any(e["etape"] == "fusion" for e in hist):
+                if fusionnee:
                     st = "done"
                 elif info:  # `blocked` ou `attente humaine` seuls : reste « à faire », comme en epics
                     st = "in-progress"
             etat = "fait" if st == "done" else ("en cours" if st in ("in-progress", "review") else "à faire")
-            fusionnee = any(e["etape"] == "fusion" for e in hist)
-            attend_fusion = False
-            if etat == "fait" and hist and not fusionnee:  # done sans fusion au journal : pas terminée
-                etat, attend_fusion = "en cours", True
+            attend_fusion = sans_fusion = False
+            if etat == "fait" and rouverte:
+                etat = "en cours"
+            elif etat == "fait" and hist and not fusionnee:
+                en_vol = (dernier["etape"] == "blocked" or (info and info[0] in ("PR ouverte", "CI rouge"))
+                          or (dernier["etape"] in ("dev", "second-avis", "review") and "lanc" in dernier["resultat"].lower()))
+                if en_vol:  # bloquée, PR ouverte, CI rouge ou étape lancée en dernier : pas terminée
+                    etat, attend_fusion = "en cours", True
+                else:
+                    sans_fusion = True  # repli : `done` sans `fusion` ni `clôture` au journal, compte terminée
             retard = False
             if maj and dernier and dernier["t"] and dernier["t"] > maj and info:
                 # le journal, plus récent que sprint-status, prime quand il contredit le statut
@@ -475,7 +491,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 _, etape, pct = info or ("", "dev en cours" if st == "in-progress" else "review en cours",
                                          30 if st == "in-progress" else 75)
             lance = next((e["t"] for e in reversed(hist) if e["etape"] == "dev" and "lanc" in e["resultat"].lower()), None)
-            fini = next((e["t"] for e in reversed(hist) if e["etape"] == "fusion"), None)
+            fini = next((e["t"] for e in reversed(hist) if e["etape"] in TERMINE), None)
             if fini is None and etat == "fait":
                 fini = next((e["t"] for e in reversed(hist) if e["etape"] == "ci"), None)
             drapeaux = []
@@ -496,9 +512,11 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("journal en avance")
             if etat == "fait" and any(re.search(r"en attente d'Anaël|attente humaine", e["resultat"]) for e in hist):
                 drapeaux.append("vérification humaine due")
-            if etat != "fait" and any(re.search(r"\brepris(e|es)?\b", e["resultat"]) for e in hist
-                                      if e["etape"] not in ("décision", "report")):  # une décision n'est pas une reprise
+            if etat != "fait" and (rouverte or any(re.search(r"\brepris(e|es)?\b", e["resultat"]) for e in hist
+                                                   if e["etape"] not in ("décision", "report"))):  # décision : pas une reprise
                 drapeaux.append("reprise")
+            if sans_fusion:
+                drapeaux.append("sans fusion journalisée")
             if etat != "fait" and any(e["etape"] in ("report", "décision") and re.search(r"\bcoupée?\b", e["resultat"])
                                       for e in hist):
                 drapeaux.append("coupée")
@@ -924,6 +942,11 @@ def puces(a: dict) -> list[str]:
     if pr_att:
         fm += f" {len(pr_att)} en attente de fusion (PR ouverte ou revue faite) : {', '.join(pr_att)}."
     out.append(fm)
+    sans = [k for k, s in S.items() if "sans fusion journalisée" in s["drapeaux"]]
+    if sans:
+        pl = "s" if len(sans) > 1 else ""
+        out.append(f"{', '.join(sans)} terminée{pl} sans fusion journalisée (`done` dans sprint-status) : ajouter au "
+                   "journal une ligne `fusion` ou `clôture`.")
     if a.get("hors_suivi"):
         out.append(f"le journal cite {', '.join(a['hors_suivi'])} hors du périmètre et de sprint-status : "
                    "périmètre ou sprint-status à mettre à jour.")
