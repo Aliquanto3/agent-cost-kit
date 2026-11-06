@@ -1,4 +1,7 @@
+<!doctype html>
+<html lang="fr">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bilan tokens</title>
 <style>
 :root{
@@ -15,11 +18,20 @@
 }
 body{background:var(--c-surface);color:var(--c-texte);font:15px/1.55 var(--sans)}
 .progress{position:fixed;top:0;left:0;height:2px;width:0;background:var(--c-accent);z-index:50}
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--c-surface) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--c-trait)}
+html{scroll-padding-top:76px}
+body{padding-top:61px}
+nav{position:fixed;top:0;left:0;right:0;padding-top:env(safe-area-inset-top,0px);z-index:40;background:color-mix(in srgb,var(--c-surface) 86%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--c-trait)}
 .nav-in,.container{max-width:1360px;margin:0 auto;padding-inline:clamp(16px,3vw,2rem)}
 .nav-in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
 .logo{display:flex;align-items:center;gap:8px;color:var(--c-texte);text-decoration:none;font:700 16px var(--sans)}
 .logo-svg{height:28px;width:28px;display:block}
+.nav-right{display:flex;align-items:center;gap:10px}
+.lang{display:flex;gap:2px;padding:3px;border:1px solid var(--c-trait);border-radius:999px;background:var(--c-surface);flex:none}
+.lang a{display:inline-flex;align-items:center;gap:5px;font:700 12px var(--mono);letter-spacing:.04em;color:var(--c-texte-attenue);text-decoration:none;padding:5px 9px;border-radius:999px}
+.lang a:hover{color:var(--c-primaire)}
+.lang a[aria-current="page"]{background:var(--c-primaire);color:#fff}
+.lang a:focus-visible{outline:2px solid var(--c-primaire);outline-offset:2px}
+.lang .flag{width:16px;height:11px;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.12);flex:none}
 .nav-links{display:flex;gap:6px}
 .nav-links a{font:600 13px var(--mono);color:var(--c-texte-attenue);text-decoration:none;padding:7px 12px;border-radius:999px}
 .nav-links a:hover{background:var(--c-primaire-doux);color:var(--c-primaire)}
@@ -193,8 +205,11 @@ tr.me td.name{padding-left:30px;color:var(--c-texte-attenue);font-weight:500}
       </svg>
       <span>Bilan des tokens</span>
     </a>
-    <div class="nav-links" id="nav-links">
-      <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+    <div class="nav-right">
+      <div class="nav-links" id="nav-links">
+        <a href="#bilan">Bilan</a><a href="#tableau">Tableau</a><a href="#comprendre">Comprendre</a>
+      </div>
+      <!--LANGUES-->
     </div>
   </div>
 </nav>
@@ -622,3 +637,8 @@ document.getElementById("liste-recos").innerHTML=D.recos.length
   :'<p class="hint">Aucune recommandation ne se déclenche sur cette période.</p>';
 });
 </script>
+<script>
+// Changer de langue garde la section affichée.
+document.querySelectorAll(".lang a").forEach(a=>a.addEventListener("click",e=>{if(location.hash){e.preventDefault();location.href=a.getAttribute("href")+location.hash;}}));
+</script>
+</html>

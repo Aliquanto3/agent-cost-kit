@@ -24,6 +24,7 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bilan_i18n as i18n  # noqa: E402
 import mesurer_couts as mc
 
 # --- Familles d'étapes, dans l'ordre d'affichage ---
@@ -603,12 +604,14 @@ def plus_recent(modele: str) -> str | None:
     return recent if mc.prix(recent)["lecture"] < mc.prix(modele)["lecture"] else None
 
 
-def reco(ident: str, titre: str, mesure: str, pratique: str, gain: list[float] | None) -> dict:
-    return {"id": ident, "titre": titre, "mesure": mesure, "pratique": pratique,
-            "gain": [round(gain[0], 2), round(gain[1], 2)] if gain else None}
+def reco(ident: str, langue: str, gain: list[float] | None, **valeurs: str) -> dict:
+    """Recommandation ``ident`` rédigée dans ``langue`` avec des valeurs déjà mises en forme."""
+    textes = i18n.texte_reco(ident, langue)
+    return {"id": ident, "titre": textes["titre"], "mesure": textes["mesure"].format(**valeurs),
+            "pratique": textes["pratique"], "gain": [round(gain[0], 2), round(gain[1], 2)] if gain else None}
 
 
-def reco_implementation(agents: dict) -> dict | None:
+def reco_implementation(agents: dict, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     generalistes, dev_story = agents.get(f"role_etape:{ROLE_GENERALISTE}|dev", []), agents.get(f"role:{ROLE_DEV_STORY}", [])
     if len(generalistes) < IMPL_MIN_GENERALISTES or len(dev_story) < IMPL_MIN_GENERALISTES:
         return None
@@ -617,12 +620,9 @@ def reco_implementation(agents: dict) -> dict | None:
         return None
     gain = (mg - md) * len(generalistes)
     return reco(
-        "implementation-generaliste", "Implémenter avec dev-story, pas avec un sous-agent généraliste",
-        f"{fr(len(generalistes))} sous-agents généralistes ont implémenté du code pour {usd(sum(generalistes))}. "
-        f"Coût médian : <b>{usd(mg)} par agent</b>, contre <b>{usd(md)}</b> pour les {fr(len(dev_story))} agents <code>dev-story</code>.",
-        "Dans l'orchestrateur et dans les skills de run, lancer <code>agent-cost-kit:dev-story</code> (Sonnet, medium). "
-        "Garder Opus pour les stories transverses, en le passant explicitement.",
-        [gain * (1 - IMPL_MARGE), gain * (1 + IMPL_MARGE)],
+        "implementation-generaliste", langue, [gain * (1 - IMPL_MARGE), gain * (1 + IMPL_MARGE)],
+        n_gen=i18n.nombre(len(generalistes), 0, langue), cout_gen=i18n.dollars(sum(generalistes), langue),
+        med_gen=i18n.dollars(mg, langue), med_dev=i18n.dollars(md, langue), n_dev=i18n.nombre(len(dev_story), 0, langue),
     )
 
 
@@ -633,7 +633,7 @@ def part_opus(modeles: dict, champ: str = "cout") -> tuple[float, float]:
     return (sum(valeur(s) for m, s in modeles.items() if mc.famille(m) == "opus"), sum(valeur(s) for s in modeles.values()))
 
 
-def reco_relecture(cellules: dict, total: float) -> dict | None:
+def reco_relecture(cellules: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     multiples = cout_modeles(modeles_de(cellules, DIM_DESC, DESC_RELECTEURS))
     reviewer = modeles_de(cellules, DIM_ROLE, ROLE_REVIEWER)
     cout_opus, cout_reviewer = part_opus(reviewer)
@@ -643,12 +643,9 @@ def reco_relecture(cellules: dict, total: float) -> dict | None:
         return None
     base = REVIEWER_GAIN_OPUS * cout_opus
     return reco(
-        "relecture", "Relire avec second-avis puis un seul reviewer, Opus seulement pour le risque",
-        f"Les relecteurs multiples de <code>bmad-code-review</code> ont coûté {usd(multiples)} ({pct(multiples, total)} du total). "
-        f"Le <code>reviewer</code> a coûté {usd(cout_reviewer)}, dont {pct(cout_opus, cout_reviewer)} sur Opus.",
-        "Enchaîner <code>second-avis</code> (Haiku) puis <code>reviewer</code> en une passe. Passer le reviewer en Sonnet "
-        "pour une story courante (−25 % mesuré) et garder Opus pour l'argent, la sécurité et les données.",
-        [base + RELECTEURS_GAIN_MIN * multiples, base + multiples],
+        "relecture", langue, [base + RELECTEURS_GAIN_MIN * multiples, base + multiples],
+        multiples=i18n.dollars(multiples, langue), part_multiples=i18n.part(multiples, total, langue),
+        cout_reviewer=i18n.dollars(cout_reviewer, langue), part_opus=i18n.part(cout_opus, cout_reviewer, langue),
     )
 
 
@@ -656,28 +653,21 @@ def contexte_moyen(b: dict) -> float:
     return b["inTot"] / max(b["appels"], 1)
 
 
-def reco_contexte(cellules: dict, orch: dict, sous: dict, total: float) -> dict | None:
+def reco_contexte(cellules: dict, orch: dict, sous: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     if not total or not sous["appels"] or contexte_moyen(orch) < CONTEXTE_FACTEUR * contexte_moyen(sous):
         return None
     if orch["cout"] < CONTEXTE_ORCH_PART_MIN * total:
         return None
     lecture = cout_modeles(cellules.get(DIM_ETAPE, {}).get("libre", {}).get(LIBELLE_LECTURE, {}))
-
-    def fr_ctx(b: dict) -> str:
-        return fr(round(contexte_moyen(b)))
-
     return reco(
-        "contexte-orchestrateur", "Raccourcir le contexte de l'orchestrateur",
-        f"L'orchestrateur relit en moyenne <b>{fr_ctx(orch)} tokens par appel</b>, contre {fr_ctx(sous)} pour un sous-agent. "
-        f"Il pèse {pct(orch['cout'], total)} du coût. Les lectures de code et les commandes de la session principale, "
-        f"hors de toute étape, coûtent à elles seules {usd(lecture)}.",
-        "Faire <code>/clear</code> (après <code>/rename</code>) entre deux tâches sans lien. Confier lectures, recherches et "
-        "résumés de logs à <code>lookup</code> (Haiku). Garder l'état d'un run dans un fichier relisible plutôt que dans l'historique.",
-        [CONTEXTE_GAIN[0] * lecture, CONTEXTE_GAIN[1] * lecture],
+        "contexte-orchestrateur", langue, [CONTEXTE_GAIN[0] * lecture, CONTEXTE_GAIN[1] * lecture],
+        ctx_orch=i18n.nombre(round(contexte_moyen(orch)), 0, langue), ctx_sous=i18n.nombre(round(contexte_moyen(sous)), 0, langue),
+        part_orch=i18n.part(orch["cout"], total, langue), lecture=i18n.dollars(lecture, langue),
     )
 
 
-def reco_modele_ancien(modeles_total: dict, total: float) -> dict | None:
+def reco_modele_ancien(modeles_total: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
+    textes = i18n.texte_reco("modele-ancien", langue)
     lignes, gain = [], 0.0
     for modele, s in sorted(modeles_total.items()):
         recent = plus_recent(modele)
@@ -685,35 +675,28 @@ def reco_modele_ancien(modeles_total: dict, total: float) -> dict | None:
             continue
         ancien, nouveau = mc.prix(modele)["lecture"], mc.prix(recent)["lecture"]
         gain += s["cout"]["lecture"] * (1 - nouveau / ancien)
-        lignes.append(f"{nom_modele(modele)} ({usd(s['cout']['lecture'])} de lecture du cache à {fr(ancien, 2)} $ le million, "
-                      f"contre {fr(nouveau, 2)} $ pour {nom_modele(recent)})")
+        lignes.append(textes["ligne"].format(
+            modele=nom_modele(modele), lecture=i18n.dollars(s["cout"]["lecture"], langue),
+            ancien=i18n.nombre(ancien, 2, langue), nouveau=i18n.nombre(nouveau, 2, langue), recent=nom_modele(recent)))
     if not lignes:
         return None
-    return reco(
-        "modele-ancien", "Abandonner les versions anciennes d'un modèle pour la version récente",
-        "Lecture du cache plus chère que sur la version récente de la même famille : " + " ; ".join(lignes) + ".",
-        "Mettre à jour agent-cost-kit sur chaque PC et vérifier le <code>model:</code> des agents du projet.",
-        [gain * (1 - MODELE_MARGE), gain * (1 + MODELE_MARGE)],
-    )
+    return reco("modele-ancien", langue, [gain * (1 - MODELE_MARGE), gain * (1 + MODELE_MARGE)],
+                lignes=textes["separateur"].join(lignes))
 
 
-def reco_pilotage(etapes: dict, total: float) -> dict | None:
+def reco_pilotage(etapes: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     pilotage = etapes.get("pilotage")
     if not pilotage or not total or pilotage["cout"] < PILOTAGE_PART_MIN * total:
         return None
     if pilotage["cout_orch"] < PILOTAGE_SESSION_MIN * pilotage["cout"]:
         return None
     return reco(
-        "pilotage-session", "Faire le point sur un run dans une session neuve",
-        f"Le pilotage coûte {usd(pilotage['cout'])}, dont {pct(pilotage['cout_orch'], pilotage['cout'])} en session principale. "
-        "Faire le point dans une longue session Opus revient à relire tout l'historique à chaque étape.",
-        "Lancer <code>/agent-cost-kit:avancement-run</code> après un <code>/clear</code> : il repart du fichier d'état du run "
-        "(<code>run-autonome.md</code>) au lieu de tout l'historique.",
-        [PILOTAGE_GAIN[0] * pilotage["cout"], PILOTAGE_GAIN[1] * pilotage["cout"]],
+        "pilotage-session", langue, [PILOTAGE_GAIN[0] * pilotage["cout"], PILOTAGE_GAIN[1] * pilotage["cout"]],
+        cout=i18n.dollars(pilotage["cout"], langue), part_session=i18n.part(pilotage["cout_orch"], pilotage["cout"], langue),
     )
 
 
-def reco_effort(orch: dict) -> dict | None:
+def reco_effort(orch: dict, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     par_effort: dict[str, list[float]] = {}
     for ligne in orch["par_me"]:
         r = re.match(r"^Opus .* · effort (\w+)$", ligne["label"])
@@ -727,56 +710,42 @@ def reco_effort(orch: dict) -> dict | None:
     cm, ch = moyen[1] / moyen[0], haut[1] / haut[0]
     if cm <= 0 or abs(ch - cm) / cm >= EFFORT_ECART:
         return None
-    return reco(
-        "effort-neutre", "Monter l'effort ne coûte presque rien, le contexte si",
-        f"Sur l'orchestrateur Opus, un appel coûte en moyenne {fr(cm, 3)} $ en effort medium et {fr(ch, 3)} $ en high. "
-        "Ce coût suit le contexte relu, pas la réflexion.",
-        "Garder high pour l'architecture et les stories transverses, où il évite des reprises. Chercher les économies "
-        "dans le nombre de tours et la taille du contexte.",
-        None,
-    )
+    return reco("effort-neutre", langue, None, moyen=i18n.nombre(cm, 3, langue), haut=i18n.nombre(ch, 3, langue))
 
 
-def reco_amont(etapes: dict, total: float) -> dict | None:
+def reco_amont(etapes: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     def somme(ids: tuple[str, ...]) -> float:
         return sum(etapes[i]["cout"] for i in ids if i in etapes)
     amont, coeur = somme(("besoin", "specs", "archi")), somme(("dev", "relecture"))
     if not total or amont >= AMONT_PART_MAX * total or coeur <= COEUR_PART_MIN * total:
         return None
-    return reco(
-        "amont", "Continuer à soigner l'amont, il coûte peu",
-        f"Cadrage, spécifications et architecture ne pèsent que {pct(amont, total)} du coût ({usd(amont)}). "
-        f"Le développement et la relecture en pèsent {pct(coeur, total)}.",
-        "Garder Opus et un plan validé avant le code : une spec plus précise réduit les tours de développement et de revue, "
-        "là où se trouve la dépense.",
-        None,
-    )
+    return reco("amont", langue, None, part_amont=i18n.part(amont, total, langue), amont=i18n.dollars(amont, langue),
+                part_coeur=i18n.part(coeur, total, langue))
 
 
-def reco_mesure(cellules: dict, agents: dict, total: float) -> dict | None:
+def reco_mesure(cellules: dict, agents: dict, total: float, langue: str = i18n.LANGUE_SOURCE) -> dict | None:
     cout = cout_modeles(modeles_de(cellules, DIM_DESC, DESC_EXPERIENCES))
     if cout <= 0:
         return None
     return reco(
-        "mesure", "Mesurer reste rentable",
-        f"Les campagnes de mesure (bancs, essais de modèles) ont coûté {usd(cout)} sur "
-        f"{fr(len(agents.get(f'{DIM_DESC}:{DESC_EXPERIENCES}', [])))} agents, {pct(cout, total)} du total. "
-        "Elles ont fondé le routage qui produit les gains ci-dessus.",
-        "Refaire ce bilan chaque mois, et <code>/agent-cost-kit:mesurer-couts</code> après tout changement de méthode, "
-        "avant de le généraliser.",
-        None,
+        "mesure", langue, None, cout=i18n.dollars(cout, langue),
+        n_agents=i18n.nombre(len(agents.get(f"{DIM_DESC}:{DESC_EXPERIENCES}", [])), 0, langue), part=i18n.part(cout, total, langue),
     )
 
 
-def recommandations(brut: dict, blocs: dict) -> list[dict]:
-    """Recommandations dont la condition est remplie, triées par gain maximal décroissant, neutres à la fin."""
+def recommandations(brut: dict, blocs: dict, langue: str = i18n.LANGUE_SOURCE) -> list[dict]:
+    """Recommandations dont la condition est remplie, triées par gain maximal décroissant, neutres à la fin.
+
+    ``blocs`` doit être le détail en français (libellés source) ; ``langue`` ne change que le texte.
+    """
     cellules, agents, total = brut["cellules"], brut["agents"], blocs["total"]["cout"]
     etapes = {e["id"]: e for e in blocs["etapes"]}
     modeles_total = sommer_modeles([sommer_modeles(list(sous.values())) for sous in cellules.get(DIM_ROLE, {}).values()])
     trouvees = [
-        reco_implementation(agents), reco_relecture(cellules, total),
-        reco_contexte(cellules, blocs["orch"], blocs["sous"], total), reco_modele_ancien(modeles_total, total),
-        reco_pilotage(etapes, total), reco_effort(blocs["orch"]), reco_amont(etapes, total), reco_mesure(cellules, agents, total),
+        reco_implementation(agents, langue), reco_relecture(cellules, total, langue),
+        reco_contexte(cellules, blocs["orch"], blocs["sous"], total, langue), reco_modele_ancien(modeles_total, total, langue),
+        reco_pilotage(etapes, total, langue), reco_effort(blocs["orch"], langue), reco_amont(etapes, total, langue),
+        reco_mesure(cellules, agents, total, langue),
     ]
     retenues = [r for r in trouvees if r]
     return sorted(retenues, key=lambda r: (r["gain"] is None, -(r["gain"][1] if r["gain"] else 0)))
