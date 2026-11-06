@@ -1,11 +1,11 @@
 ---
-title: "agent-cost-kit 0.17.0 : bilan des tokens en français, anglais et allemand"
+title: "agent-cost-kit 0.19.0 : bilan des tokens en français, anglais et allemand"
 status: done
-date: 2026-10-28
+date: 2026-11-06
 source: "page du bilan d'octobre 2026 traduite à la main en anglais et en allemand ; ce lot porte la génération trilingue dans le kit"
 ---
 
-# agent-cost-kit 0.17.0 : bilan des tokens en français, anglais et allemand
+# agent-cost-kit 0.19.0 : bilan des tokens en français, anglais et allemand
 
 Une story, branche `feat/0.17-bilan-trilingue`. La page du bilan d'octobre 2026 a été partagée hors de l'équipe française : il a fallu la traduire à la main en anglais et en allemand, et fixer la barre de navigation en haut de l'écran. Ce lot rend la génération trilingue, pour que les bilans suivants sortent directement dans les trois langues.
 
