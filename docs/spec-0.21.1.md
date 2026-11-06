@@ -41,3 +41,9 @@ Merge de master 0.21.0 (#43) fait avant de juger : version renumérotée 0.21.1,
 - Nit, low, second avis 8 : la clé `e2e-tests` donne une entrée `E2e`. Rejeté : entrée jamais lue (aucune story `E2e` au plan ni au journal) ; la syntaxe ne la distingue pas d'une clé `o4a-slug` légitime.
 - Nit, low, second avis 9 : tests faibles ou manquants. Corrigé : ordre de `cle_id` testé par un tri, tests `clôture` puis `dev lancé`, CI rouge ou PR ouverte en dernier pour le repli, story `N.M` absente de sprint-status, plage avec `(sauf …)`.
 - Complexité : 0 constat (la recherche de `i_fin` et de reprise reste linéaire par story).
+
+### Passe 2 (2026-11-06, SHA revu 5e441de)
+- Aucun constat Important. Run à epics numériques inchangé : story de sprint-status absente du journal reste « à faire » (le repli journal seul ne joue que pour une story absente de sprint-status), et seules les stories du plan sont comptées.
+- Nit, low : `(sauf …)` n'exclut que les identifiants qui suivent `sauf` ; `(sauf mention contraire)` ou `(hors sprint, C9 reporté)` ne retirent rien (vérifié).
+- Nit, low, pyright `None` subscriptable (lignes 471, 472, 490, 491, 528, 531) : rejeté, aucun chemin réel (`dernier` est défini dès que `hist` est non vide, et les drapeaux `retenue`/`reportée`/`en_vol` exigent `dernier`). Typage inchangé.
+- Complexité : 0 constat.
