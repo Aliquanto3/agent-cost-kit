@@ -57,7 +57,9 @@ Le script tient lieu d'orchestrateur : son coût sort de la comparaison. Écart 
 - Le vérificateur (Sonnet) ne juge que les fiches connues. Lisez aussi les sections `## Revue` : deux relecteurs peuvent laisser les mêmes fiches et corriger des défauts différents.
 - Une fiche déjà absente du développement relu ne mesure rien : comptez les cas applicables, pas les fiches.
 - Référence du 2026-11-10 (Claude Code 2.1.322, 2 stories, 3 essais, 12 revues, 26,11 $) : `reviewer` Opus 5.5 `medium` 0,99 $ par revue, Fable 5.2 `medium` 1,97 $ ; 9 fiches présentes sur 15 cas après revue pour chacun, mêmes verdicts fiche par fiche. Fable mentionne F01 à 3 essais sur 3 (Opus 0) mais la classe low et la reporte. Développement 1,01 $, second avis 0,03 $, vérification 0,17 $. Fiches non validées. Le `reviewer` reste sur Opus.
-- Autres mesures du même jour, hors de ce script : développement d'une story par Fable 5.2 `low` de 1,72 à 2,07 $ contre 0,33 à 0,60 $ pour Sonnet `medium`, même nombre de défauts en contre-revue ; orchestration de la chaîne par Fable 5.2 `medium` à 2,63 $ en moyenne contre 1,76 $ pour Opus, sans écart de qualité.
+- Référence du 2026-11-11 (mêmes stories, développements rejoués, 22,85 $) : `reviewer` Opus 5.5 `medium` 0,95 $ par revue, `high` 1,45 $ (+53 %) ; 9 fiches présentes sur 15 cas pour chacun. Aucun des deux ne mentionne F01 ni F03. `high` corrige un constat Important de plus dans 1 essai sur 6. L'effort reste `medium`.
+- Limite de ces deux références : sous Windows, la liste du second avis arrivait vide quand elle contenait un caractère hors cp1252 (3 essais sur 6 le 10, 1 sur 6 le 11), à l'identique pour les relecteurs comparés. Corrigé dans le script depuis.
+- Autres mesures du 2026-11-10, hors de ce script : développement d'une story par Fable 5.2 `low` de 1,72 à 2,07 $ contre 0,33 à 0,60 $ pour Sonnet `medium`, même nombre de défauts en contre-revue ; orchestration de la chaîne par Fable 5.2 `medium` à 2,63 $ en moyenne contre 1,76 $ pour Opus, sans écart de qualité.
 - Le skill `/agent-cost-kit:new-model` rejoue cette démarche pour un nouveau modèle.
 
 ### 2. A contre kit : le setup complet
