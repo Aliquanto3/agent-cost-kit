@@ -1,0 +1,55 @@
+{
+  "subagentPromptCacheTtl": "5m",
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git merge-base:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git rev-list:*)",
+      "Bash(sed -i:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(echo:*)",
+      "Bash(git -C:*)",
+      "Bash(uv run:*)",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(sed -n:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(gh:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "WebFetch",
+      "WebSearch",
+      "Agent",
+      "Workflow"
+    ]
+  }
+}

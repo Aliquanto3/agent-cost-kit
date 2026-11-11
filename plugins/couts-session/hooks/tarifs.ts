@@ -3,10 +3,20 @@ export const TARIFS = {
   "version": 2,
   "prix": {
     "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "verifie_le": "2026-10-18",
+    "verifie_le": "2026-11-10",
     "unite": "USD par million de tokens",
-    "note": "Une entrée par identifiant de modèle : le plus long préfixe de l'identifiant l'emporte, sinon repli par 'familles' (la première dont le nom figure dans l'identifiant, au tarif de la dernière génération). Lecture du cache = 'lecture' (0,1 x l'entrée, 0,05 x pour Opus 5.5 et Sonnet 5.5, 0,025 x pour Fable 5.1). Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h). 'long_contexte' : une requête dont le prompt (entrée + lecture + écriture du cache) dépasse le seuil paie tous ses prix x facteur. 'geo_us' : false pour les modèles antérieurs à Claude 4.6, hors du multiplicateur inference_geo.",
+    "note": "Une entrée par identifiant de modèle : le plus long préfixe de l'identifiant l'emporte, sinon repli par 'familles' (la première dont le nom figure dans l'identifiant, au tarif de la dernière génération). Lecture du cache = 'lecture' (0,1 x l'entrée, 0,05 x pour Opus 5.5 et Sonnet 5.5, 0,025 x pour Fable 5.1 et Fable 5.2). Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h). 'long_contexte' : une requête dont le prompt (entrée + lecture + écriture du cache) dépasse le seuil paie tous ses prix x facteur. 'geo_us' : false pour les modèles antérieurs à Claude 4.6, hors du multiplicateur inference_geo.",
     "modeles": {
+      "claude-fable-5-2": {
+        "entree": 8.0,
+        "sortie": 40.0,
+        "lecture": 0.2
+      },
+      "claude-mythos-5-2": {
+        "entree": 8.0,
+        "sortie": 40.0,
+        "lecture": 0.2
+      },
       "claude-fable-5-1": {
         "entree": 10.0,
         "sortie": 50.0,
@@ -115,14 +125,14 @@ export const TARIFS = {
     },
     "familles": {
       "fable": {
-        "entree": 10.0,
-        "sortie": 50.0,
-        "lecture": 0.25
+        "entree": 8.0,
+        "sortie": 40.0,
+        "lecture": 0.2
       },
       "mythos": {
-        "entree": 10.0,
-        "sortie": 50.0,
-        "lecture": 0.25
+        "entree": 8.0,
+        "sortie": 40.0,
+        "lecture": 0.2
       },
       "opus": {
         "entree": 4.0,

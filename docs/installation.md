@@ -43,6 +43,6 @@ Puis, dans votre projet : `/cost-kit-install`. Le skill :
 | `scripts/file_prs.py` | Fusion d'une file de PR : contrôles présents, mergeable, relance unique des jobs en échec, PR suivante au lieu de s'arrêter, vérification de `MERGED` (`docs/file-prs.md`). |
 | `docs/pieges-runs.md` | Pièges vus en run : tests instables sous charge, SQLite sur macOS, push refusé, `python` nu. |
 | `skills/essai-outil`, `docs/experimental.md` | Expérimental : catalogue d'outils de la veille à essayer, et skill (invocation manuelle) qui guide l'essai : lecture avant installation, SkillSpector, installation au niveau projet, retour dans `mesures/essais/`. |
-| `bancs/` | Protocole et scripts pour re-tester le kit quand de nouveaux modèles sortent (`bancs/README.md`). |
+| `bancs/`, `skills/new-model` | Protocole, corpus et scripts pour re-tester le kit quand de nouveaux modèles sortent (`bancs/README.md`), et skill (invocation manuelle) qui vérifie les modèles publiés puis déroule l'évaluation après accord sur le devis. |
 
 Le `model` et l'`effort` déclarés dans le frontmatter des agents s'appliquent bien aux agents de plugin. Vérifié : depuis une session Opus en `high`, `lookup` tourne en Haiku `low`.

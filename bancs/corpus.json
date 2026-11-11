@@ -1,0 +1,60 @@
+{
+  "note": "Corpus des bancs de modèles : stories déjà livrées, rejouables depuis leur base. 'base' et 'tete' sont des SHA du dépôt ; 'spec_lignes' est le nombre de lignes de la spec à garder pour rejouer le développement (sans rapport de dev ni section Revue). 'fiches' renvoie à la vérité terrain (bancs/verite-terrain.json). Dépôts attendus à côté de agent-cost-kit.",
+  "constitue_le": "2026-11-10",
+  "stories": [
+    {
+      "id": "usine-6-11",
+      "depot": "usine-migration-jira-demo",
+      "base": "962ff545",
+      "tete": "5413074",
+      "spec": "_bmad-output/implementation-artifacts/spec-6-11-detection-de-doublons.md",
+      "spec_lignes": 57,
+      "fiches": ["f01", "f02", "f03"]
+    },
+    {
+      "id": "usine-6-12",
+      "depot": "usine-migration-jira-demo",
+      "base": "962ff545",
+      "tete": "007e09f",
+      "spec": "_bmad-output/implementation-artifacts/spec-6-12-mode-llm-local.md",
+      "spec_lignes": 63,
+      "fiches": ["f04", "f05", "f06", "f07", "f08"]
+    },
+    {
+      "id": "usine-6-13",
+      "depot": "usine-migration-jira-demo",
+      "base": "962ff545",
+      "tete": "1e91512",
+      "spec": "_bmad-output/implementation-artifacts/spec-6-13-observabilite-externe.md",
+      "spec_lignes": 55,
+      "fiches": ["f09", "f10"]
+    },
+    {
+      "id": "frugal-9-1",
+      "depot": "frugal-ai-workbench",
+      "base": "ba606cb",
+      "tete": "8b88442",
+      "spec": "_bmad-output/implementation-artifacts/story-9-1.md",
+      "spec_lignes": 42,
+      "fiches": []
+    },
+    {
+      "id": "frugal-9-3",
+      "depot": "frugal-ai-workbench",
+      "base": "7001b34",
+      "tete": "f016867",
+      "spec": "_bmad-output/implementation-artifacts/story-9-3.md",
+      "spec_lignes": 107,
+      "fiches": ["f11", "f12"]
+    },
+    {
+      "id": "frugal-9-4",
+      "depot": "frugal-ai-workbench",
+      "base": "4472c5c",
+      "tete": "b6c442e",
+      "spec": "_bmad-output/implementation-artifacts/story-9-4.md",
+      "spec_lignes": 122,
+      "fiches": ["f13"]
+    }
+  ]
+}
