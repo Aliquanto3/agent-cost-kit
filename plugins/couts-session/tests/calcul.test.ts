@@ -74,6 +74,10 @@ describe('coût API', () => {
     expect(cout('claude-sonnet-5-5', { ...million, input: 0, cacheWrite: 1e6 })).toBe(2.5)
     expect(cout('claude-haiku-5-5', { input: 0, output: 1e6, cacheRead: 1e6, cacheWrite: 0 })).toBe(0.51)
     expect(cout('claude-fable-5-1', { ...million, input: 0, cacheRead: 1e6 })).toBe(0.25)
+    // Fable 5.2 a son propre tarif : sans entrée dédiée, le préfixe claude-fable-5 lui donnait la lecture à 1 $.
+    expect(cout('claude-fable-5-2', million)).toBe(8)
+    expect(cout('claude-fable-5-2', { ...million, input: 0, cacheRead: 1e6 })).toBe(0.2)
+    expect(cout('claude-fable-5-2', { ...million, input: 0, cacheWrite: 1e6 })).toBe(10)
     expect(cout('gpt-x', million)).toBeUndefined()
   })
 

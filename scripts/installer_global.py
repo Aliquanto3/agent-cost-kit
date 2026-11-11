@@ -25,8 +25,7 @@ REGLAGES = {
     "effortLevel": "medium",
     # L'alias `haiku` des agents du kit restait sur Haiku 4.5 (mesure du 2026-10-15) : à revoir à chaque sortie.
     "env": {"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1", "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-5-5"},
-    # Fable, réservé au difficile, garde high ; les autres modèles suivent effortLevel.
-    "modelSettings": {"claude-fable-5-1": {"effortLevel": "high"}},
+    # Aucun effort par modèle : Fable 5.2 se lance en medium comme les autres (banc du 2026-11-10).
     # Le mode auto refusait ces commandes sans règle explicite : PR empilées jusqu'au matin (mesure du 2026-10-16).
     "permissions": {"allow": ["Bash(gh pr merge:*)", "Bash(gh pr edit:*)", "Bash(git push origin --delete:*)"]},
 }
@@ -56,8 +55,13 @@ def alertes(reglages: dict) -> list[str]:
     messages = []
     for modele, conf in reglages.get("modelSettings", {}).items():
         effort = conf.get("effortLevel") if isinstance(conf, dict) else None
-        # Seuls les modèles des agents du kit : Fable, réservé au difficile, peut rester en high.
-        if effort not in (None, "low", "medium") and any(m in modele for m in ("opus", "sonnet", "haiku")):
+        if modele == "claude-fable-5-1":
+            messages.append(
+                "modelSettings.claude-fable-5-1 : règle posée par une version antérieure du kit, sans effet sur "
+                "Fable 5.2 ; à retirer."
+            )
+        # Seuls les modèles des agents du kit : Fable, réservé au difficile, reste au choix de l'utilisateur.
+        elif effort not in (None, "low", "medium") and any(m in modele for m in ("opus", "sonnet", "haiku")):
             messages.append(
                 f"modelSettings.{modele}.effortLevel = {effort!r} prime sur effortLevel pour ce modèle "
                 "(les agents du kit sont mesurés en medium)."

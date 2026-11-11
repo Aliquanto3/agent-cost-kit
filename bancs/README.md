@@ -7,7 +7,8 @@ Les réglages du kit (Sonnet pour coder, Opus pour relire, Haiku pour le second 
 1. **Prix.** Relevez la page officielle (`platform.claude.com/docs/en/about-claude/pricing`) : entrée, écriture du cache à 5 min et à 1 h, lecture du cache, sortie, et seuils de contexte long. Mettez à jour `prix` dans `plugins/couts-session/donnees/tarifs.json` (une entrée par identifiant de modèle, avec repli par famille), puis `py plugins/couts-session/donnees/generer_tarifs.py` pour le mod. Un écart sur la lecture du cache fausse tout : c'est 40 % du coût, et Sonnet a déjà été compté au double par erreur.
 2. **Noms des modèles.** `famille()` reconnaît les modèles par le nom de leur famille (`opus`, `sonnet`, `haiku`, `fable`). Ajoutez toute nouvelle famille dans `prix.familles` de `tarifs.json`, et chaque nouvelle génération dans `prix.modeles` (une génération n'a pas le tarif de la précédente).
 3. **Réglages de Claude Code.** Vérifiez dans la doc que `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, `subagentPromptCacheTtl`, `syncClaudeAiSkills` et les champs `model`, `effort`, `tools` et `disallowedTools` du frontmatter existent toujours, avec le même sens.
-4. **Corpus.** Gardez 5 à 10 stories déjà livrées, sur au moins deux dépôts, avec leur base Git. On rejoue les bancs dessus, chaque story dans son propre worktree.
+4. **Corpus.** `corpus.json` consigne les stories rejouables (dépôt, base, tête, spec, lignes de spec à garder) et `verite-terrain.json` les défauts connus de chacune, une fiche par défaut. Le corpus d'octobre 2026 n'avait pas été consigné : celui-ci date du 2026-11-10 (6 stories, 2 dépôts, 13 fiches). Ajoutez-y vos stories plutôt que d'en reconstituer un. Une fiche dont `validation` est `null` n'a pas été tranchée par un humain et ne compte pas dans un taux publié.
+5. **Permissions.** Le classifieur du mode auto refuse de lancer des sessions en `bypassPermissions`. Les bancs tournent donc avec `reglages-banc.json` (`--settings`) : `acceptEdits`, liste d'outils explicite (édition, `git` local, `uv run`, lecture en shell), ni réseau ni push. Rejouez le développement dans un clone jetable sans remote, pas dans un worktree du dépôt réel : avec une liste trop courte, les agents se voient refuser `git add` et `git commit` (8 à 15 refus par chaîne le 2026-11-10).
 
 ## Les bancs, par ordre d'utilité
 
@@ -39,6 +40,25 @@ Worktree : <chemin>. Diff à relire : git diff <base>..HEAD." \
 - Vérifiez vous-même au moins deux défauts « certains » par modèle : un rapport peut se tromper.
 - Lancez aussi une fusion de toutes les branches dans un worktree jetable, puis la suite complète, **avec la même installation que la CI**. Un `uv sync` différent de la CI a déjà masqué un vrai défaut.
 - Référence d'octobre 2026, sur 10 stories : Opus 11 défauts certains (0,63 $ par story), Sonnet 1 (0,27 $), Haiku 2 plus des constats propres (0,03 $). Aucun relecteur n'a tout trouvé.
+
+- Référence du 2026-11-10 (Claude Code 2.1.322, 5 stories du corpus, 3 essais par cellule, 8 défauts medium ou plus signalés au moins deux fois) : Opus 5.5 `medium` 13 détections sur 24 (0,65 $ par revue), Fable 5.2 `low` 18 sur 24 (1,17 $), Fable 5.2 `medium` 20 sur 24 (1,36 $). Regroupement des signalements fait à la main, fiches non encore validées.
+
+### 1 bis. Le relecteur dans la chaîne
+
+Une contre-revue isolée ne prédit pas le relecteur du kit : le 2026-11-10, Opus signalait un défaut 3 fois sur 3 en contre-revue et ne le corrigeait que 2 fois sur 6 dans la chaîne. `banc_relecteur.sh` rejoue donc le développement (Sonnet) et le second avis (Haiku) une fois par essai, copie le clone pour chaque relecteur candidat, puis fait dire à un vérificateur quelles fiches restent présentes :
+
+```bash
+bash bancs/banc_relecteur.sh <dossier hors dépôt> "usine-6-11 frugal-9-3" "opus:medium claude-fable-5-2:medium" 3
+uv run --no-project python bancs/noter.py <dossier hors dépôt>/resultats
+```
+
+Le script tient lieu d'orchestrateur : son coût sort de la comparaison. Écart avec un run réel : ni rebase, ni push, ni CI de branche.
+
+- Le vérificateur (Sonnet) ne juge que les fiches connues. Lisez aussi les sections `## Revue` : deux relecteurs peuvent laisser les mêmes fiches et corriger des défauts différents.
+- Une fiche déjà absente du développement relu ne mesure rien : comptez les cas applicables, pas les fiches.
+- Référence du 2026-11-10 (Claude Code 2.1.322, 2 stories, 3 essais, 12 revues, 26,11 $) : `reviewer` Opus 5.5 `medium` 0,99 $ par revue, Fable 5.2 `medium` 1,97 $ ; 9 fiches présentes sur 15 cas après revue pour chacun, mêmes verdicts fiche par fiche. Fable mentionne F01 à 3 essais sur 3 (Opus 0) mais la classe low et la reporte. Développement 1,01 $, second avis 0,03 $, vérification 0,17 $. Fiches non validées. Le `reviewer` reste sur Opus.
+- Autres mesures du même jour, hors de ce script : développement d'une story par Fable 5.2 `low` de 1,72 à 2,07 $ contre 0,33 à 0,60 $ pour Sonnet `medium`, même nombre de défauts en contre-revue ; orchestration de la chaîne par Fable 5.2 `medium` à 2,63 $ en moyenne contre 1,76 $ pour Opus, sans écart de qualité.
+- Le skill `/agent-cost-kit:new-model` rejoue cette démarche pour un nouveau modèle.
 
 ### 2. A contre kit : le setup complet
 

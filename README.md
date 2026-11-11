@@ -72,6 +72,7 @@ Mesurez votre point de départ avant de changer de méthode : `/agent-cost-kit:m
 - [Mutation guidée](docs/mutation-guidee.md) (expérimental) : étape optionnelle après dev-story, script `scripts/mutation_story.py`, chiffres de la veille (T4, T10, T10b).
 - [Vérification front](docs/verif-front.md) (expérimental) : sous-agent `verif-front` (Playwright MCP) copié par l'installation, chiffres de la veille (T12).
 - [Aiguillage sans cadrage](docs/aiguillage-stories.md) (expérimental) : règle de l'orchestrateur pour les petites stories, chiffres de la veille (T13, T13 bis).
+- [Re-tester le kit à la sortie d'un modèle](bancs/README.md) : corpus, bancs et références datées ; le skill `/agent-cost-kit:new-model` vérifie s'il existe un modèle à évaluer, ou déroule l'évaluation pour un identifiant donné.
 - [Historique des versions](CHANGELOG.md).
 
 **Contribuer** : la CI lance les tests sur Linux et Windows et valide le plugin (`claude plugin validate . --strict`) à chaque PR ; `master` est protégé, une PR ne fusionne que si la CI est verte.
