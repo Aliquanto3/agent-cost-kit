@@ -29,7 +29,10 @@ from pathlib import Path
 
 DOSSIER = Path("_bmad-output") / "implementation-artifacts"
 # Identifiant de story « 17.5 » ou à suffixe lettre « 17.5b » ; ni « v0.3.0 » ni « 17.5bis » ne sont des identifiants.
-ID = re.compile(r"(?<![\w.])\d+\.\d+[a-z]?(?!\w|\.\d)")
+# Run hors epics : « C1 », « O4a », « E1b » (hors « v14 », « #12 », « a1b2c3d »).
+ID_NUM = re.compile(r"(?<![\w.])\d+\.\d+[a-z]?(?!\w|\.\d)")
+ID = re.compile(ID_NUM.pattern + r"|(?<![\w.#/-])[A-Z]{1,3}\d+[a-z]?(?!\w)")
+HORS_EPIC = -1  # epic des stories hors epics (l'Epic 0 existe)
 FENETRE_SUIVI_H = 12.0  # lignes du journal « récentes » pour le contrôle de suivi incomplet
 FENETRE_H = 3.0
 
@@ -83,13 +86,46 @@ def lire_maj(chemin: Path) -> datetime | None:
 
 
 def ids_statut(statuts: dict[str, str]) -> dict[str, str]:
-    """Clés ``N-M-slug`` -> statut par identifiant ``N.M``."""
+    """Clés ``N-M-slug`` -> statut par identifiant ``N.M`` (``c1-slug`` -> ``C1`` hors epics)."""
     sortie = {}
     for cle, val in statuts.items():
         m = re.match(r"(\d+)-(\d+)([a-z]?)-", cle)
         if m:
             sortie[f"{m[1]}.{m[2]}{m[3]}"] = val
+        elif m := re.match(r"([A-Za-z]{1,3})(\d+)([a-z]?)-", cle):
+            sortie[f"{m[1].upper()}{m[2]}{m[3]}"] = val
     return sortie
+
+
+def est_numerique(sid: str) -> bool:
+    return bool(ID_NUM.fullmatch(sid))
+
+
+def ids_perimetre(texte: str) -> list[str]:
+    """Stories d'une cellule « Stories C1 à C9, O1, O4a (sauf C2) » (plages de même préfixe développées)."""
+    exclus = {i for n in re.findall(r"\(([^)]*)\)", texte) for s in re.findall(r"\bsauf\b(.*)", n) for i in ID.findall(s)}
+    texte = re.sub(r"\([^)]*\)", " ", texte)  # les autres notes entre parenthèses ne sont pas des stories
+    mot = re.search(r"\bStories?\b", texte)
+    if mot:
+        texte = texte[mot.end():]
+    ids = set(ID.findall(texte))
+    for m in re.finditer(r"\b(\d+)\.(\d+)\s+à\s+\1\.(\d+)\b", texte):
+        ids |= {f"{m[1]}.{n}" for n in range(int(m[2]), int(m[3]) + 1)}
+    # plage alphanumérique : « C1 à C9 » ; avec suffixe, seule « O4a à O4c » (même numéro) est développée
+    for m in re.finditer(r"(?<![\w.#/-])([A-Z]{1,3})(\d+)([a-z]?)\s+à\s+\1(\d+)([a-z]?)(?!\w)", texte):
+        pre, n1, s1, n2, s2 = m[1], int(m[2]), m[3], int(m[4]), m[5]
+        if not s1 and not s2:
+            ids |= {f"{pre}{n}" for n in range(n1, n2 + 1)}
+        elif n1 == n2 and s1 and s2 and s1 <= s2:
+            ids |= {f"{pre}{n1}{chr(c)}" for c in range(ord(s1), ord(s2) + 1)}
+        else:
+            print(f"avertissement : plage « {m[0]} » non développée (suffixes), extrémités seules", file=sys.stderr)
+    return sorted(ids - exclus, key=cle_id)
+
+
+def ids_deps(texte: str, connus: set[str]) -> set[str]:
+    """Dépendances d'une cellule : numériques telles quelles, alphanumériques seulement si ce sont des stories du run."""
+    return {i for i in ID.findall(texte) if est_numerique(i) or i in connus}
 
 
 def cellules(ligne: str) -> list[str]:
@@ -105,7 +141,8 @@ def lire_plan(texte: str) -> dict:
     """Vagues, dépendances, types, pivots, parallélisme et epics hors run."""
     lignes = texte.splitlines()
     plan = {"vagues": {}, "ordre": [], "sprint": {}, "deps": {}, "pivot": set(), "type": {},
-            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}, "sprints_story": {}}
+            "parallelisme": 3, "hors_run": set(), "sprint_titres": {}, "sprints_story": {}, "titres": {},
+            "perimetre": []}
     m = re.search(r"Au plus\s+(\d+)\s+stories", texte)
     if m:
         plan["parallelisme"] = int(m[1])
@@ -124,10 +161,15 @@ def lire_plan(texte: str) -> dict:
                 brief = ligne.strip("# ").lower().startswith("brief")
             continue
         if brief or not ligne.startswith("|"):
+            m = None if brief else re.match(r"-\s+([A-Z]{1,3}\d+[a-z]?)\s*:\s*(.+)", ligne)
+            if m:  # liste de titres sous la table des vagues : « - C1 : titre »
+                plan["titres"][m[1]] = m[2].strip()
             continue
         c = cellules(ligne)
+        if len(c) >= 2 and "Dans le run" in c[0] and re.search(r"\bStories?\b", c[1]):
+            plan["perimetre"] = ids_perimetre(c[1])
         if len(c) >= 2 and "Hors run" in c[0]:
-            plan["hors_run"] = plage_epics(c[1]) or plan["hors_run"]
+            plan["hors_run"] = plage_epics(c[1]) or set(ids_perimetre(c[1])) or plan["hors_run"]  # « C5 à C7 » aussi
         if len(c) >= 3 and re.fullmatch(r"[VW]\d+[a-z]?", c[0]):
             vague = c[0]
             ids = []
@@ -147,22 +189,30 @@ def lire_plan(texte: str) -> dict:
             plan["ordre"].append(vague)
             bruts[vague] = c[2]
     tous = [s for v in plan["ordre"] for s in plan["vagues"][v]]
+    reste = [s for s in plan["perimetre"] if s not in tous]
+    if reste:  # stories du périmètre absentes des vagues : une vague « — » sans dépendance
+        plan["vagues"]["—"], bruts["—"] = reste, ""
+        plan["ordre"].append("—")
+        for sid in reste:
+            plan["type"][sid], plan["sprint"][sid] = "dev", ""
+        tous += reste
+    connus = set(tous)
     for vague in plan["ordre"]:
         cellule, ids = bruts[vague], plan["vagues"][vague]
         epics = plage_epics(cellule)
         if epics:
             for sid in ids:
-                plan["deps"][sid] = {s for s in tous if int(s.split(".")[0]) in epics and s != sid}
+                plan["deps"][sid] = {s for s in tous if est_numerique(s) and int(s.split(".")[0]) in epics and s != sid}
         elif "←" in cellule:
             for seg in cellule.split(";"):
                 if "←" in seg:
                     gauche, _, droite = seg.partition("←")
                     cible = ID.search(gauche)
                     if cible:
-                        plan["deps"][cible[0]] = set(ID.findall(droite))
+                        plan["deps"][cible[0]] = ids_deps(droite, connus)
         else:
             for sid in ids:  # « fusionnées avant 3.6 » : ce qui suit « avant » n'est pas une dépendance
-                plan["deps"][sid] = set(ID.findall(re.split(r"\bavant\b", cellule)[0]))
+                plan["deps"][sid] = ids_deps(re.split(r"\bavant\b", cellule)[0], connus)
     for sid in tous:
         plan["deps"].setdefault(sid, set())
     return plan
@@ -215,6 +265,8 @@ def normaliser_etape(brut: str) -> str:
         return "pr"
     if e.startswith(("ménage", "menage")):
         return "ménage"  # étape de clôture, colonne story « run » : aucune story
+    if e.startswith(("clôture", "cloture")):
+        return "clôture"  # story terminée sans PR (poussée sur main, close sans fusion) : vaut une fusion
     for cle in ("second-avis", "review", "fusion", "ci", "blocked", "attente humaine", "report",
                 "décision", "dev"):
         if e.startswith(cle):
@@ -332,7 +384,7 @@ def etape_story(evts: list[dict]) -> tuple[str, str, int] | None:
             jalon = "dev fini" if lance else "second-avis fini"
         elif et == "review":
             jalon = "second-avis fini" if lance else "review finie"
-        elif et == "fusion":
+        elif et in TERMINE:
             jalon = "fusion faite"
         elif et == "ci" and "rouge" in r:
             avant_rouge = jalon if jalon != "CI rouge" else avant_rouge
@@ -370,6 +422,9 @@ def suite_pour_anael(texte: str) -> str:
     return ""
 
 
+TERMINE = ("fusion", "clôture")  # étapes qui terminent une story
+
+
 def hors_run(s: dict) -> bool:
     """Story sortie de l'estimation : reportée hors du run, ou en attente (en chaîne) d'une story reportée."""
     return "reportée" in s["drapeaux"] or "bloquée par une reportée" in s["drapeaux"]
@@ -397,11 +452,27 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
             hist = par_story.get(sid, [])
             info = etape_story(hist)
             dernier = hist[-1] if hist else None
+            # la dernière étape fait foi : une `fusion` (ou `clôture`) suivie d'un `dev · lancé` est une reprise
+            i_fin = max((i for i, e in enumerate(hist) if e["etape"] in TERMINE), default=None)
+            rouverte = i_fin is not None and any(e["etape"] == "dev" and "lanc" in e["resultat"].lower()
+                                                 for e in hist[i_fin + 1:])
+            fusionnee = i_fin is not None and not rouverte
+            if sid not in statuts:  # absente de sprint-status (hors epics surtout) : suivie depuis le journal seul
+                if fusionnee:
+                    st = "done"
+                elif info:  # `blocked` ou `attente humaine` seuls : reste « à faire », comme en epics
+                    st = "in-progress"
             etat = "fait" if st == "done" else ("en cours" if st in ("in-progress", "review") else "à faire")
-            fusionnee = any(e["etape"] == "fusion" for e in hist)
-            attend_fusion = False
-            if etat == "fait" and hist and not fusionnee:  # done sans fusion au journal : pas terminée
-                etat, attend_fusion = "en cours", True
+            attend_fusion = sans_fusion = False
+            if etat == "fait" and rouverte:
+                etat = "en cours"
+            elif etat == "fait" and hist and not fusionnee:
+                en_vol = (dernier["etape"] == "blocked" or (info and info[0] in ("PR ouverte", "CI rouge"))
+                          or (dernier["etape"] in ("dev", "second-avis", "review") and "lanc" in dernier["resultat"].lower()))
+                if en_vol:  # bloquée, PR ouverte, CI rouge ou étape lancée en dernier : pas terminée
+                    etat, attend_fusion = "en cours", True
+                else:
+                    sans_fusion = True  # repli : `done` sans `fusion` ni `clôture` au journal, compte terminée
             retard = False
             if maj and dernier and dernier["t"] and dernier["t"] > maj and info:
                 # le journal, plus récent que sprint-status, prime quand il contredit le statut
@@ -420,7 +491,7 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 _, etape, pct = info or ("", "dev en cours" if st == "in-progress" else "review en cours",
                                          30 if st == "in-progress" else 75)
             lance = next((e["t"] for e in reversed(hist) if e["etape"] == "dev" and "lanc" in e["resultat"].lower()), None)
-            fini = next((e["t"] for e in reversed(hist) if e["etape"] == "fusion"), None)
+            fini = next((e["t"] for e in reversed(hist) if e["etape"] in TERMINE), None)
             if fini is None and etat == "fait":
                 fini = next((e["t"] for e in reversed(hist) if e["etape"] == "ci"), None)
             drapeaux = []
@@ -428,10 +499,11 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("bloquée")
             if etat != "fait" and any(e["etape"] == "attente humaine" for e in hist[-1:]):
                 drapeaux.append("attente humaine")
-            if etat == "à faire" and dernier and (dernier["etape"] in ("décision", "report")):
-                drapeaux.append("retenue")  # une décision sur une story pas lancée la retient (5.7 reportée)
+            if etat != "fait" and dernier and (dernier["etape"] in ("décision", "report")):
+                if etat == "à faire":
+                    drapeaux.append("retenue")  # une décision sur une story pas lancée la retient (5.7 reportée)
                 if sort_du_run(dernier["resultat"]):
-                    drapeaux.append("reportée")  # reportée hors du run : ni reste à faire, ni débit, ni date de fin
+                    drapeaux.append("reportée")  # reportée hors du run (même après un dev lancé) : ni reste, ni débit, ni fin
             if etat != "fait" and info and info[0] == "PR ouverte":
                 drapeaux.append("PR ouverte")
             if etat != "fait" and attend_fusion:
@@ -440,20 +512,23 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                 drapeaux.append("journal en avance")
             if etat == "fait" and any(re.search(r"en attente d'Anaël|attente humaine", e["resultat"]) for e in hist):
                 drapeaux.append("vérification humaine due")
-            if etat != "fait" and any(re.search(r"\brepris(e|es)?\b", e["resultat"]) for e in hist):
+            if etat != "fait" and (rouverte or any(re.search(r"\brepris(e|es)?\b", e["resultat"]) for e in hist
+                                                   if e["etape"] not in ("décision", "report"))):  # décision : pas une reprise
                 drapeaux.append("reprise")
+            if sans_fusion:
+                drapeaux.append("sans fusion journalisée")
             if etat != "fait" and any(e["etape"] in ("report", "décision") and re.search(r"\bcoupée?\b", e["resultat"])
                                       for e in hist):
                 drapeaux.append("coupée")
             if info and info[0] == "CI rouge" and etat != "fait":
                 drapeaux.append("CI rouge")
             raison, suite = "", ""
-            if "retenue" in drapeaux:
+            if "retenue" in drapeaux or "reportée" in drapeaux:
                 raison = (("report" if dernier["etape"] == "report" else "décision") + " du journal"
                           + (" (reportée après le run)" if "reportée" in drapeaux else ""))
             if "reportée" in drapeaux:
                 suite = suite_pour_anael(dernier["resultat"])
-            stories[sid] = {"vague": vague, "epic": int(sid.split(".")[0]), "statut": st, "etat": etat,
+            stories[sid] = {"vague": vague, "epic": int(sid.split(".")[0]) if est_numerique(sid) else HORS_EPIC, "statut": st, "etat": etat,
                             "pct": pct, "etape": etape, "type": plan["type"].get(sid, "dev"),
                             "pivot": sid in plan["pivot"], "deps": sorted(plan["deps"][sid], key=cle_id), "raison": raison,
                             "suite": suite, "prise": bool(dernier) and dernier["etape"] == "décision",
@@ -484,6 +559,9 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
     for e in evts:
         sources[e["source"] or "inconnue"] = sources.get(e["source"] or "inconnue", 0) + 1
     noms = lire_titres(projet, statuts_bruts, plan)
+    for sid in stories:
+        if not est_numerique(sid):
+            noms["stories"].setdefault(sid, plan["titres"].get(sid, sid))
     manquants = hors_suivi(evts, plan, statuts, maintenant)
     meteo_ = meteo(stories, estimation, manquants)
     menage = next((e for e in reversed(evts) if e["etape"] == "ménage"), None)
@@ -496,7 +574,8 @@ def analyser(projet: Path, maintenant: datetime) -> dict:
                          "commit_t": futures_commit.get(e["ligne"])} for e in evts
                         if e["source"] == "journal" and e["t"] and (e["t"] > maintenant or e["ligne"] in futures_commit)],
             "rythme": rythme, "estimation": estimation, "decisions": decisions, "sources_heures": sources,
-            "hors_run": sorted(plan["hors_run"])}
+            "hors_run": sorted(plan["hors_run"], key=str) if any(isinstance(x, str) for x in plan["hors_run"])
+            else sorted(plan["hors_run"])}
 
 
 def hors_suivi(evts: list[dict], plan: dict, statuts: dict[str, str], maintenant: datetime) -> list[str]:
@@ -508,14 +587,18 @@ def hors_suivi(evts: list[dict], plan: dict, statuts: dict[str, str], maintenant
     dans = [e["t"] for e in evts if e["t"] and any(s in connus for s in e["stories"])]
     seuil = min(max(dans), maintenant - timedelta(hours=FENETRE_SUIVI_H)) if dans else maintenant - timedelta(hours=FENETRE_SUIVI_H)
     trouves = {s for e in evts if e["t"] and e["t"] >= seuil for s in e["stories"]
-               if s not in connus and s not in statuts and int(s.split(".")[0]) not in plan["hors_run"]}
+               if s not in connus and s not in statuts and s not in plan["hors_run"]
+               and not (est_numerique(s) and int(s.split(".")[0]) in plan["hors_run"])}
     return sorted(trouves, key=cle_id)
 
 
-def cle_id(sid: str) -> tuple[int, int, str]:
-    a, b = sid.split(".")
-    n, lettre = re.fullmatch(r"(\d+)([a-z]?)", b).groups()
-    return int(a), int(n), lettre
+def cle_id(sid: str) -> tuple[int, int, str, str, int, str]:
+    if est_numerique(sid):
+        a, b = sid.split(".")
+        n, lettre = re.fullmatch(r"(\d+)([a-z]?)", b).groups()
+        return int(a), int(n), lettre, "", 0, ""
+    m = re.fullmatch(r"([A-Z]+)(\d+)([a-z]?)", sid)
+    return (10**6, 0, "", m[1], int(m[2]), m[3]) if m else (10**6, 0, "", sid, 0, "")
 
 
 def rythme_observe(stories: dict, maintenant: datetime, evts: list[dict]) -> dict:
@@ -647,7 +730,8 @@ def rapport_detail(a: dict) -> str:
           f"Créneaux de développement : {sum(1 for x in S.values() if x['etat'] == 'en cours' and x['pct'] <= 30)}"
           f"/{plan['parallelisme']} occupés (les stories en second-avis ou en review n'en occupent pas).", ""]
     if a["hors_run"]:
-        L += [f"Hors périmètre : epics {', '.join(map(str, a['hors_run']))}.", ""]
+        L += [f"Hors périmètre : {'epics' if all(isinstance(x, int) for x in a['hors_run']) else 'epics et stories'} "
+              f"{', '.join(map(str, a['hors_run']))}.", ""]
     L += ["Barème d'un en-cours (dernière étape journalisée) : "
           + " ; ".join(f"{j} -> {e} {p} %" for j, e, p in BAREME) + ".", ""]
     L += ["### Par vague", "", "| Vague | Stories | Avancement |", "|---|---|---|"]
@@ -746,6 +830,8 @@ def lire_titres(projet: Path, statuts_bruts: dict[str, str], plan: dict | None =
         m = re.match(r"(\d+)-(\d+)([a-z]?)-(.+)", cle)
         if m:
             stories[f"{m[1]}.{m[2]}{m[3]}"] = m[4].replace("-", " ")
+        elif m := re.match(r"([A-Za-z]{1,3})(\d+)([a-z]?)-(.+)", cle):
+            stories[f"{m[1].upper()}{m[2]}{m[3]}"] = m[4].replace("-", " ")
     fichier = projet / "_bmad-output" / "planning-artifacts" / "epics.md"
     if fichier.exists():
         for ligne in fichier.read_text(encoding="utf-8").splitlines():
@@ -765,6 +851,8 @@ def lire_titres(projet: Path, statuts_bruts: dict[str, str], plan: dict | None =
         tous: dict[int, set[str]] = {}
         par_sprint: dict[str, set[int]] = {}
         for sid, sps_ in plan.get("sprints_story", {}).items():  # une story listée dans deux sprints compte deux fois
+            if not est_numerique(sid):  # story hors epics : pas d'epic à nommer
+                continue
             e = int(sid.split(".")[0])
             for sp in sps_:
                 tous.setdefault(e, set()).add(sp)
@@ -843,7 +931,7 @@ def puces(a: dict) -> list[str]:
     S, N, es = a["stories"], a["noms"], a["estimation"]
     fait = [k for k, s in S.items() if s["etat"] == "fait"]
     out = []
-    epics_finis = [ep for ep in sorted({s["epic"] for s in S.values()})
+    epics_finis = [ep for ep in sorted({s["epic"] for s in S.values()} - {HORS_EPIC})
                    if all(s["etat"] == "fait" for s in S.values() if s["epic"] == ep)]
     fm = f"{len(fait)} stories sur {len(S)} sont livrées"
     if epics_finis:
@@ -854,6 +942,11 @@ def puces(a: dict) -> list[str]:
     if pr_att:
         fm += f" {len(pr_att)} en attente de fusion (PR ouverte ou revue faite) : {', '.join(pr_att)}."
     out.append(fm)
+    sans = [k for k, s in S.items() if "sans fusion journalisée" in s["drapeaux"]]
+    if sans:
+        pl = "s" if len(sans) > 1 else ""
+        out.append(f"{', '.join(sans)} terminée{pl} sans fusion journalisée (`done` dans sprint-status) : ajouter au "
+                   "journal une ligne `fusion` ou `clôture`.")
     if a.get("hors_suivi"):
         out.append(f"le journal cite {', '.join(a['hors_suivi'])} hors du périmètre et de sprint-status : "
                    "périmètre ou sprint-status à mettre à jour.")
@@ -939,8 +1032,9 @@ def rapport(a: dict, detail: bool = False, stories: bool = False) -> str:
         for ep in epics:
             liste = [s for s in S.values() if s["epic"] == ep]
             fe, ce, re_, pe = agregat(liste)
-            nom = court(N["epics"].get(ep, ""), 38).replace("|", r"\|")  # un | dans le titre casserait le tableau
-            L.append(f"| {ep} | {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} | {statut_epic(liste)} |")
+            nom = court(N["epics"].get(ep, "Hors epic" if ep == HORS_EPIC else ""), 38).replace("|", r"\|")
+            L.append(f"| {'—' if ep == HORS_EPIC else ep} | {nom} | {barre(pe)} {pe:.0f} % | {fe} | {ce} | {re_} "
+                     f"| {statut_epic(liste)} |")
     if stories or not consolide:
         L += ["", "## Détail par story", "", "| Story | Titre | État | % | |", "|---|---|---|---|---|"]
         for v in plan["ordre"]:
