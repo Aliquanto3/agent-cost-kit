@@ -10,6 +10,9 @@
 # Permissions : bancs/reglages-banc.json (acceptEdits, liste d'outils, ni réseau ni push). Relançable : un
 # résultat déjà écrit n'est pas refait.
 set -u
+# Sous Windows, Python écrit en cp1252 : un second avis contenant « → » faisait échouer `texte`, et la liste
+# arrivait vide au relecteur (3 essais sur 6 le 2026-11-10, 1 sur 6 le 2026-11-11).
+export PYTHONIOENCODING=utf-8 PYTHONUTF8=1
 KIT=$(cd "$(dirname "$0")/.." && pwd)
 RACINE=$(dirname "$KIT")
 SORTIE=$(mkdir -p "$1" && cd "$1" && pwd)
