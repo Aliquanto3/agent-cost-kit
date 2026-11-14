@@ -1,6 +1,6 @@
 ---
 name: essai-outil
-description: "Guide l'essai encadré d'un outil du catalogue docs/experimental.md : lecture avant installation, SkillSpector, mesure du contexte, installation au niveau projet, protocole, retour écrit dans mesures/essais/. Invocation manuelle seulement : « essai outil <nom> », « essayer <nom> » ou /agent-cost-kit:essai-outil."
+description: "Guide l'essai encadré d'un outil du catalogue docs/experimental.md : lecture avant installation, SkillSpector, mesure du contexte, installation au niveau projet, protocole, retour écrit dans mesures/essais/. Invocation manuelle seulement : « essai outil » ou « essayer » suivi du nom de l'outil, ou /agent-cost-kit:essai-outil."
 disable-model-invocation: true
 ---
 
