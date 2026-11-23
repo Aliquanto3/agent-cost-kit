@@ -2,10 +2,10 @@
 export const TARIFS = {
   "version": 2,
   "prix": {
-    "source": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "verifie_le": "2026-11-10",
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing ; https://docs.mistral.ai/inference/pricing (Mistral, 2026-10)",
+    "verifie_le": "2026-11-23",
     "unite": "USD par million de tokens",
-    "note": "Une entrée par identifiant de modèle : le plus long préfixe de l'identifiant l'emporte, sinon repli par 'familles' (la première dont le nom figure dans l'identifiant, au tarif de la dernière génération). Lecture du cache = 'lecture' (0,1 x l'entrée, 0,05 x pour Opus 5.5 et Sonnet 5.5, 0,025 x pour Fable 5.1 et Fable 5.2). Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h). 'long_contexte' : une requête dont le prompt (entrée + lecture + écriture du cache) dépasse le seuil paie tous ses prix x facteur. 'geo_us' : false pour les modèles antérieurs à Claude 4.6, hors du multiplicateur inference_geo.",
+    "note": "Une entrée par identifiant de modèle : le plus long préfixe de l'identifiant l'emporte, sinon repli par 'familles' (la première dont le nom figure dans l'identifiant, au tarif de la dernière génération). Lecture du cache = 'lecture' (0,1 x l'entrée, 0,05 x pour Opus 5.5 et Sonnet 5.5, 0,025 x pour Fable 5.1 et Fable 5.2). Écriture du cache = entrée x 'ecriture_cache' (5 min ou 1 h). 'long_contexte' : une requête dont le prompt (entrée + lecture + écriture du cache) dépasse le seuil paie tous ses prix x facteur. 'geo_us' : false pour les modèles antérieurs à Claude 4.6, hors du multiplicateur inference_geo. Mistral (sessions Vibe) : lecture du cache à 10 % de l'entrée, écriture sans surcoût (ecriture_cache 1.0).",
     "modeles": {
       "claude-fable-5-2": {
         "entree": 8.0,
@@ -121,9 +121,81 @@ export const TARIFS = {
         "sortie": 4.0,
         "lecture": 0.08,
         "geo_us": false
+      },
+      "mistral-large-4": {
+        "entree": 0.7,
+        "sortie": 2.1,
+        "lecture": 0.07,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "mistral-large-3": {
+        "entree": 0.5,
+        "sortie": 1.5,
+        "lecture": 0.05,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "mistral-medium": {
+        "entree": 1.5,
+        "sortie": 7.5,
+        "lecture": 0.15,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "mistral-small-4": {
+        "entree": 0.15,
+        "sortie": 0.6,
+        "lecture": 0.015,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "zai-glm-5-3-flash-vibe-free": {
+        "entree": 0,
+        "sortie": 0,
+        "lecture": 0,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
       }
     },
     "familles": {
+      "vibe-free": {
+        "entree": 0,
+        "sortie": 0,
+        "lecture": 0,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "mistral": {
+        "entree": 0.7,
+        "sortie": 2.1,
+        "lecture": 0.07,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
+      "glm": {
+        "entree": 1.4,
+        "sortie": 4.4,
+        "lecture": 0.14,
+        "ecriture_cache": {
+          "5m": 1.0,
+          "1h": 1.0
+        }
+      },
       "fable": {
         "entree": 8.0,
         "sortie": 40.0,
