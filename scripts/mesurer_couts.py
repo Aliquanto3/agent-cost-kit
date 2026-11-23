@@ -32,6 +32,7 @@ Usage :
     python mesurer_couts.py                      # projet = dossier courant, toutes les sessions
     python mesurer_couts.py --projet C:/chemin/du/depot --session 3add3916 --out mesures/
     python mesurer_couts.py --filtre "Banc 6.11"  # agents dont la description contient le motif
+    python mesure_couts.py --vibe               # + sessions Mistral Vibe (voir --vibe ci-dessous)
 
 Sorties : agents.csv, arbres.csv, resume.md dans --out (par défaut ./mesures-couts/), et un
 tableau par agent sur la sortie standard. Aucun contenu de transcription n'est recopié, sauf la
@@ -134,11 +135,23 @@ def prefixe(modele: str, cle: str) -> bool:
 
 
 def prix(modele: str) -> dict:
-    """Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille."""
+    """Tarif du modèle : plus long préfixe de l'identifiant, sinon repli par famille.
+
+    Un modèle sans tarif ni famille connue fait échouer la mesure (SystemExit) : jamais de repli
+    silencieux sur la famille par défaut, qui facturerait un modèle inconnu au prix du plus cher
+    (cas constaté : les modèles Mistral Vibe tombaient sur le tarif fable, ~11x trop cher).
+    """
     candidats = [cle for cle in PRIX_MODELES if prefixe(modele, cle)]
     if candidats:
         return PRIX_MODELES[max(candidats, key=len)]
-    return PRIX_FAMILLES[famille(modele) or FAMILLE_PAR_DEFAUT]
+    fam = famille(modele)
+    if fam is None:
+        sys.exit(
+            f"Tarif inconnu pour le modèle '{modele}' : ajoutez-le dans "
+            "plugins/couts-session/donnees/tarifs.json (prix.modeles, ou prix.familles pour un repli), "
+            "puis régénérez plugins/couts-session/hooks/tarifs.ts avec donnees/generer_tarifs.py."
+        )
+    return PRIX_FAMILLES[fam]
 
 
 def instant(texte: str) -> datetime:
@@ -375,6 +388,7 @@ def couts(liste: list[dict], compter: set[str] | None = None) -> dict:
     for a in liste:
         tarif = prix(a["modele"])
         p_entree, p_sortie, p_lu = tarif["entree"], tarif["sortie"], tarif["lecture"]
+        ecriture = tarif.get("ecriture_cache", ECRITURE)  # Mistral : pas de surcoût d'écriture de cache
         ttl = "1h" if a["ecrit_1h"] > a["ecrit_5m"] else "5m"
         autre = "5m" if ttl == "1h" else "1h"
         ecrit = a["ecrit_5m"] + a["ecrit_1h"]
@@ -389,7 +403,7 @@ def couts(liste: list[dict], compter: set[str] | None = None) -> dict:
         if a.get("geo") == "us" and tarif.get("geo_us", True):
             p_entree, p_sortie, p_lu = (p * GEO_US_FACTEUR for p in (p_entree, p_sortie, p_lu))
         total["entree"] += a["entree"] * p_entree / 1e6
-        total["ecriture"] += (a["ecrit_5m"] * ECRITURE["5m"] + a["ecrit_1h"] * ECRITURE["1h"]) * p_entree / 1e6
+        total["ecriture"] += (a["ecrit_5m"] * ecriture["5m"] + a["ecrit_1h"] * ecriture["1h"]) * p_entree / 1e6
         total["lecture"] += a["lu"] * p_lu / 1e6
         total["sortie"] += a["sortie"] * p_sortie / 1e6
         pause = (instant(a["ts"]) - instant(precedent["ts"])).total_seconds() if precedent else 0.0
@@ -397,7 +411,7 @@ def couts(liste: list[dict], compter: set[str] | None = None) -> dict:
         expire = bool(precedent) and pause > TTL_S[ttl] and ecrit > SEUIL_REECRITURE
         if expire:
             expirations += 1
-            reecriture += max(0, ecrit - nouveau) * ECRITURE[ttl] * p_entree / 1e6
+            reecriture += max(0, ecrit - nouveau) * ecriture[ttl] * p_entree / 1e6
         if precedent and pause > TTL_S[autre]:
             alt_ecrit, alt_lu = ctx - a["entree"], 0
         elif expire:
@@ -405,7 +419,7 @@ def couts(liste: list[dict], compter: set[str] | None = None) -> dict:
         else:
             alt_ecrit, alt_lu = ecrit, a["lu"]
         contrefactuel += (
-            a["entree"] * p_entree + alt_ecrit * ECRITURE[autre] * p_entree + alt_lu * p_lu + a["sortie"] * p_sortie
+            a["entree"] * p_entree + alt_ecrit * ecriture[autre] * p_entree + alt_lu * p_lu + a["sortie"] * p_sortie
         ) / 1e6
         precedent = a
         ctx_precedent = ctx + a["sortie"]
@@ -428,6 +442,114 @@ def agents_du_projet(dossier: Path, sessions: list[str] | None):
             meta_chemin = fichier.with_suffix(".meta.json")
             meta = json.loads(meta_chemin.read_text(encoding="utf-8")) if meta_chemin.exists() else {}
             yield session, fichier.stem[len("agent-") :], fichier, meta
+
+
+def _usage_profond(obj, trouve: list) -> None:
+    """Collecte récursivement les dicts portant ``input_tokens`` (le schéma du journal Vibe peut dériver)."""
+    if isinstance(obj, dict):
+        if "input_tokens" in obj:
+            trouve.append(obj)
+        for v in obj.values():
+            _usage_profond(v, trouve)
+    elif isinstance(obj, list):
+        for v in obj:
+            _usage_profond(v, trouve)
+
+
+def _ts_profond(obj):
+    if isinstance(obj, dict):
+        for cle in ("ts", "timestamp", "created_at"):
+            if isinstance(obj.get(cle), str) and obj[cle]:
+                return obj[cle]
+        for v in obj.values():
+            t = _ts_profond(v)
+            if t:
+                return t
+    elif isinstance(obj, list):
+        for v in obj:
+            t = _ts_profond(v)
+            if t:
+                return t
+    return None
+
+
+def appels_vibe(dossier_session: Path) -> list[dict]:
+    """Appels d'une session Mistral Vibe : ``<dossier_session>/journal/*.jsonl`` + ``meta.json``.
+
+    Sémantique d'usage reprise de Claude Code : ``entree`` = input_tokens (hors cache), ``lu`` =
+    cached_input_tokens, ``ecrit_5m`` = cache_write_tokens ; ``sortie`` = output_tokens + reasoning_tokens
+    (le reasoning est facturé en sortie chez Mistral). Le modèle vient de ``meta.json``
+    (``config.active_model``) ; un modèle sans tarif fait échouer la mesure (voir ``prix``).
+    """
+    meta: dict = {}
+    meta_chemin = dossier_session / "meta.json"
+    if meta_chemin.exists():
+        meta = json.loads(meta_chemin.read_text(encoding="utf-8"))
+    modele = str((meta.get("config") or {}).get("active_model") or "")
+    fam = famille(modele)
+    if fam is None:
+        sys.exit(
+            f"Tarif inconnu pour le modèle Vibe '{modele}' (session {dossier_session.name}) : ajoutez-le dans "
+            "plugins/couts-session/donnees/tarifs.json (prix.modeles, ou prix.familles pour un repli), "
+            "puis régénérez plugins/couts-session/hooks/tarifs.ts avec donnees/generer_tarifs.py."
+        )
+    debut = str(meta.get("start_time") or "")
+    resultat = []
+    journal = dossier_session / "journal"
+    if not journal.is_dir():
+        return []
+    for fichier in sorted(journal.glob("*.jsonl")):
+        for ligne in fichier.read_text(encoding="utf-8").splitlines():
+            try:
+                record = json.loads(ligne)
+            except ValueError:
+                continue
+            usages: list = []
+            _usage_profond(record, usages)
+            if not usages:
+                continue
+            u = usages[-1]
+            payload = record.get("payload") or {}
+            seq = record.get("sequence", len(resultat))
+            ts = _ts_profond(payload) or _ts_profond(record) or debut
+            sortie_declaree = int(u.get("output_tokens") or 0)
+            resultat.append(
+                {
+                    "id": str(payload.get("action_id") or f"{dossier_session.name}-{seq}"),
+                    "fam": fam,
+                    "modele": modele,
+                    "geo": None,
+                    "ts": ts,
+                    "entree": int(u.get("input_tokens") or 0),
+                    "ecrit_5m": int(u.get("cache_write_tokens") or 0),
+                    "ecrit_1h": 0,
+                    "lu": int(u.get("cached_input_tokens") or 0),
+                    "sortie_declaree": sortie_declaree,
+                    "sortie": sortie_declaree + int(u.get("reasoning_tokens") or 0),
+                }
+            )
+    return sorted((a for a in resultat if a["ts"]), key=lambda a: instant(a["ts"]))
+
+
+def agents_vibe(racine: Path, sessions: list[str] | None = None):
+    """Sessions Mistral Vibe sous ``racine`` (défaut ``~/.vibe/logs/session/unified/<id>/``).
+
+    Chaque session (racine ou session fille) produit une ligne « MAIN » ; le titre de la session
+    sert de description, suffixé « (Vibe) ».
+    """
+    for dossier in sorted(p for p in racine.iterdir() if p.is_dir()):
+        session = dossier.name
+        if sessions and not any(session.startswith(s) for s in sessions):
+            continue
+        liste = appels_vibe(dossier)
+        if not liste:
+            continue
+        meta: dict = {}
+        meta_chemin = dossier / "meta.json"
+        if meta_chemin.exists():
+            meta = json.loads(meta_chemin.read_text(encoding="utf-8"))
+        titre = str(meta.get("title") or "session Vibe")
+        yield session, "MAIN", None, {"agentType": "MAIN", "description": f"{titre} (Vibe)", "spawnDepth": 0}, liste
 
 
 def mediane(valeurs):
@@ -485,12 +607,23 @@ def main() -> int:
     analyseur.add_argument("--methode", choices=METHODES, default=METHODE_DEFAUT,
                            help="méthode d'impact : impactia (défaut, entrée comptée, expérimental) ou ecologits (sortie seule)")
     analyseur.add_argument("--car-par-token", type=float, default=2.2, help="caractères par token pour la sortie réestimée (2,2 mesuré, voir bancs/)")
+    analyseur.add_argument(
+        "--vibe",
+        type=Path,
+        nargs="?",
+        const=Path.home() / ".vibe" / "logs" / "session" / "unified",
+        default=None,
+        help="mesure aussi les sessions Mistral Vibe sous ce dossier (défaut si --vibe sans valeur : ~/.vibe/logs/session/unified)",
+    )
     options = analyseur.parse_args()
     global CARACTERES_PAR_TOKEN
     CARACTERES_PAR_TOKEN = options.car_par_token
     dossier = dossier_transcriptions(options.projet, options.racine)
-    if not dossier.is_dir():
+    if options.vibe is None and not dossier.is_dir():
         print(f"Aucune transcription sous {dossier}", file=sys.stderr)
+        return 1
+    if options.vibe is not None and not options.vibe.is_dir():
+        print(f"Aucun dossier de sessions Vibe sous {options.vibe}", file=sys.stderr)
         return 1
     motif = re.compile(options.filtre, re.IGNORECASE) if options.filtre else None
     options.out.mkdir(parents=True, exist_ok=True)
@@ -504,6 +637,12 @@ def main() -> int:
         liste = appels(chemin)
         if liste:
             retenus.append((session, ident, chemin, meta, liste))
+    if options.vibe is not None:
+        for session, ident, chemin, meta, liste in agents_vibe(options.vibe, options.session):
+            if motif and not motif.search(str(meta.get("description", ""))):
+                continue
+            if liste:
+                retenus.append((session, ident, chemin, meta, liste))
     retenus, doublons = dedoublonner(retenus)
     for session, ident, chemin, meta, liste, tous in retenus:
         description = str(meta.get("description", ""))
