@@ -96,3 +96,12 @@ def test_cout_session_vibe(tmp_path):
     c = mc.couts(liste)
     attendu = (3000 * 0.70 + 300 * 0.07 + 160 * 2.10) / 1e6  # entree + lecture + sortie(reasoning inclus)
     assert c["cout"] == pytest.approx(attendu, rel=1e-9)
+
+
+def test_bilan_collecter_bruts_vibe(tmp_path):
+    import bilan_tokens as bt
+
+    bruts = bt.collecter_bruts_vibe(session_vibe(tmp_path))
+    assert len(bruts) == 2
+    assert {a["modele"] for a in bruts} == {"mistral-large-4-0"}
+    assert sum(a["entree"] for a in bruts) == 3000
