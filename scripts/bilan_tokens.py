@@ -8,7 +8,8 @@ Un bilan sans champ ``methode`` (avant 0.9.0) a été calculé en ``ecologits``.
 
 Deux modes :
 
-- **Collecte** (défaut) : parcourt récursivement ``~/.claude/projects`` (ou ``--racine``),
+- **Collecte** (défaut) : parcourt récursivement ``~/.claude/projects`` (ou ``--racine``), plus
+  éventuellement les sessions **Mistral Vibe** (``--vibe``, voir ``mesurer_couts.agents_vibe``),
   éventuellement limité aux dossiers de projet dont le nom encodé commence par celui de
   ``--dossier`` (même encodage que ``mesurer_couts.dossier_transcriptions`` : un dossier
   encode son chemin absolu en remplaçant tout caractère hors ``[A-Za-z0-9]`` par ``-``, donc
@@ -131,6 +132,18 @@ def retenir(appels_uniques: list[dict], mois: str, du: str | None = None, au: st
 def collecter(projets: list[Path], mois: str, du: str | None = None, au: str | None = None) -> list[dict]:
     """Tous les appels de ``projets``, dédoublonnés et filtrés sur ``mois`` (ou sur ``du``..``au``)."""
     return retenir(collecter_bruts(projets)[0], mois, du, au)
+
+
+def collecter_bruts_vibe(racine_vibe: Path) -> list[dict]:
+    """Appels des sessions Mistral Vibe sous ``racine_vibe`` (une entrée par appel de journal)."""
+    bruts: list[dict] = []
+    for _session, _ident, _chemin, _meta, liste in mc.agents_vibe(racine_vibe):
+        bruts.extend(liste)
+    bruts.sort(key=lambda a: mc.instant(a["ts"]))
+    vus: dict[str, dict] = {}
+    for a in bruts:
+        vus.setdefault(a["id"], a)
+    return list(vus.values())
 
 
 def par_modele(appels_retenus: list[dict], mix: str, methode: str = mc.METHODE_DEFAUT) -> list[dict]:
@@ -331,10 +344,21 @@ def commande_collecte(options) -> int:
     libelle = f"{du} au {au}" if du else mois
     racines = liste_racines(options)
     projets = [p for racine in racines for p in projets_retenus(racine, options.dossier)]
-    if not projets:
+    vibe = getattr(options, "vibe", None)
+    if vibe is not None and not vibe.is_dir():
+        print(f"Aucun dossier de sessions Vibe sous {vibe}", file=sys.stderr)
+        return 1
+    if not projets and vibe is None:
         print(f"Aucun dossier de transcriptions sous {', '.join(map(str, racines))}" + (f" pour {options.dossier}" if options.dossier else ""), file=sys.stderr)
         return 1
-    uniques, infos = collecter_bruts(projets, detail)
+    uniques, infos = collecter_bruts(projets, detail) if projets else ([], {})
+    if vibe is not None:
+        uniques = uniques + collecter_bruts_vibe(vibe)
+        uniques.sort(key=lambda a: mc.instant(a["ts"]))
+        vus: dict[str, dict] = {}
+        for a in uniques:
+            vus.setdefault(a["id"], a)
+        uniques = list(vus.values())
     retenus = retenir(uniques, mois, du, au)
     if not retenus:
         print(f"Aucun appel pour {libelle}.", file=sys.stderr)
@@ -456,6 +480,8 @@ def main() -> int:
     analyseur.add_argument("--du", metavar="AAAA-MM-JJ", help="premier jour (UTC, inclus), avec --au, dans le même mois ; exclusif avec --mois")
     analyseur.add_argument("--au", metavar="AAAA-MM-JJ", help="dernier jour (UTC, inclus)")
     analyseur.add_argument("--racine", type=Path, action="append", help="racine de transcriptions, répétable (défaut : ~/.claude/projects)")
+    analyseur.add_argument("--vibe", type=Path, nargs="?", const=Path.home() / ".vibe" / "logs" / "session" / "unified", default=None,
+                           help="ajoute les sessions Mistral Vibe sous ce dossier (défaut si --vibe sans valeur : ~/.vibe/logs/session/unified)")
     analyseur.add_argument("--detail", action="store_true", help="ajoute le détail par projet, étape et rôle (JSON et sections 04 à 07)")
     analyseur.add_argument("--config", type=Path, default=bd.CONFIG_DEFAUT, help="config du détail (défaut : ~/.claude/cost-kit/bilan-config.json)")
     analyseur.add_argument("--machine", default=platform.node())
