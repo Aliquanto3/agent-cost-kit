@@ -306,7 +306,22 @@ def page_html(bilan: dict, langue: str = i18n.LANGUE_SOURCE, liens: dict[str, st
     recos = bd.recommandations(detail["brut"], detail, langue) if detail and langue != i18n.LANGUE_SOURCE else None
     donnees = i18n.traduire_donnees(bilan, langue, recos)
     injection = json.dumps(donnees, ensure_ascii=False).replace("</", "<\\/")
-    return page.replace(PLACEHOLDER, f"const BILAN={injection};")
+    page = page.replace(PLACEHOLDER, f"const BILAN={injection};")
+    # Étiquette de source : un bilan Vibe (seul ou mixte) ne doit pas s'afficher « Claude Code ».
+    sources = set(donnees.get("sources") or ["claude-code"])
+    if "vibe" in sources:
+        vibe_seul = sources == {"vibe"}
+        if vibe_seul:
+            page = page.replace("~/.claude/projects", "~/.vibe/logs/session/unified")
+            page = page.replace("CLAUDE.md", "AGENTS.md")
+        else:
+            page = page.replace(
+                "(<code>~/.claude/projects</code>)",
+                "(<code>~/.claude/projects</code> + <code>~/.vibe/logs/session/unified</code>)",
+            )
+        label = "Mistral Vibe" if vibe_seul else "Claude Code + Mistral Vibe"
+        page = page.replace("Claude Code", label).replace("Claude-Code", label.replace(" ", "-"))
+    return page
 
 
 def noms_pages(base: str, langues: tuple[str, ...]) -> dict[str, str]:
@@ -368,6 +383,7 @@ def commande_collecte(options) -> int:
         "schema": SCHEMA,
         "machine": options.machine,
         "mois": mois,
+        "sources": ["claude-code"] + (["vibe"] if vibe is not None else []),
         **({"du": du, "au": au} if du else {}),
         "dossier": str(options.dossier.resolve()) if options.dossier else None,
         "genere_le": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -446,6 +462,7 @@ def commande_fusion(options) -> int:
     consolide = {
         "schema": SCHEMA,
         "mois": mois_unique,
+        "sources": sorted({s for b in bilans for s in b.get("sources", ["claude-code"])}),
         **({"du": du, "au": au} if du else {}),
         "genere_le": datetime.now(UTC).isoformat(timespec="seconds"),
         "premier_appel": min(b["premier_appel"] for b in bilans),

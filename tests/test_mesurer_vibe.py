@@ -65,8 +65,8 @@ def test_agents_vibe_une_ligne_main(tmp_path):
 def test_appels_vibe_champs_usage(tmp_path):
     liste = list(mc.agents_vibe(session_vibe(tmp_path)))[0][4]
     a = liste[0]
-    # entree = input_tokens (hors cache), lu = cached, ecrit = cache_write, sortie = output + reasoning
-    assert (a["entree"], a["lu"], a["ecrit_5m"], a["ecrit_1h"]) == (1000, 100, 0, 0)
+    # Mistral/Vibe : input_tokens INCLUT le cache -> entree = input - cached ; lu = cached ; sortie = output + reasoning
+    assert (a["entree"], a["lu"], a["ecrit_5m"], a["ecrit_1h"]) == (900, 100, 0, 0)
     assert (a["sortie_declaree"], a["sortie"]) == (50, 60)
     assert a["modele"] == "mistral-large-4-0"
     assert a["fam"] == "mistral"
@@ -94,7 +94,8 @@ def test_session_vibe_modele_inconnu_fait_echouer(tmp_path):
 def test_cout_session_vibe(tmp_path):
     liste = list(mc.agents_vibe(session_vibe(tmp_path)))[0][4]
     c = mc.couts(liste)
-    attendu = (3000 * 0.70 + 300 * 0.07 + 160 * 2.10) / 1e6  # entree + lecture + sortie(reasoning inclus)
+    # entree non cachée (3000 - 300) à 0,70 $ + cache lu 300 à 0,07 $ + sortie 160 (reasoning inclus) à 2,10 $
+    attendu = ((3000 - 300) * 0.70 + 300 * 0.07 + 160 * 2.10) / 1e6
     assert c["cout"] == pytest.approx(attendu, rel=1e-9)
 
 
@@ -104,4 +105,29 @@ def test_bilan_collecter_bruts_vibe(tmp_path):
     bruts = bt.collecter_bruts_vibe(session_vibe(tmp_path))
     assert len(bruts) == 2
     assert {a["modele"] for a in bruts} == {"mistral-large-4-0"}
-    assert sum(a["entree"] for a in bruts) == 3000
+    assert sum(a["entree"] for a in bruts) == 2700  # input_tokens (3000) moins le cache (300)
+
+
+def _bilan_min(sources):
+    return {
+        "schema": 1, "machine": "pc", "mois": "2026-11", "dossier": None,
+        "genere_le": "2026-11-23T00:00:00+00:00", "premier_appel": "2026-11-23T00:00:00Z",
+        "dernier_appel": "2026-11-23T00:00:00Z", "mix": mc.MIX_DEFAUT, "methode": mc.METHODE_DEFAUT,
+        "modeles": [], "prix": {}, "sources": sources,
+    }
+
+
+def test_page_html_label_vibe_seul():
+    import bilan_tokens as bt
+
+    page = bt.page_html(_bilan_min(["vibe"]), "fr")
+    assert "Claude Code" not in page
+    assert "Mistral Vibe" in page
+    assert "~/.vibe/logs/session/unified" in page
+
+
+def test_page_html_label_claude_code_par_defaut():
+    import bilan_tokens as bt
+
+    page = bt.page_html(_bilan_min(["claude-code"]), "fr")
+    assert "Claude Code" in page  # comportement historique inchangé hors Vibe

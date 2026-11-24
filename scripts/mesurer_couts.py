@@ -476,9 +476,11 @@ def _ts_profond(obj):
 def appels_vibe(dossier_session: Path) -> list[dict]:
     """Appels d'une session Mistral Vibe : ``<dossier_session>/journal/*.jsonl`` + ``meta.json``.
 
-    Sémantique d'usage reprise de Claude Code : ``entree`` = input_tokens (hors cache), ``lu`` =
-    cached_input_tokens, ``ecrit_5m`` = cache_write_tokens ; ``sortie`` = output_tokens + reasoning_tokens
-    (le reasoning est facturé en sortie chez Mistral). Le modèle vient de ``meta.json``
+    Sémantique d'usage Mistral/Vibe, différente de Claude Code : ``input_tokens`` INCLUT le cache
+    (``total_tokens`` = input + output et ``cached_input_tokens`` en est un sous-ensemble), donc
+    ``entree`` = input_tokens - cached_input_tokens (entrée non cachée), ``lu`` = cached_input_tokens,
+    ``ecrit_5m`` = cache_write_tokens ; ``sortie`` = output_tokens + reasoning_tokens (le reasoning est
+    facturé en sortie chez Mistral). Le modèle vient de ``meta.json``
     (``config.active_model``) ; un modèle sans tarif fait échouer la mesure (voir ``prix``).
     """
     meta: dict = {}
@@ -520,7 +522,7 @@ def appels_vibe(dossier_session: Path) -> list[dict]:
                     "modele": modele,
                     "geo": None,
                     "ts": ts,
-                    "entree": int(u.get("input_tokens") or 0),
+                    "entree": max(0, int(u.get("input_tokens") or 0) - int(u.get("cached_input_tokens") or 0)),
                     "ecrit_5m": int(u.get("cache_write_tokens") or 0),
                     "ecrit_1h": 0,
                     "lu": int(u.get("cached_input_tokens") or 0),
